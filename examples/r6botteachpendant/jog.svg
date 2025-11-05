@@ -1,0 +1,13 @@
+<svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Base (larger circle at bottom) -->
+  <ellipse cx="30" cy="42" rx="20" ry="8" fill="white" opacity="0.6"/>
+
+  <!-- Stick shaft -->
+  <path d="M 28 42 L 26 22 L 34 22 L 32 42 Z" fill="white"/>
+
+  <!-- Joystick ball/top -->
+  <circle cx="30" cy="18" r="10" fill="white"/>
+
+  <!-- Shine/highlight on ball -->
+  <circle cx="27" cy="15" r="3" fill="white" opacity="0.4"/>
+</svg>

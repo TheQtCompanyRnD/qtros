@@ -1,0 +1,2 @@
+prepend-non-duplicate-if-exists;QML_IMPORT_PATH;lib/qt6/qml
+prepend-non-duplicate-if-exists;QML2_IMPORT_PATH;lib/qt6/qml

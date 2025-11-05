@@ -1,0 +1,8 @@
+<svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer pin shape outline only -->
+  <path d="M 30 8 C 20 8 12 16 12 26 C 12 36 30 52 30 52 C 30 52 48 36 48 26 C 48 16 40 8 30 8 Z"
+        fill="none" stroke="white" stroke-width="2.5"/>
+
+  <!-- Inner circle outline -->
+  <circle cx="30" cy="26" r="7" fill="none" stroke="white" stroke-width="2.5"/>
+</svg>

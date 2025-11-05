@@ -1,0 +1,12 @@
+build/
+**/build/
+
+log/
+**/log/
+
+install/
+**/install/
+
+CMakeLists.txt.user
+**/.qtcreator
+
