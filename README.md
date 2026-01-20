@@ -213,6 +213,8 @@ For application development using the generated types, rebuilding is not require
 
 The repository includes five example applications demonstrating different QtROS2 features. Examples are located in the `examples/` directory and excluded from the default workspace build (via `COLCON_IGNORE`).
 
+> **Important:** Before running an example, ensure that all ROS 2 nodes from previous examples are terminated. This includes both the QtROS2 application and any backend ROS 2 nodes (e.g., `turtlesim_node`, simulation launches). Running multiple examples or their ROS 2 counterparts simultaneously can cause conflicts with node names, topics, or TF transforms, leading to unexpected behavior such as incorrect poses or missing data.
+
 ### Simple Publisher
 
 **Location:** [examples/simple_publisher](examples/simple_publisher/)
