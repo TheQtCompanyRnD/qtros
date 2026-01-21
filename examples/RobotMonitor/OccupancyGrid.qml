@@ -72,12 +72,11 @@ Node {
                     tilingModeHorizontal: Texture.ClampToEdge
                     tilingModeVertical: Texture.ClampToEdge
 
-                    textureData: RawGridTextureData {
-                        id: mapGridTextureData
-                        // Direct Bindings to ROS Msg
-                        gridData: gridNode.grid.data
-                        width: gridNode.width
-                        height: gridNode.height
+                    textureData: ProceduralTextureData {
+                        textureData: gridNode.grid.data
+                        width: gridNode.grid.info.width
+                        height: gridNode.grid.info.height
+                        format: ProceduralTextureData.R8
                     }
                 }
             }

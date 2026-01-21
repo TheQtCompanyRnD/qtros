@@ -83,6 +83,7 @@ qt_add_qml_module(appRobotMonitor
         LaserScanVisualSettings.qml
         ColorSettingsEntry.qml
         SchemeSelector.qml
+        GridPalette.qml
     RESOURCES
         shaders/IndexedGrid.frag
         shaders/IndexedGrid.vert
@@ -92,9 +93,8 @@ qt_add_qml_module(appRobotMonitor
         images/gear.svg
         images/robot.svg
     SOURCES
-        rawgridtexturedata.h rawgridtexturedata.cpp
-        gridpalette.h gridpalette.cpp
         rosimageitem.h rosimageitem.cpp
+        QML_FILES
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
