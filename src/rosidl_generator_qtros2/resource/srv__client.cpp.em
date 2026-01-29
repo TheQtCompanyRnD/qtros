@@ -106,7 +106,9 @@ void @(qt_class_name)ServiceClient::setupConnection()
         return;
     }
 
-    m_client = node()->rosNode()->create_client<@(ros_srv_type)>(m_topic.toStdString(), qos());
+    const auto ros_qos = static_cast<rclcpp::QoS>(qos());
+    const auto rmw_qos = ros_qos.get_rmw_qos_profile();
+    m_client = node()->rosNode()->create_client<@(ros_srv_type)>(m_topic.toStdString(), rmw_qos);
 }
 
 void @(qt_class_name)ServiceClient::checkHealth()
