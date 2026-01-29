@@ -14,17 +14,8 @@
 class QROS2Context
 {
 public:
-    static void init(int argc, char **argv, bool useMultithreadedExecutor = false, size_t threadCount = 0)
-    {
-        auto &ctx = instance();
-        ctx.initialize(argc, argv, useMultithreadedExecutor, threadCount);
-    }
-
-    static QROS2Context &instance()
-    {
-        static QROS2Context ctx;
-        return ctx;
-    }
+    static void init(int argc, char **argv, bool useMultithreadedExecutor = false, size_t threadCount = 0);
+    static QROS2Context &instance();
 
     std::shared_ptr<rclcpp::Executor> executor() const { return m_executor; }
 
@@ -32,44 +23,9 @@ public:
     QROS2Context &operator=(const QROS2Context &) = delete;
 
 private:
-    QROS2Context() = default;
-
-    void initialize(int argc, char **argv, bool useMultithreadedExecutor, size_t threadCount)
-    {
-        if (m_initialized)
-            return;
-
-        rclcpp::init(argc, argv);
-
-        if (useMultithreadedExecutor) {
-            rclcpp::ExecutorOptions options;
-            m_executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>(options, threadCount);
-        } else {
-            m_executor = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
-        }
-
-        m_spinThread = std::thread([this]() { m_executor->spin(); });
-
-        m_initialized = true;
-    }
-
-    ~QROS2Context()
-    {
-        if (!m_initialized)
-            return;
-
-        if (m_executor) {
-            m_executor->cancel();
-        }
-
-        if (m_spinThread.joinable()) {
-            m_spinThread.join();
-        }
-
-        if (rclcpp::ok()) {
-            rclcpp::shutdown();
-        }
-    }
+    QROS2Context();
+    void initialize(int argc, char **argv, bool useMultithreadedExecutor, size_t threadCount);
+    ~QROS2Context();
 
     bool m_initialized = false;
     std::shared_ptr<rclcpp::Executor> m_executor;

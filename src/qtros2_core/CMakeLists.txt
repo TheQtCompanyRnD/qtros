@@ -60,6 +60,7 @@ qt_add_qml_module(qtros2_core
     VERSION 1.0
     SOURCES
         src/qros2_node.cpp
+        src/qros2_context.cpp
         src/qros2_entity.cpp
         src/qros2_publisher_base.cpp
         src/qros2_subscriber_base.cpp

@@ -58,7 +58,16 @@ void QRos2Node::initializeNode()
             m_nodeNamespace.toStdString()
             );
 
-        QROS2Context::instance().executor()->add_node(m_rosNode);
+        auto executor = QROS2Context::instance().executor();
+        if (!executor) {
+            qWarning() << "QROS2Context executor not initialized. Call QROS2Context::init(...) before creating nodes.";
+            m_rosNode.reset();
+            m_initialized = false;
+            emit initializedChanged();
+            return;
+        }
+
+        executor->add_node(m_rosNode);
 
         m_healthTimer.start();
 
