@@ -17,10 +17,33 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(rmw REQUIRED)
 find_package(rosidl_runtime_cpp REQUIRED)
 
 # Find Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Qml Quick Concurrent)
+
+# Detect QoS "best available" support (added in newer ROS 2)
+include(CheckCXXSourceCompiles)
+set(_qtros2_core_required_includes "${CMAKE_REQUIRED_INCLUDES}")
+set(CMAKE_REQUIRED_INCLUDES ${rmw_INCLUDE_DIRS})
+check_cxx_source_compiles("
+#include <rmw/types.h>
+int main() {
+  rmw_qos_reliability_policy_t policy = RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE;
+  (void)policy;
+  return 0;
+}
+" QTROS2_HAS_RMW_QOS_RELIABILITY_BEST_AVAILABLE)
+check_cxx_source_compiles("
+#include <rmw/types.h>
+int main() {
+  rmw_qos_durability_policy_t policy = RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE;
+  (void)policy;
+  return 0;
+}
+" QTROS2_HAS_RMW_QOS_DURABILITY_BEST_AVAILABLE)
+set(CMAKE_REQUIRED_INCLUDES "${_qtros2_core_required_includes}")
 
 # Enable Qt MOC, RCC, UIC
 set(CMAKE_AUTOMOC ON)
@@ -76,6 +99,11 @@ target_include_directories(qtros2_core PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
+target_compile_definitions(qtros2_core PUBLIC
+    $<$<BOOL:${QTROS2_HAS_RMW_QOS_RELIABILITY_BEST_AVAILABLE}>:QTROS2_HAS_RMW_QOS_RELIABILITY_BEST_AVAILABLE>
+    $<$<BOOL:${QTROS2_HAS_RMW_QOS_DURABILITY_BEST_AVAILABLE}>:QTROS2_HAS_RMW_QOS_DURABILITY_BEST_AVAILABLE>
+)
+
 # Link Qt libraries
 target_link_libraries(qtros2_core PUBLIC
     Qt6::Core
@@ -91,6 +119,7 @@ target_link_libraries(qtros2_core PRIVATE
 ament_target_dependencies(qtros2_core PUBLIC
     rclcpp
     rclcpp_action
+    rmw
     rosidl_runtime_cpp
 )
 
@@ -133,6 +162,7 @@ ament_export_targets(qtros2_coreTargets HAS_LIBRARY_TARGET)
 ament_export_dependencies(
     rclcpp
     rclcpp_action
+    rmw
     rosidl_runtime_cpp
     Qt6Core
     Qt6Qml

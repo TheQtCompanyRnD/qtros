@@ -19,11 +19,13 @@ QRos2QoS::operator rclcpp::QoS() const
     case RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT:
         qos.best_effort();
         break;
+#if defined(QTROS2_HAS_RMW_QOS_RELIABILITY_BEST_AVAILABLE)
     case RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE:
         // rclcpp doesn't have a direct method for best_available,
         // use reliability() with the RMW constant
         qos.reliability(static_cast<rmw_qos_reliability_policy_t>(m_reliability));
         break;
+#endif
     case RMW_QOS_POLICY_RELIABILITY_UNKNOWN:
         qos.reliability(static_cast<rmw_qos_reliability_policy_t>(m_reliability));
         break;
@@ -38,10 +40,12 @@ QRos2QoS::operator rclcpp::QoS() const
     case RMW_QOS_POLICY_DURABILITY_VOLATILE:
         qos.durability_volatile();
         break;
+#if defined(QTROS2_HAS_RMW_QOS_DURABILITY_BEST_AVAILABLE)
     case RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE:
         // Use durability() with the RMW constant
         qos.durability(static_cast<rmw_qos_durability_policy_t>(m_durability));
         break;
+#endif
     case RMW_QOS_POLICY_DURABILITY_UNKNOWN:
         qos.durability(static_cast<rmw_qos_durability_policy_t>(m_durability));
         break;

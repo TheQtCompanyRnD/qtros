@@ -33,7 +33,9 @@ public:
         ReliabilityReliable = RMW_QOS_POLICY_RELIABILITY_RELIABLE,
         ReliabilityBestEffort = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
         ReliabilityUnknown = RMW_QOS_POLICY_RELIABILITY_UNKNOWN,
-        ReliabilityBestAvailable = RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE
+#if defined(QTROS2_HAS_RMW_QOS_RELIABILITY_BEST_AVAILABLE)
+        ReliabilityBestAvailable = RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE,
+#endif
     };
     Q_ENUM(ReliabilityPolicy)
 
@@ -42,7 +44,9 @@ public:
         DurabilityTransientLocal = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL,
         DurabilityVolatile = RMW_QOS_POLICY_DURABILITY_VOLATILE,
         DurabilityUnknown = RMW_QOS_POLICY_DURABILITY_UNKNOWN,
-        DurabilityBestAvailable = RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE
+#if defined(QTROS2_HAS_RMW_QOS_DURABILITY_BEST_AVAILABLE)
+        DurabilityBestAvailable = RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE,
+#endif
     };
     Q_ENUM(DurabilityPolicy)
 
