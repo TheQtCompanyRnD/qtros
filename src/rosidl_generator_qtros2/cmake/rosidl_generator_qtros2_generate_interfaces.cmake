@@ -45,6 +45,11 @@ endfunction()
 find_package(qtros2_core REQUIRED)
 find_package(Qt6 COMPONENTS Core Qml REQUIRED)
 
+# Compatibility for distros without rosidl_find_package_idl (e.g., Galactic)
+if(NOT COMMAND rosidl_find_package_idl)
+  include("${rosidl_generator_qtros2_DIR}/rosidl_find_package_idl_compat.cmake")
+endif()
+
 set(_qtros2_generator_target "${rosidl_generate_interfaces_TARGET}")
 
 # Determine QML module URI/path, allowing overrides from qtros2_generate_from_package

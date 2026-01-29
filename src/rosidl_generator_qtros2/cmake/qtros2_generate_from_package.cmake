@@ -24,6 +24,11 @@ macro(qtros2_generate_from_package)
   find_package(qtros2_core REQUIRED)
   find_package(Qt6 REQUIRED COMPONENTS Core Qml)
 
+  # Compatibility for distros without rosidl_find_package_idl (e.g., Galactic)
+  if(NOT COMMAND rosidl_find_package_idl)
+    include("${rosidl_generator_qtros2_DIR}/rosidl_find_package_idl_compat.cmake")
+  endif()
+
   if(NOT COMMAND qtros2_analyze_idl_dependencies)
     include("${rosidl_generator_qtros2_DIR}/analyze_idl_dependencies.cmake")
   endif()
