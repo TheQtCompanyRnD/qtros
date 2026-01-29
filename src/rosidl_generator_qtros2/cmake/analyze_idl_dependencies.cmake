@@ -28,13 +28,21 @@ function(qtros2_analyze_idl_dependencies)
   # Find Python interpreter
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-  # Find the dependency analyzer script
-  # It should be in the rosidl_generator_qtros2 package
-  set(_analyzer_script "${rosidl_generator_qtros2_DIR}/../../../lib/python3.12/site-packages/rosidl_generator_qtros2/dependency_analyzer.py")
+  # Find the dependency analyzer script (respect current Python version/prefix)
+  get_filename_component(_qtros2_share "${rosidl_generator_qtros2_DIR}" DIRECTORY)
+  get_filename_component(_qtros2_prefix "${_qtros2_share}" DIRECTORY)
+  get_filename_component(_qtros2_prefix "${_qtros2_prefix}" DIRECTORY)
 
-  # Also try installed location
+  set(_python_version "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+  set(_analyzer_script "${_qtros2_prefix}/lib/python${_python_version}/site-packages/rosidl_generator_qtros2/dependency_analyzer.py")
+
+  # Debian/Ubuntu dist-packages fallback
   if(NOT EXISTS "${_analyzer_script}")
-    # Try to find it in the source tree (for development)
+    set(_analyzer_script "${_qtros2_prefix}/lib/python${_python_version}/dist-packages/rosidl_generator_qtros2/dependency_analyzer.py")
+  endif()
+
+  # Source tree fallback
+  if(NOT EXISTS "${_analyzer_script}")
     set(_analyzer_script "${CMAKE_CURRENT_LIST_DIR}/../rosidl_generator_qtros2/dependency_analyzer.py")
   endif()
 
