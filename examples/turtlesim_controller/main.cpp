@@ -2,12 +2,12 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
-#include <qtros2_core/qros2_context.hpp>
+#include <QtRos2Core/qros2context.h>
 #include <QDir>
 
 int main(int argc, char *argv[])
 {
-    QROS2Context::init(argc, argv);
+    QRos2Context::init(argc, argv);
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine engine;

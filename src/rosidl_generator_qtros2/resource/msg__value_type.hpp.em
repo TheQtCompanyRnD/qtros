@@ -1,4 +1,4 @@
-// Copyright (C) 2022 The Qt Company Ltd.
+// Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 @# Generation template for Qt value type (Q_GADGET) header
@@ -39,9 +39,18 @@ qml_value_type_name = get_qml_value_type_name(package_name, message.structure.na
 emit_wrapper_flag = emit_wrapper if 'emit_wrapper' in locals() else True
 single_field_qt_type = get_single_field_type(message, package_name)
 header_guard = build_include_guard(package_name, 'msg', context['header_file'])
+qt_export_macro = f'Q_{qt_module_name.upper()}_EXPORT'
+qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 }@
 #ifndef @(header_guard)
 #define @(header_guard)
+
+#include <QtCore/qglobal.h>
+#if defined(@(qt_build_define))
+#  define @(qt_export_macro) Q_DECL_EXPORT
+#else
+#  define @(qt_export_macro) Q_DECL_IMPORT
+#endif
 
 #include <QObject>
 #include <QQmlEngine>
@@ -51,7 +60,7 @@ header_guard = build_include_guard(package_name, 'msg', context['header_file'])
 #include <@(ros_include)>
 @[for pkg, msg_name, is_cross in nested_includes]@
 @[  if is_cross]@
-#include <qtros2_@(pkg)/msg/@(to_snake_case(msg_name)).hpp>
+#include <@(qt_package_mapping.get(pkg, f'qtros2_{pkg}'))/msg/@(to_snake_case(msg_name)).hpp>
 @[  else]@
 #include "@(to_snake_case(msg_name)).hpp"
 @[  end if]@
@@ -66,7 +75,7 @@ namespace @(qt_namespace) {
  * This is a Q_GADGET value type that can be used in QML.
  * It provides bidirectional conversion with the ROS message type.
  */
-class @(qt_class_name)
+class @(qt_export_macro) @(qt_class_name)
 {
     Q_GADGET
     QML_VALUE_TYPE(@(qml_value_type_name))

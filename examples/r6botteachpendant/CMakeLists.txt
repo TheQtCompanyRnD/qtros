@@ -13,8 +13,8 @@ find_package(qtros2_trajectory_msgs REQUIRED)
 qtros2_generate_from_package(
     TARGET qtros2_tf2_msgs
     SOURCE_PACKAGE tf2_msgs
-    QML_MODULE_URI QtROS2.Tf2Msgs
-    QML_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/QtROS2/Tf2Msgs
+    QML_MODULE_URI QtRos2.Tf2Msgs
+    QML_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/QtRos2/Tf2Msgs
 )
 
 qt_standard_project_setup()

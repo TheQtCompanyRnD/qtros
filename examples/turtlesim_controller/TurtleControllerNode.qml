@@ -1,7 +1,7 @@
 import QtQuick
-import QtROS2.Core
-import TurtleSimMsgs
-import QtROS2.GeometryMsgs as Geom
+import QtRos2.Core
+import QtRos2.Imported.Turtlesim
+import QtRos2.GeometryMsgs as Geom
 
 Item {
     id: root

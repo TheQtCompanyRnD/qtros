@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Helpers
-import QtROS2.NavMsgs
+import QtRos2.NavMsgs
 
 Node {
     id: gridNode

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQml
-import QtROS2.Tf2Msgs
-import QtROS2.GeometryMsgs
+import QtRos2.Tf2Msgs
+import QtRos2.GeometryMsgs
 
 // TFBufferManager is a specialized component that caches the local transforms
 // for the TurtleBot4 navigation stack as explicit, typed properties.

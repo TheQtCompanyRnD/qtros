@@ -1,4 +1,4 @@
-# Copyright (C) 2022 The Qt Company Ltd.
+# Copyright (C) 2026 The Qt Company Ltd.
 # SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 # Copyright 2024 QtROS2 Developers
@@ -38,17 +38,23 @@ from rosidl_parser.definition import Message, Service, Action, IdlLocator
 from .dependency_analyzer import analyze_package_dependencies
 
 
-def generate_qtros2(generator_arguments_file) -> List[str]:
+def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_package=None) -> List[str]:
     """
     Generate Qt/QML C++ wrapper code from ROS 2 IDL definitions.
 
     This is called by the rosidl infrastructure with a JSON arguments file.
     """
+    if qt_package_mapping is None:
+        qt_package_mapping = {}
+
     # Load generator arguments
     with open(generator_arguments_file, 'r') as f:
         args = json.load(f)
 
     package_name = args['package_name']
+    # namespace_package: ROS2 source package name for namespace/type generation.
+    # package_name (Qt module name) is used for output directory structure only.
+    namespace_package = source_package if source_package else package_name
     output_dir = Path(args['output_dir'])
     template_dir = Path(args['template_dir'])
     idl_tuples = args.get('idl_tuples', [])
@@ -123,7 +129,8 @@ def generate_qtros2(generator_arguments_file) -> List[str]:
             emit_wrapper = needs_wrap
 
         context = {
-            'package_name': package_name,
+            'package_name': namespace_package,
+            'qt_module_name': package_name,
             'message': message_spec,
             'spec': message_spec,
             'interface_path': interface_path,
@@ -139,6 +146,7 @@ def generate_qtros2(generator_arguments_file) -> List[str]:
             'qtros2_interface_subdir': interface_type,
             'ros_include_override': ros_include_override,
             'emit_wrapper': emit_wrapper,
+            'qt_package_mapping': qt_package_mapping,
         }
 
         templates = []
@@ -230,7 +238,8 @@ def generate_qtros2(generator_arguments_file) -> List[str]:
             out_srv_src_dir.mkdir(parents=True, exist_ok=True)
 
             context = {
-                'package_name': package_name,
+                'package_name': namespace_package,
+                'qt_module_name': package_name,
                 'service': service_spec,
                 'spec': service_spec,
                 'interface_path': idl_file,
@@ -242,6 +251,7 @@ def generate_qtros2(generator_arguments_file) -> List[str]:
                 'get_single_field_include': get_single_field_include,
                 'msg_type_to_qt': msg_type_to_qt,
                 'msg_type_to_cpp': msg_type_to_cpp,
+                'qt_package_mapping': qt_package_mapping,
             }
 
             service_templates = [
@@ -315,7 +325,8 @@ def generate_qtros2(generator_arguments_file) -> List[str]:
                 )
 
             action_context = {
-                'package_name': package_name,
+                'package_name': namespace_package,
+                'qt_module_name': package_name,
                 'action': action_spec,
                 'spec': action_spec,
                 'interface_path': idl_file,
@@ -329,6 +340,7 @@ def generate_qtros2(generator_arguments_file) -> List[str]:
                 'msg_type_to_cpp': msg_type_to_cpp,
                 'to_snake_case': to_snake_case,
                 'ros_action_include': ros_action_include,
+                'qt_package_mapping': qt_package_mapping,
             }
 
             action_templates = [
@@ -380,6 +392,102 @@ def generate_qtros2(generator_arguments_file) -> List[str]:
     manifest_path.write_text("\n".join(manifest_lines))
 
     return generated_files
+
+
+def generate_cmake_vars(
+    output_path: str,
+    target_name: str,
+    qml_uri: str,
+    qml_imports: List[str],
+    generated_headers: List[str],
+    generated_sources: List[str],
+    dependency_packages: List[str],
+    dependency_qt_targets: dict,
+    generated_parent_folders: List[str],
+):
+    """
+    Generate qtros2_module_vars.cmake — cmake variable assignments consumed by
+    rosidl_generator_qtros2_generate_interfaces.cmake via include().
+
+    See also: qtros2_generated_files.cmake
+    """
+    from pathlib import Path as _Path
+
+    out = _Path(output_path) / "qtros2_module_vars.cmake"
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    # Derive module name from the last component of the target (CamelCase)
+    module_name = target_name
+
+    # Build import list (URIs as passed in, format: "Module.URI/version")
+    imports_lines = "\n".join(f'    "{imp}"' for imp in qml_imports)
+
+    # Source file lists (relative paths)
+    headers_lines = "\n".join(f'    "{h}"' for h in generated_headers)
+    sources_lines = "\n".join(f'    "{s}"' for s in generated_sources)
+
+    # Public include dirs use CMAKE_CURRENT_LIST_DIR because the vars file is include()d
+    include_dirs = [
+        '"$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>"',
+    ]
+    for folder in sorted(set(generated_parent_folders)):
+        include_dirs.append(
+            f'"$<BUILD_INTERFACE:${{CMAKE_CURRENT_LIST_DIR}}/include/{module_name}/{folder}>"'
+        )
+    include_dirs.append('"$<INSTALL_INTERFACE:include>"')
+    include_dirs_lines = "\n".join(f"    {d}" for d in include_dirs)
+
+    # Public libraries: Qt6::Ros2Core + Qt targets for each dependency
+    public_libs = ["Qt6::Ros2Core"]
+    private_libs = ["Qt6::Ros2CorePrivate"]
+    no_qt_fallbacks = []
+    for dep in dependency_packages:
+        qt_target = dependency_qt_targets.get(dep, "")
+        if qt_target:
+            public_libs.append(f'"{qt_target}"')
+        else:
+            no_qt_fallbacks.append(dep)
+    public_libs_lines = "\n".join(f'    {lib}' for lib in public_libs)
+    private_libs_lines = "\n".join(f'    {lib}' for lib in private_libs)
+
+    lines = [
+        f"# Generated cmake variables for {module_name}",
+        "# DO NOT EDIT - Regenerated from IDL files",
+        "",
+        f'set(_qtros2_module_name "{module_name}")',
+        f'set(_qtros2_module_uri "{qml_uri}")',
+        "",
+        "set(_qtros2_module_imports",
+        imports_lines,
+        ")",
+        "",
+        "set(_qtros2_module_sources",
+        headers_lines,
+        sources_lines,
+        ")",
+        "",
+        "set(_qtros2_module_public_include_dirs",
+        include_dirs_lines,
+        ")",
+        "",
+        "set(_qtros2_module_public_libs",
+        public_libs_lines,
+        ")",
+        "",
+    ]
+
+    if no_qt_fallbacks:
+        lines += [
+            "# Non-Qt dependency fallbacks (packages without a known Qt target at generation time)",
+        ]
+    lines += [
+        "set(_qtros2_module_private_libs",
+        private_libs_lines,
+        ")",
+    ]
+
+    out.write_text("\n".join(lines) + "\n")
+    return str(out)
 
 
 # Type mapping from ROS IDL types to Qt types

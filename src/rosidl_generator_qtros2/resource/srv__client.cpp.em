@@ -1,4 +1,4 @@
-// Copyright (C) 2022 The Qt Company Ltd.
+// Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 @# Generation template for Qt service client implementation
@@ -73,9 +73,9 @@ if hasattr(response_msg, 'structure') and hasattr(response_msg.structure, 'membe
     resp_members = [m for m in response_msg.structure.members if m.name != 'structure_needs_at_least_one_member']
 }@
 #include "@(service_header)_service_client.hpp"
-#include <qtros2_core/qros2_node.hpp>
+#include <QtRos2Core/private/qros2node_p.h>
 #if !defined(QTROS2_EXPERIMENTAL_FUTURE)
-#include <qtros2_core/js_future_wrapper.hpp>
+#include <QtRos2Core/private/jsfuturewrapper_p.h>
 #include <QQmlEngine>
 #endif
 #include <QCoreApplication>

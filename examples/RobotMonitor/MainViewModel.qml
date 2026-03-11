@@ -1,7 +1,7 @@
 import QtQuick
-import QtROS2.NavMsgs
-import QtROS2.Tf2Msgs
-import QtROS2.SensorMsgs
+import QtRos2.NavMsgs
+import QtRos2.Tf2Msgs
+import QtRos2.SensorMsgs
 import Nav2Msgs
 import IRobotCreateMsgs
 import QtQuick3D

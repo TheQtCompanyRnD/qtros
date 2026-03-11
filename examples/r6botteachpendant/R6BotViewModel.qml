@@ -1,8 +1,8 @@
 import QtQuick
-import QtROS2.Core
-import QtROS2.SensorMsgs as SensorMsgs
-import QtROS2.Tf2Msgs
-import QtROS2.TrajectoryMsgs as TrajectoryMsgs
+import QtRos2.Core
+import QtRos2.SensorMsgs as SensorMsgs
+import QtRos2.Tf2Msgs
+import QtRos2.TrajectoryMsgs as TrajectoryMsgs
 
 QtObject {
     id: root

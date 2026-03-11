@@ -1,4 +1,4 @@
-// Copyright (C) 2022 The Qt Company Ltd.
+// Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 @# Generation template for Qt action client header
@@ -34,7 +34,7 @@ else:
     if goal_field_info:
         pkg, msg_name, is_cross = goal_field_info
         if is_cross:
-            goal_include = f'<qtros2_{pkg}/msg/{to_snake_case(msg_name)}.hpp>'
+            goal_include = f'<{qt_package_mapping.get(pkg, f"qtros2_{pkg}")}/msg/{to_snake_case(msg_name)}.hpp>'
         else:
             goal_include = f'"{to_snake_case(msg_name)}.hpp"'
     else:
@@ -57,7 +57,7 @@ else:
     if result_field_info:
         pkg, msg_name, is_cross = result_field_info
         if is_cross:
-            result_include = f'<qtros2_{pkg}/msg/{to_snake_case(msg_name)}.hpp>'
+            result_include = f'<{qt_package_mapping.get(pkg, f"qtros2_{pkg}")}/msg/{to_snake_case(msg_name)}.hpp>'
         else:
             result_include = f'"{to_snake_case(msg_name)}.hpp"'
     else:
@@ -75,7 +75,7 @@ else:
     if feedback_field_info:
         pkg, msg_name, is_cross = feedback_field_info
         if is_cross:
-            feedback_include = f'<qtros2_{pkg}/msg/{to_snake_case(msg_name)}.hpp>'
+            feedback_include = f'<{qt_package_mapping.get(pkg, f"qtros2_{pkg}")}/msg/{to_snake_case(msg_name)}.hpp>'
         else:
             feedback_include = f'"{to_snake_case(msg_name)}.hpp"'
     else:
@@ -87,11 +87,20 @@ name_list = ns_list + [action.namespaced_type.name]
 ros_action_type = '::'.join(name_list)
 ros_include = ros_action_include if 'ros_action_include' in locals() and ros_action_include else package_name + '/action/' + to_snake_case(action_name) + '.hpp'
 header_guard = build_include_guard(package_name, 'action', base_name + '_action_client')
+qt_export_macro = f'Q_{qt_module_name.upper()}_EXPORT'
+qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 }@
 #ifndef @(header_guard)
 #define @(header_guard)
 
-#include <qtros2_core/qros2_action_client_base.hpp>
+#include <QtCore/qglobal.h>
+#if defined(@(qt_build_define))
+#  define @(qt_export_macro) Q_DECL_EXPORT
+#else
+#  define @(qt_export_macro) Q_DECL_IMPORT
+#endif
+
+#include <QtRos2Core/private/qros2actionclientbase_p.h>
 @[if goal_include]@
 #include @(goal_include)
 @[end if]@
@@ -110,7 +119,7 @@ header_guard = build_include_guard(package_name, 'action', base_name + '_action_
 
 namespace @(qt_namespace) {
 
-class @(qt_class_name)ActionClient : public QRos2ActionClientBase
+class @(qt_export_macro) @(qt_class_name)ActionClient : public QRos2ActionClientBase
 {
     Q_OBJECT
     QML_ELEMENT

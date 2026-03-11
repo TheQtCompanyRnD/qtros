@@ -1,4 +1,4 @@
-// Copyright (C) 2022 The Qt Company Ltd.
+// Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 @# Generation template for Qt value type (Q_GADGET) implementation
@@ -27,7 +27,7 @@ value_helpers = build_value_type_descriptors(package_name, message)
 field_infos = value_helpers['field_infos']
 post_init_lines = value_helpers['post_init_lines']
 }@
-#include "@(package_name)/@(header_subdir)/@(header_file).hpp"
+#include "@(header_file).hpp"
 
 @[if emit_wrapper_flag]@
 @(qt_namespace)::@(qt_class_name)::@(qt_class_name)(const @(ros_msg_type)& ros)

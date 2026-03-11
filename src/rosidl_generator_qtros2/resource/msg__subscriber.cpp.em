@@ -1,4 +1,4 @@
-// Copyright (C) 2022 The Qt Company Ltd.
+// Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 @# Generation template for Qt subscriber class implementation
@@ -19,7 +19,7 @@ ros_msg_type = context['ros_msg_type']
 ros_include = context['ros_include']
 header_file = context['header_file']
 }@
-#include "@(package_name)/msg/@(header_file)_subscriber.hpp"
+#include "@(header_file)_subscriber.hpp"
 #include <@(ros_include)>  // ROS message type
 #include <rclcpp/rclcpp.hpp>  // rclcpp::Subscription
 #include <QDebug>

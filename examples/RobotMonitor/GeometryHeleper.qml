@@ -2,7 +2,7 @@ pragma Singleton
 
 import QtQuick
 import QtQuick3D
-import QtROS2.GeometryMsgs
+import QtRos2.GeometryMsgs
 
 QtObject {
     function toVector3d(v: qtros2geometrymsgs_vector3): vector3d {

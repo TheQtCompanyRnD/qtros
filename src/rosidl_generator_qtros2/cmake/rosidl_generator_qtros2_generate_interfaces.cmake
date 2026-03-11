@@ -1,4 +1,4 @@
-# Copyright (C) 2022 The Qt Company Ltd.
+# Copyright (C) 2026 The Qt Company Ltd.
 # SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 # Generate Qt/QML wrapper code for ROS 2 interfaces
@@ -39,17 +39,22 @@ function(_qtros2_compute_qml_uri pkg_name out_var)
   if(NOT _camel)
     set(_camel "${pkg_name}")
   endif()
-  set(${out_var} "QtROS2.${_camel}" PARENT_SCOPE)
+  set(${out_var} "QtRos2.${_camel}" PARENT_SCOPE)
 endfunction()
 
-find_package(qtros2_core REQUIRED)
+# When building as a CMake sub-project, qtros2_core target already exists from
+# add_subdirectory(core). As a Qt6 component, use find_package(Qt6 COMPONENTS Ros2Core).
+if(NOT TARGET Qt6::Ros2Core AND NOT TARGET Ros2Core)
+    find_package(Qt6 REQUIRED COMPONENTS Ros2Core)
+endif()
+set(qtros2_core_FOUND TRUE)
 find_package(Qt6 COMPONENTS Core Qml REQUIRED)
 
 set(_qtros2_generator_target "${rosidl_generate_interfaces_TARGET}")
 
 # Determine QML module URI/path, allowing overrides from qtros2_generate_from_package
 set(_custom_qml_module_uri "")
-set(_qtros2_qml_uri_var "${_qtros2_generator_target}_qtros2_qml_module_uri_qtcpp")
+set(_qtros2_qml_uri_var "${_qtros2_generator_target}_qtros2_qml_module_uri")
 if(DEFINED ${_qtros2_qml_uri_var})
   set(_custom_qml_module_uri "${${_qtros2_qml_uri_var}}")
 endif()
@@ -57,7 +62,7 @@ endif()
 if(_custom_qml_module_uri)
   set(_qml_module_uri "${_custom_qml_module_uri}")
 else()
-  set(_qml_module_root "QtROS2")
+  set(_qml_module_root "QtRos2")
   set(_qml_module_suffix "${PROJECT_NAME}")
   string(REGEX REPLACE "^qtros2_" "" _qml_module_suffix "${_qml_module_suffix}")
   if(_qml_module_suffix STREQUAL "")
@@ -87,7 +92,7 @@ else()
 endif()
 
 set(_custom_qml_output_dir "")
-set(_qtros2_qml_output_var "${_qtros2_generator_target}_qtros2_qml_output_dir_qtcpp")
+set(_qtros2_qml_output_var "${_qtros2_generator_target}_qtros2_qml_output_dir")
 if(DEFINED ${_qtros2_qml_output_var})
   set(_custom_qml_output_dir "${${_qtros2_qml_output_var}}")
 endif()
@@ -110,7 +115,7 @@ else()
 endif()
 
 # Target suffix for Qt wrappers
-set(_target_suffix "_qtcpp")
+set(_target_suffix "")
 
 # Output directory for generated files
 set(_output_path "${CMAKE_CURRENT_BINARY_DIR}/${_qtros2_generator_target}/${_qtros2_generator_target}")
@@ -132,8 +137,13 @@ foreach(_pkg_name ${rosidl_generate_interfaces_DEPENDENCY_PACKAGE_NAMES})
 endforeach()
 
 # Prefer IDL-analyzed dependencies if provided by qtros2_generate_from_package
-set(_qtros2_interface_dep_var "_qtros2_interface_deps_${_qtros2_generator_target}_qtcpp")
-set(_qtros2_source_pkg_var "_qtros2_source_package_${_qtros2_generator_target}_qtcpp")
+set(_qtros2_interface_dep_var "_qtros2_interface_deps_${_qtros2_generator_target}")
+set(_qtros2_source_pkg_var "_qtros2_source_package_${_qtros2_generator_target}")
+# Resolve source package name early — used when building the generator command
+set(_qtros2_source_package "")
+if(DEFINED ${_qtros2_source_pkg_var})
+  set(_qtros2_source_package "${${_qtros2_source_pkg_var}}")
+endif()
 set(_qtros2_interface_deps_list "")
 if(DEFINED ${_qtros2_interface_dep_var})
   set(_qtros2_interface_deps_list ${${_qtros2_interface_dep_var}})
@@ -151,7 +161,7 @@ endif()
 
 # Build QML imports list from package dependencies
 # Exclude RCL infrastructure packages that are transitive deps but not used in IDL
-set(_qtros2_qml_imports "QtROS2.Core/auto")
+set(_qtros2_qml_imports "QtRos2.Core/auto")
 set(_qtros2_rcl_infrastructure "action_msgs;service_msgs;unique_identifier_msgs")
 
 # Load URI registry for custom URI mappings (from qtros2_generate_from_package)
@@ -219,11 +229,27 @@ rosidl_write_generator_arguments(
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 # Run the generator
+
+# Build qt_package_mapping JSON for the Python generator (maps ROS2 pkg → Qt module include dir)
+set(_qt_pkg_map_json_pairs "")
+foreach(_dep ${_dependency_package_names})
+  get_property(_dep_qt_name GLOBAL PROPERTY QTROS2_SOURCE_PKG_${_dep})
+  if(_dep_qt_name)
+    list(APPEND _qt_pkg_map_json_pairs "\"${_dep}\": \"${_dep_qt_name}\"")
+  endif()
+endforeach()
+list(JOIN _qt_pkg_map_json_pairs ", " _qt_pkg_map_json_body)
+set(_qt_pkg_map_json "{${_qt_pkg_map_json_body}}")
+
 set(_generator_cmd
   "${Python3_EXECUTABLE}"
   "-m" "rosidl_generator_qtros2"
   "--generator-arguments-file" "${_generator_arguments_file}"
+  "--qt-package-mapping" "${_qt_pkg_map_json}"
 )
+if(_qtros2_source_package)
+  list(APPEND _generator_cmd "--source-package" "${_qtros2_source_package}")
+endif()
 
 # Generate Qt/QML code at configure time (not build time)
 # This is necessary for Qt Creator and other IDEs that need files to exist during CMake configure
@@ -302,11 +328,10 @@ add_custom_target(${rosidl_generate_interfaces_TARGET}${_target_suffix}_generate
   DEPENDS ${rosidl_generate_interfaces_ABS_IDL_FILES}
 )
 
-# Generate CMakeLists.txt for the Qt wrapper using EmPy template
-set(_cmake_template "${rosidl_generator_qtros2_TEMPLATE_DIR}/CMakeLists.txt.em")
-set(_generated_cmake "${_output_path}/CMakeLists.txt")
+set(_generated_vars_cmake "${_output_path}/qtros2_module_vars.cmake")
 
-# Make generated files relative to the output path for the CMakeLists.txt
+# Make generated files relative to the output path (for use inside the included cmake file,
+# where CMAKE_CURRENT_LIST_DIR == _output_path).
 set(_relative_headers "")
 set(_relative_sources "")
 foreach(_header ${_generated_headers})
@@ -328,79 +353,133 @@ function(_cmake_list_to_python_list input_list output_var)
   endif()
 endfunction()
 
-# Convert CMake lists to Python lists for EmPy context
+# Convert CMake lists to Python lists for cmake vars generation
 _cmake_list_to_python_list("${_qtros2_qml_imports}" _qml_imports_py)
 _cmake_list_to_python_list("${_relative_headers}" _headers_py)
 _cmake_list_to_python_list("${_relative_sources}" _sources_py)
 _cmake_list_to_python_list("${_dependency_package_names}" _deps_py)
 _cmake_list_to_python_list("${_generated_parent_folders}" _folders_py)
 
-# Get source package name if provided by qtros2_generate_from_package
-set(_qtros2_source_package "")
-if(DEFINED ${_qtros2_source_pkg_var})
-  set(_qtros2_source_package "${${_qtros2_source_pkg_var}}")
-endif()
+# Build dependency Qt target mapping
+set(_dep_qt_targets_py "{")
+foreach(_dep ${_dependency_package_names})
+  get_property(_dep_qt_name GLOBAL PROPERTY QTROS2_SOURCE_PKG_${_dep})
+  if(NOT _dep_qt_name)
+    set(_dep_qt_name "")
+  endif()
+  string(APPEND _dep_qt_targets_py "'${_dep}': '${_dep_qt_name}', ")
+endforeach()
+string(APPEND _dep_qt_targets_py "}")
 
-# Prepare EmPy context for CMakeLists.txt generation
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/_qtros2_cmake_context_${_qtros2_generator_target}.py" "
-target_name = '${rosidl_generate_interfaces_TARGET}${_target_suffix}'
-project_name = '${PROJECT_NAME}'
-source_package = '${_qtros2_source_package}'
-qml_uri = '${_qml_module_uri}'
-qml_output_dir = '${_qml_output_directory}'
-qml_imports = ${_qml_imports_py}
-generated_headers = ${_headers_py}
-generated_sources = ${_sources_py}
-dependency_packages = ${_deps_py}
-output_path = '${_output_path}'
-generated_parent_folders = ${_folders_py}
-")
-
-# Ensure output directory exists before generating CMakeLists.txt
+# Ensure output directory exists before generating cmake vars file
 file(MAKE_DIRECTORY "${_output_path}")
 
-# Generate CMakeLists.txt at configure time
+# Generate qtros2_module_vars.cmake at configure time by calling generate_cmake_vars()
+# directly from the Python generator — no static .em template file needed.
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 execute_process(
   COMMAND ${Python3_EXECUTABLE} -c "
-import em
 import sys
-
-# Load context
-context_globals = {}
-with open('${CMAKE_CURRENT_BINARY_DIR}/_qtros2_cmake_context_${_qtros2_generator_target}.py') as f:
-    exec(f.read(), context_globals)
-
-# Load template
-with open('${_cmake_template}') as f:
-    template_content = f.read()
-
-# Generate
-with open('${_generated_cmake}', 'w') as output:
-    interpreter = em.Interpreter(output=output, globals=context_globals)
-    try:
-        interpreter.string(template_content)
-    finally:
-        interpreter.shutdown()
+from rosidl_generator_qtros2 import generate_cmake_vars
+generate_cmake_vars(
+    output_path='${_output_path}',
+    target_name='${rosidl_generate_interfaces_TARGET}${_target_suffix}',
+    qml_uri='${_qml_module_uri}',
+    qml_imports=${_qml_imports_py},
+    generated_headers=${_headers_py},
+    generated_sources=${_sources_py},
+    dependency_packages=${_deps_py},
+    dependency_qt_targets=${_dep_qt_targets_py},
+    generated_parent_folders=${_folders_py},
+)
 "
   WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   RESULT_VARIABLE _cmake_gen_result
+  OUTPUT_VARIABLE _cmake_gen_output
+  ERROR_VARIABLE _cmake_gen_error
 )
 
 if(NOT _cmake_gen_result EQUAL 0)
-  message(FATAL_ERROR "Failed to generate CMakeLists.txt for ${_qtros2_generator_target}")
+  message(FATAL_ERROR "Failed to generate qtros2_module_vars.cmake for ${_qtros2_generator_target}:\n${_cmake_gen_error}")
 endif()
 
-# Include the generated CMakeLists.txt via add_subdirectory
-# This handles all Qt-specific library and QML module setup
-add_subdirectory("${_output_path}" "${CMAKE_CURRENT_BINARY_DIR}/${_qtros2_generator_target}_qt_build")
+# Include the generated variables.
+# The included file sets: _qtros2_module_name, _qtros2_module_uri, _qtros2_module_imports,
+# _qtros2_module_sources, _qtros2_module_public_include_dirs, _qtros2_module_public_libs,
+# _qtros2_module_private_libs.
+include("${_generated_vars_cmake}")
+
+# Resolve relative source paths to absolute paths (relative to the output directory)
+set(_qtros2_abs_sources "")
+foreach(_src ${_qtros2_module_sources})
+  if(IS_ABSOLUTE "${_src}")
+    list(APPEND _qtros2_abs_sources "${_src}")
+  else()
+    list(APPEND _qtros2_abs_sources "${_output_path}/${_src}")
+  endif()
+endforeach()
+
+if(QT_BUILDING_QT)
+    # Inside the Qt build tree: use the full internal API (syncs headers, no private module, etc.)
+    # Use ${PROJECT_VERSION_MAJOR}.0 so "auto" in IMPORTS resolves to the same Qt major version
+    # as Core (which is also versioned at the Qt project version).
+    qt_internal_add_qml_module(${_qtros2_module_name}
+        URI "${_qtros2_module_uri}"
+        VERSION "${PROJECT_VERSION_MAJOR}.0"
+        NO_SYNC_QT
+        NO_PRIVATE_MODULE
+        EXCEPTIONS
+        IMPORTS ${_qtros2_module_imports}
+        SOURCES ${_qtros2_abs_sources}
+        PUBLIC_INCLUDE_DIRECTORIES ${_qtros2_module_public_include_dirs}
+        PUBLIC_LIBRARIES ${_qtros2_module_public_libs}
+        LIBRARIES ${_qtros2_module_private_libs}
+    )
+else()
+    # External project build (e.g. user app with ROS2_PACKAGES): use public Qt API.
+    # Generated headers include QtRos2Core private headers, so the private module IS needed.
+    # Suppress the cmake warning with Qt's own escape hatch since this is intentional.
+    set(QT_NO_PRIVATE_MODULE_WARNING ON)
+    find_package(Qt6 REQUIRED COMPONENTS Ros2CorePrivate)
+    string(REPLACE "." "/" _qtros2_uri_path "${_qtros2_module_uri}")
+    # For Qt-internal module dependencies, "/auto" resolves to the importing module's
+    # version (1.0), but Qt-internal modules are registered at Qt's version (6.x).
+    # Replace "/auto" with "/${QT_VERSION_MAJOR}" to get the right major version.
+    set(_qtros2_external_imports "")
+    foreach(_imp ${_qtros2_module_imports})
+        string(REPLACE "/auto" "/${Qt6_VERSION_MAJOR}.0" _imp "${_imp}")
+        list(APPEND _qtros2_external_imports "${_imp}")
+    endforeach()
+    unset(_imp)
+    qt_add_library(${_qtros2_module_name} SHARED)
+    qt_add_qml_module(${_qtros2_module_name}
+        URI "${_qtros2_module_uri}"
+        VERSION 1.0
+        OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${_qtros2_uri_path}"
+        RESOURCE_PREFIX "/qt/qml"
+        IMPORTS ${_qtros2_external_imports}
+    )
+    unset(_qtros2_external_imports)
+    target_sources(${_qtros2_module_name} PRIVATE ${_qtros2_abs_sources})
+    target_include_directories(${_qtros2_module_name}
+        PUBLIC ${_qtros2_module_public_include_dirs})
+    target_link_libraries(${_qtros2_module_name}
+        PUBLIC ${_qtros2_module_public_libs})
+    foreach(_lib ${_qtros2_module_private_libs})
+        if(TARGET ${_lib})
+            target_link_libraries(${_qtros2_module_name} PRIVATE ${_lib})
+        endif()
+    endforeach()
+    unset(_lib)
+    unset(_qtros2_uri_path)
+endif()
 
 # Add dependencies on code generation
-add_dependencies(${rosidl_generate_interfaces_TARGET}${_target_suffix}
+add_dependencies(${_qtros2_module_name}
   ${rosidl_generate_interfaces_TARGET}${_target_suffix}_generated
 )
 
-set_property(TARGET ${rosidl_generate_interfaces_TARGET}${_target_suffix}
+set_property(TARGET ${_qtros2_module_name}
   APPEND PROPERTY AUTOGEN_TARGET_DEPENDS
     ${rosidl_generate_interfaces_TARGET}${_target_suffix}_generated
 )
@@ -417,7 +496,7 @@ if(TARGET ${rosidl_generate_interfaces_TARGET}${_target_suffix}_autogen)
   )
 endif()
 
-# Add dependency to main target
-if(TARGET ${rosidl_generate_interfaces_TARGET})
+# Add dependency from rosidl interface target to the Qt module target (only when they differ)
+if(_target_suffix AND TARGET ${rosidl_generate_interfaces_TARGET})
   add_dependencies(${rosidl_generate_interfaces_TARGET} ${rosidl_generate_interfaces_TARGET}${_target_suffix})
 endif()

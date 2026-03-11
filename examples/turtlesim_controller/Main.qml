@@ -4,8 +4,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-import QtROS2.Core
-import TurtleSimMsgs
+import QtRos2.Core
+import QtRos2.Imported.Turtlesim
 
 ApplicationWindow {
     id: root

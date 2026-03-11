@@ -1,4 +1,4 @@
-// Copyright (C) 2022 The Qt Company Ltd.
+// Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 @# Generation template for Qt action client implementation
@@ -126,9 +126,9 @@ ros_action_type = '::'.join(name_list)
 header_file = to_snake_case(action_name)
 }@
 #include "@(header_file)_action_client.hpp"
-#include <qtros2_core/qros2_node.hpp>
+#include <QtRos2Core/private/qros2node_p.h>
 #if !defined(QTROS2_EXPERIMENTAL_FUTURE)
-#include <qtros2_core/js_future_wrapper.hpp>
+#include <QtRos2Core/private/jsfuturewrapper_p.h>
 #include <QQmlEngine>
 #endif
 #include <QCoreApplication>

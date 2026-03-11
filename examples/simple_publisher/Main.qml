@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtROS2.GeometryMsgs
+import QtRos2.GeometryMsgs
 
 Window {
     id: root

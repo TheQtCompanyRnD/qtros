@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import QtROS2.Core
+import QtRos2.Core
 
 Rectangle {
     id: root
