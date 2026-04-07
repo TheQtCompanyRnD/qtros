@@ -93,7 +93,7 @@ QtROS2/
 
 - **qtros2_core** — Reusable Qt module providing base classes for ROS 2 entities, QoS configuration, node management, and QFuture→Promise bridging
 - **rosidl_generator_qtros2** — Code generator that creates strongly-typed Qt/QML wrappers from ROS 2 interface definitions
-- **qtros2_<pkg>** — Auto-generated wrapper packages for standard ROS 2 message types (std_msgs, geometry_msgs, sensor_msgs, etc.)
+- **qtros2_&lt;pkg&gt;** — Auto-generated wrapper packages for standard ROS 2 message types (std_msgs, geometry_msgs, sensor_msgs, etc.)
 - **examples** — Sample applications demonstrating publishers, subscribers, services, actions, and QML integration (excluded from workspace build by default)
 
 ## Environment Setup (Ubuntu 24.04)
