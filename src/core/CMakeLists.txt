@@ -22,9 +22,11 @@ qt_internal_add_module(Ros2Core
         qros2actionclientbase_p.h qros2actionclientbase.cpp
         qros2qos_p.h qros2qos.cpp
         jsfuturewrapper_p.h jsfuturewrapper.cpp
-        qros2context.h
+        qros2context.h qros2context.cpp
+        qros2contextitem_p.h qros2contextitem.cpp
     LIBRARIES
         Qt::Quick
+        Qt::GuiPrivate
     PUBLIC_LIBRARIES
         Qt::Core
         Qt::Qml

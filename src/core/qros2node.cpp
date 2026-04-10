@@ -32,9 +32,8 @@ void QRos2Node::setNodeName(const QString& name)
     m_nodeName = name;
     emit nodeNameChanged();
 
-    if (!m_nodeName.isEmpty()) {
+    if (!m_nodeName.isEmpty())
         initializeNode();
-    }
 }
 
 void QRos2Node::setNodeNamespace(const QString& ns)
@@ -44,14 +43,26 @@ void QRos2Node::setNodeNamespace(const QString& ns)
     m_nodeNamespace = ns;
     emit nodeNamespaceChanged();
 
-    if (!m_nodeName.isEmpty()) {
+    if (!m_nodeName.isEmpty())
         initializeNode();
+}
+
+void QRos2Node::componentComplete()
+{
+    m_componentComplete = true;
+    if (!m_nodeName.isEmpty()) {
+        // FIXME: Delay the intialization to allow the Context item to initialize first...
+        QMetaObject::invokeMethod(this, &QRos2Node::initializeNode, Qt::QueuedConnection);
     }
 }
 
 void QRos2Node::initializeNode()
 {
-    if (m_nodeName.isEmpty()) return;
+    if (!m_componentComplete || m_nodeName.isEmpty())
+        return;
+
+    if (!QRos2Context::isInitialized())
+        QRos2Context::init();
 
     if (m_rosNode) {
         shutdownNode();
@@ -175,6 +186,11 @@ void QRos2Node::unregisterEntity(QRos2Entity* entity)
     m_entities.removeOne(entity);
 
     emit entitiesChanged();
+}
+
+void QRos2Node::classBegin()
+{
+
 }
 
 QT_END_NAMESPACE

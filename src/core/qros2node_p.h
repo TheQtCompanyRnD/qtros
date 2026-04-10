@@ -22,15 +22,17 @@
 #include <QTimer>
 #include <QQmlEngine>
 #include <QQmlListProperty>
+#include <QQmlParserStatus>
 #include <rclcpp/rclcpp.hpp>
 
 QT_BEGIN_NAMESPACE
 
 class QRos2Entity;
 
-class Q_ROS2CORE_EXPORT QRos2Node : public QObject
+class Q_ROS2CORE_EXPORT QRos2Node : public QObject, public QQmlParserStatus
 {
     Q_OBJECT
+    Q_INTERFACES(QQmlParserStatus)
     QML_NAMED_ELEMENT(ROS2Node)
     Q_CLASSINFO("DefaultProperty", "childEntities")
 
@@ -42,7 +44,7 @@ class Q_ROS2CORE_EXPORT QRos2Node : public QObject
 
 public:
     explicit QRos2Node(QObject* parent = nullptr);
-    ~QRos2Node();
+    ~QRos2Node() override;
 
     QString nodeName() const { return m_nodeName; }
     void setNodeName(const QString& name);
@@ -60,6 +62,9 @@ public:
 
     void registerEntity(QRos2Entity* entity);
     void unregisterEntity(QRos2Entity* entity);
+
+    void classBegin() override;
+    void componentComplete() override;
 
 Q_SIGNALS:
     void nodeNameChanged();
@@ -82,6 +87,7 @@ private:
     QString m_nodeName;
     QString m_nodeNamespace;
     bool m_initialized = false;
+    bool m_componentComplete = false;
 
     rclcpp::Node::SharedPtr m_rosNode;
     QTimer m_healthTimer;
