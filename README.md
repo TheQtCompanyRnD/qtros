@@ -771,7 +771,7 @@ import QtQuick.Controls
 import QtROS2.GeometryMsgs
 
 Window {
-    ROS2Node {
+    Ros2Node {
         id: rosNode
         nodeName: "example_node"
 
@@ -813,7 +813,7 @@ import QtQuick.Controls
 import QtROS2.StdSrvs
 
 Window {
-    ROS2Node {
+    Ros2Node {
         id: rosNode
         nodeName: "service_client_node"
 
@@ -843,7 +843,7 @@ import QtQuick.Controls
 import Nav2Msgs
 
 Window {
-    ROS2Node {
+    Ros2Node {
         id: rosNode
         nodeName: "nav_client_node"
 
@@ -885,8 +885,8 @@ Window {
 
         Button {
             text: "Cancel Navigation"
-            enabled: navigator.state === ROS2ActionClientBase.Accepted ||
-                     navigator.state === ROS2ActionClientBase.Requested
+            enabled: navigator.state === Ros2ActionClientBase.Accepted ||
+                     navigator.state === Ros2ActionClientBase.Requested
             onClicked: navigator.cancelGoal()
         }
 

@@ -24,7 +24,7 @@ QT_BEGIN_NAMESPACE
 class Q_ROS2CORE_EXPORT QRos2SubscriberBase : public QRos2Entity
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(ROS2SubscriberBase)
+    QML_NAMED_ELEMENT(Ros2SubscriberBase)
     QML_UNCREATABLE("Abstract")
 
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)

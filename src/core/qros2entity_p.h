@@ -35,7 +35,7 @@ class Q_ROS2CORE_EXPORT QRos2Entity : public QObject
     Q_PROPERTY(QRos2Node* node READ node WRITE setNode NOTIFY nodeChanged)
     Q_PROPERTY(QRos2QoS qos READ qos WRITE setQos NOTIFY qosChanged)
 
-    QML_NAMED_ELEMENT(ROS2Entity)
+    QML_NAMED_ELEMENT(Ros2Entity)
     QML_UNCREATABLE("This is just abstract class")
 
 public:

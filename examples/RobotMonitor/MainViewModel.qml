@@ -92,24 +92,24 @@ QtObject {
 
         readonly property list<InstanceListEntry> instancePool: []
 
-        readonly property ROS2Node node: ROS2Node {
+        readonly property Ros2Node node: Ros2Node {
             id: rosNode
             nodeName: "qt_robot_monitor"
 
-            property ROS2ActionClientBase currentActionClient: null
+            property Ros2ActionClientBase currentActionClient: null
 
             readonly property var statistics: entities.reduce((acc, ce) => {
-                                                                  if (ce instanceof ROS2SubscriberBase) {
+                                                                  if (ce instanceof Ros2SubscriberBase) {
                                                                       acc.totalSubscribers++
                                                                       if (ce.connected) {
                                                                           acc.connectedSubscribers++
                                                                       }
-                                                                  } else if (ce instanceof ROS2PublisherBase) {
+                                                                  } else if (ce instanceof Ros2PublisherBase) {
                                                                       acc.totalPublishers++
                                                                       if (ce.subscriberCount > 0) {
                                                                           acc.connectedPublishers++
                                                                       }
-                                                                  } else if (ce instanceof ROS2ActionClientBase) {
+                                                                  } else if (ce instanceof Ros2ActionClientBase) {
                                                                       acc.totalActionClients++
                                                                       if (ce.isServerReady) {
                                                                           acc.connectedActionClients++
@@ -216,9 +216,9 @@ QtObject {
 
             function cancelCurrentAction() {
                 let actionClientState = currentActionClient?.state
-                    ?? ROS2ActionClientBase.Idle
-                if (actionClientState === ROS2ActionClientBase.Requested
-                        || actionClientState === ROS2ActionClientBase.Accepted) {
+                    ?? Ros2ActionClientBase.Idle
+                if (actionClientState === Ros2ActionClientBase.Requested
+                        || actionClientState === Ros2ActionClientBase.Accepted) {
                     currentActionClient?.cancelGoal()
                 }
             }

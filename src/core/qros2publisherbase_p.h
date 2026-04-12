@@ -22,7 +22,7 @@
 class Q_ROS2CORE_EXPORT QRos2PublisherBase : public QRos2Entity
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(ROS2PublisherBase)
+    QML_NAMED_ELEMENT(Ros2PublisherBase)
     QML_UNCREATABLE("Abstract")
 
     Q_PROPERTY(int subscriberCount READ subscriberCount NOTIFY subscriberCountChanged)

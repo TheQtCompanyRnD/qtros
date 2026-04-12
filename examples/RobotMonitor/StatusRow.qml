@@ -163,19 +163,19 @@ Rectangle {
 
             function distanceText() {
                 return root.mainViewModel.navigationStatus
-                        === ROS2ActionClientBase.Accepted ? root.mainViewModel.navigationFeedback.distanceRemaining.toFixed(
+                        === Ros2ActionClientBase.Accepted ? root.mainViewModel.navigationFeedback.distanceRemaining.toFixed(
                                                                 2) + " m" : "---"
             }
 
             function navigationTimeText() {
                 return root.mainViewModel.navigationStatus
-                        === ROS2ActionClientBase.Accepted ? formatSeconds(
+                        === Ros2ActionClientBase.Accepted ? formatSeconds(
                                                                 root.mainViewModel.navigationFeedback.navigationTime) : "--"
             }
 
             function etaText() {
                 return root.mainViewModel.navigationStatus
-                        === ROS2ActionClientBase.Accepted ? formatSeconds(
+                        === Ros2ActionClientBase.Accepted ? formatSeconds(
                                                                 root.mainViewModel.navigationFeedback.estimatedTimeRemaining) : "--"
             }
 
@@ -315,7 +315,7 @@ Rectangle {
 
                     Label {
                         text: `Sees dock: ${root.mainViewModel.dockStatus
-                              === ROS2ActionClientBase.Accepted ? root.mainViewModel.dockFeedback : "---"}`
+                              === Ros2ActionClientBase.Accepted ? root.mainViewModel.dockFeedback : "---"}`
                         color: Theme.foreground
                         font.pixelSize: 14
                         font.bold: true

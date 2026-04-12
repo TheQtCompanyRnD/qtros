@@ -17,7 +17,7 @@ QT_BEGIN_NAMESPACE
     \c rclcpp context from QML, removing the need for a C++ entry point to
     call \c QRos2Context::init().
 
-    If no Ros2Context item is present, the first \l ROS2Node that is created
+    If no Ros2Context item is present, the first \l Ros2Node that is created
     will auto-initialise the context with default settings (no extra ROS args,
     and a threaded executor). Use Ros2Context when you need explicit control
     over these options. Or use the \l {QRos2Context} type from C++ for even
@@ -40,7 +40,7 @@ QT_BEGIN_NAMESPACE
     }
     \endqml
 
-    Place Ros2Context \e before any \l ROS2Node item in the same component so
+    Place Ros2Context \e before any \l Ros2Node item in the same component so
     that the context is ready before nodes are created.
 */
 
