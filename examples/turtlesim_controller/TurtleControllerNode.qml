@@ -33,7 +33,7 @@ Item {
                           })
     }
 
-    function publishTwist(t: Geom.qtros2geometrymsgs_twist) {
+    function publishTwist(t: Geom.geometrymsgs_twist) {
         twistPublisher.publish(t)
     }
 

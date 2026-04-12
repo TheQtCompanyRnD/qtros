@@ -1,6 +1,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include <qtros2_core/qros2context.h>
+#include <QtRos2Core/qros2context.h>
 
 int main(int argc, char *argv[])
 {

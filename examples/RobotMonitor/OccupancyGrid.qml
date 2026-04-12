@@ -5,7 +5,7 @@ import QtRos2.NavMsgs
 
 Node {
     id: gridNode
-    property qtros2navmsgs_occupancygrid grid: ({})
+    property navmsgs_occupancygrid grid: ({})
     property bool applyOriginTransform: true // Set to false when parent handles transform
 
     property alias scheme: gridPalette.scheme

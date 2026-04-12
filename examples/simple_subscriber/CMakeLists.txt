@@ -4,8 +4,7 @@ project(simple_subscriber VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick)
-find_package(qtros2_geometry_msgs REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Quick Ros2Core)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -19,6 +18,11 @@ qt_add_qml_module(appsimple_subscriber
         Main.qml
 )
 
+qt_ros2_configure_target(appsimple_subscriber
+    CAPABILITIES SUBSCRIBER
+    MODULES QtRos2GeometryMessages
+)
+
 set_target_properties(appsimple_subscriber PROPERTIES
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
@@ -27,7 +31,6 @@ set_target_properties(appsimple_subscriber PROPERTIES
 target_link_libraries(appsimple_subscriber
     PRIVATE
         Qt6::Quick
-        qtros2_geometry_msgs::qtros2_geometry_msgs_qtcpp
 )
 
 include(GNUInstallDirs)

@@ -1,7 +1,7 @@
 import QtQuick
 import QtRos2.Core
 import QtRos2.SensorMsgs as SensorMsgs
-import QtRos2.Tf2Msgs
+import QtRos2.Imported.Tf2Msgs
 import QtRos2.TrajectoryMsgs as TrajectoryMsgs
 
 QtObject {

@@ -1,6 +1,6 @@
 import QtQuick
 import QtQml
-import QtRos2.Tf2Msgs
+import QtRos2.Imported.Tf2Msgs
 import QtRos2.GeometryMsgs
 
 // TFBufferManager is a specialized component that caches the local transforms

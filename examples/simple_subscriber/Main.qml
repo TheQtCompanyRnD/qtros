@@ -12,8 +12,8 @@ Window {
 
     property int messageCount: 0
 
-    property qtros2geometrymsgs_point position: poseSubscriber.message.pose.position
-    property qtros2geometrymsgs_quaternion orientation: poseSubscriber.message.pose.orientation
+    property geometrymsgs_point position: poseSubscriber.message.pose.position
+    property geometrymsgs_quaternion orientation: poseSubscriber.message.pose.orientation
 
     Ros2Node {
         id: rosNode

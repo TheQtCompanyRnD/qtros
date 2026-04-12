@@ -4,7 +4,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QSGSimpleTextureNode>
-#include <qtros2_sensor_msgs/msg/image.hpp>
+#include <QtRos2SensorMessages/msg/image.hpp>
 
 class RosImageItem : public QQuickItem
 {
