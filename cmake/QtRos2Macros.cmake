@@ -22,6 +22,44 @@
 #
 # The function also ensures that rosidl_generator_qtros2 cmake helpers are available so
 # the caller can subsequently use qtros2_generate_from_package().
+
+# Register pre-built Qt ROS2 modules in the QTROS2_SOURCE_PKG_<pkg> global property
+# registry so that qtros2_generate_from_package() can resolve IDL-level dependencies.
+#
+# Every pre-built Qt ROS2 module links publicly against exactly one target of the form
+# <pkg>::<pkg>__rosidl_typesupport_cpp (this is set by qtros2_generate_from_package()
+# during the module's own build and exported via INTERFACE_LINK_LIBRARIES).  Extracting
+# the package name from that entry avoids any hardcoded mapping table.
+#
+# Usage:
+#   _qtros2_register_prebuilt_modules(<comp1> [<comp2> ...])
+#
+# Each argument is a Qt6 component name (without the "Qt6::" prefix), e.g.
+# QtRos2GeometryMessages.  Only targets that are already imported are processed.
+function(_qtros2_register_prebuilt_modules)
+  foreach(_qtros2_comp ${ARGN})
+    if(NOT TARGET Qt6::${_qtros2_comp})
+      continue()
+    endif()
+    get_target_property(_qtros2_iface_libs Qt6::${_qtros2_comp} INTERFACE_LINK_LIBRARIES)
+    if(NOT _qtros2_iface_libs)
+      continue()
+    endif()
+    foreach(_qtros2_lib ${_qtros2_iface_libs})
+      # Match <pkg>::<pkg>__rosidl_typesupport_cpp (the canonical exported typesupport target)
+      if(_qtros2_lib MATCHES "^([A-Za-z0-9_]+)::([A-Za-z0-9_]+)__rosidl_typesupport_cpp$")
+        set(_qtros2_src_pkg "${CMAKE_MATCH_1}")
+        set_property(GLOBAL PROPERTY QTROS2_SOURCE_PKG_${_qtros2_src_pkg} "Qt6::${_qtros2_comp}")
+        break()
+      endif()
+    endforeach()
+    unset(_qtros2_iface_libs)
+    unset(_qtros2_lib)
+    unset(_qtros2_src_pkg)
+  endforeach()
+  unset(_qtros2_comp)
+endfunction()
+
 function(qt_ros2_configure_target _qt_ros2_app_target)
   cmake_parse_arguments(ARG "" "" "CAPABILITIES;MODULES;IMPORT_PACKAGES" ${ARGN})
 
@@ -139,6 +177,18 @@ function(qt_ros2_configure_target _qt_ros2_app_target)
       find_package(Qt6 COMPONENTS ${_qtros2_comp} QUIET)
     endif()
   endforeach()
+
+  # Register ALL found pre-built Qt ROS2 modules (not just ARG_MODULES) in the global
+  # source-package → target registry so that qtros2_generate_from_package() can resolve
+  # them as IDL-level transitive dependencies (e.g. builtin_interfaces for tf2_msgs).
+  set(_qtros2_found_comps "")
+  foreach(_qtros2_comp ${_qtros2_ordered_components})
+    if(TARGET Qt6::${_qtros2_comp})
+      list(APPEND _qtros2_found_comps "${_qtros2_comp}")
+    endif()
+  endforeach()
+  _qtros2_register_prebuilt_modules(${_qtros2_found_comps})
+  unset(_qtros2_found_comps)
   unset(_qtros2_ordered_components)
   unset(_qtros2_comp)
 
