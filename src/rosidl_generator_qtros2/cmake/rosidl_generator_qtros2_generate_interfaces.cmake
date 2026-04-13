@@ -235,7 +235,10 @@ set(_qt_pkg_map_json_pairs "")
 foreach(_dep ${_dependency_package_names})
   get_property(_dep_qt_name GLOBAL PROPERTY QTROS2_SOURCE_PKG_${_dep})
   if(_dep_qt_name)
-    list(APPEND _qt_pkg_map_json_pairs "\"${_dep}\": \"${_dep_qt_name}\"")
+    # The property holds the CMake target name (e.g. "Qt6::QtRos2BuiltinInterfaces").
+    # Strip the "Qt6::" namespace prefix to get the bare include-directory name.
+    string(REGEX REPLACE "^Qt6::" "" _dep_include_prefix "${_dep_qt_name}")
+    list(APPEND _qt_pkg_map_json_pairs "\"${_dep}\": \"${_dep_include_prefix}\"")
   endif()
 endforeach()
 list(JOIN _qt_pkg_map_json_pairs ", " _qt_pkg_map_json_body)
