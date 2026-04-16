@@ -14,6 +14,8 @@
 
 QT_BEGIN_NAMESPACE
 
+Q_STATIC_LOGGING_CATEGORY(lcCtx, "qt.robotics.context")
+
 bool QRos2Context::isInitialized()
 {
     return instance().m_initialized;
@@ -26,7 +28,7 @@ void QRos2Context::init()
         char **argv = qGuiAppPrivate->argv;
         instance().initialize(argc, argv, true, 0);
     } else {
-        qWarning() << "No GUI Application found! Initializing rclcpp without options!";
+        qCWarning(lcCtx) << "No GUI Application found! Initializing rclcpp without options!";
         instance().initialize(0, nullptr, false, 0);
     }
 }
@@ -83,6 +85,11 @@ void QRos2Context::initialize(int argc, char **argv, bool useMultithreadedExecut
 {
     if (m_initialized)
         return;
+
+    QList<QByteArrayView> args;
+    for (int i = 0; i < argc; ++i)
+        args << argv[i];
+    qCInfo(lcCtx) << "init context with args" << args << "threads?" << useMultithreadedExecutor << threadCount;
 
     rclcpp::init(argc, argv);
 

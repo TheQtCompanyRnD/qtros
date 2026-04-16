@@ -6,8 +6,11 @@
 #include "qros2entity_p.h"
 
 #include <QDebug>
+#include <QLoggingCategory>
 
 QT_BEGIN_NAMESPACE
+
+Q_STATIC_LOGGING_CATEGORY(lcNode, "qt.robotics.node")
 
 static QString getDefaultNamespace() { return QStringLiteral("/"); }
 
@@ -81,6 +84,17 @@ void QRos2Node::initializeNode()
         m_initialized = true;
         emit initializedChanged();
 
+        auto topic_names_and_types = m_rosNode->get_topic_names_and_types();
+        qCInfo(lcNode) << "Discovered topics after initialization of node" << m_nodeName << "ns" << m_nodeNamespace << ":";
+        for (const auto& [name, types] : topic_names_and_types) {
+            QString type_list;
+            for (const auto& t : types) {
+                if (!type_list.isEmpty()) type_list += ", ";
+                type_list += QString::fromStdString(t);
+            }
+            qCInfo(lcNode) << "   " << QString::fromStdString(name) << "types:" << type_list;
+        }
+
         for (auto* entity : std::as_const(m_entities)) {
             entity->setupConnection();
         }
@@ -140,6 +154,7 @@ void QRos2Node::appendChildEntity(QQmlListProperty<QRos2Entity> *list, QRos2Enti
 {
     QRos2Node* node = qobject_cast<QRos2Node*>(list->object);
     if (node && entity) {
+        qCInfo(lcNode) << node << entity;
         node->m_children.append(entity);
         entity->setNode(node);
     }
@@ -171,6 +186,8 @@ void QRos2Node::registerEntity(QRos2Entity* entity)
 {
     if (!entity || m_entities.contains(entity)) return;
 
+    qCInfo(lcNode) << entity << "set up connection?" << (m_initialized && m_rosNode);
+
     m_entities.append(entity);
 
     if (m_initialized && m_rosNode) {
@@ -183,6 +200,7 @@ void QRos2Node::registerEntity(QRos2Entity* entity)
 
 void QRos2Node::unregisterEntity(QRos2Entity* entity)
 {
+    qCInfo(lcNode) << "removing" << entity;
     m_entities.removeOne(entity);
 
     emit entitiesChanged();
