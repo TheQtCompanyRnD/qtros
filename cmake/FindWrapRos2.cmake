@@ -128,7 +128,7 @@ if(__ros2_found)
     endif()
 else()
     set(__ros2_packages_found FALSE)
-    message(FATAL_ERROR "No ROS 2 installtion found!"
+    message(FATAL_ERROR "No ROS 2 installtion found! - "
 	                "Make sure your \'ROS2_PATH\' is pointing to a valid ROS 2 installation!")
 endif()
 
