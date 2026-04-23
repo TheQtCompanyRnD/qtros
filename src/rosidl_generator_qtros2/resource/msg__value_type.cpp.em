@@ -28,14 +28,22 @@ field_infos = value_helpers['field_infos']
 post_init_lines = value_helpers['post_init_lines']
 }@
 #include "@(header_file).hpp"
+@[for info in field_infos]@
+@[  if info.get('extra_cpp_includes')]@
+@[    for inc in info['extra_cpp_includes']]@
+#include @(inc)
+@[    end for]@
+@[  end if]@
+@[end for]@
 
 @[if emit_wrapper_flag]@
+@{_nc = [i for i in field_infos if not i.get('is_computed')]}@
 @(qt_namespace)::@(qt_class_name)::@(qt_class_name)(const @(ros_msg_type)& ros)
-@[if field_infos]@
+@[if _nc]@
         :
-@[for idx, info in enumerate(field_infos)]@
+@[for idx, info in enumerate(_nc)]@
 @{
-comma = '' if idx == len(field_infos) - 1 else ','
+comma = '' if idx == len(_nc) - 1 else ','
 if info['is_sequence']:
     if info['is_qbytearray']:
         init_expr = f'm_{info["name"]}(reinterpret_cast<const char*>(ros.{info["name"]}.data()), static_cast<int>(ros.{info["name"]}.size()))'
@@ -57,7 +65,7 @@ else:
 }@
           @(init_expr)@(comma)
 @[end for]@
-@[end if]@
+@[end if]@  @# end if _nc
 @[if post_init_lines]@
 {
 @[for line in post_init_lines]@
@@ -71,7 +79,7 @@ else:
 @(qt_namespace)::@(qt_class_name)::operator @(ros_msg_type)() const
 {
     @(ros_msg_type) ros;
-@[for info in field_infos]@
+@[for info in _nc]@
 @[if info['is_sequence']]@
 @[  if info['is_array']]@
     {
@@ -122,5 +130,11 @@ else:
 @[end for]@
     return ros;
 }
+@[for info in field_infos]@
+@[  if info.get('cpp_impl')]@
+
+@(info['cpp_impl'])
+@[  end if]@
+@[end for]@
 
 @[end if]@

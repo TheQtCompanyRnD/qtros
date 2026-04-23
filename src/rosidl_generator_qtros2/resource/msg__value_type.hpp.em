@@ -65,6 +65,13 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 #include "@(to_snake_case(msg_name)).hpp"
 @[  end if]@
 @[end for]@
+@[for info in field_infos]@
+@[  if info.get('extra_includes')]@
+@[    for inc in info['extra_includes']]@
+#include @(inc)
+@[    end for]@
+@[  end if]@
+@[end for]@
 
 namespace @(qt_namespace) {
 
@@ -82,7 +89,11 @@ class @(qt_export_macro) @(qt_class_name)
     QML_STRUCTURED_VALUE
 
 @[for info in field_infos]@
+@[  if info.get('is_computed')]@
+    @(info['property_spec'])
+@[  else]@
     Q_PROPERTY(@(info['qt_type']) @(info['qt_prop_name']) MEMBER m_@(info['name']))
+@[  end if]@
 @[end for]@
 
 public:
@@ -135,9 +146,21 @@ setter_name = 'set' + qt_prop_name[0].upper() + qt_prop_name[1:]
 }@
     void @(setter_name)(const @(qt_type)& @(field.name)) { m_@(field.name) = @(field.name); }
 @[end for]@
+@{_computed = [i for i in field_infos if i.get('is_computed')]}@
+@[if _computed]@
+
+    // Computed Qt properties (not part of the ROS message)
+@[  for info in _computed]@
+    @(info['getter_decl'])
+@[    if info.get('setter_decl')]@
+    @(info['setter_decl'])
+@[    end if]@
+@[  end for]@
+@[end if]@
 
 private:
 @[for info in field_infos]@
+@[  if not info.get('is_computed')]@
 @{
 qt_type = info['qt_type']
 default_val = ''
@@ -152,6 +175,7 @@ if not info['is_sequence']:
             default_val = ' = 0'
 }@
     @(qt_type) m_@(info['name'])@(default_val);
+@[  end if]@
 @[end for]@
 };
 @[else]@
