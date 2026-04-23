@@ -6,3 +6,5 @@ qtros2_generate_from_package(
     SOURCE_PACKAGE sensor_msgs
     QML_MODULE_URI QtRos2.SensorMsgs
 )
+
+target_link_libraries(QtRos2SensorMessages PUBLIC Qt6::Gui)

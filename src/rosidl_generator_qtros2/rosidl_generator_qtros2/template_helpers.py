@@ -29,6 +29,72 @@ from . import (
 
 NestedInclude = Tuple[str, str, bool]
 
+# Computed (Qt-only) properties appended to field_infos for specific messages.
+# cpp_impl_tmpl uses {ns}/{cls} as format placeholders; C++ braces are doubled.
+_COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
+    "sensor_msgs/CompressedImage": [
+        {
+            "is_computed": True,
+            "name": "image",
+            "qt_type": "QImage",
+            "qt_prop_name": "image",
+            "property_spec": "Q_PROPERTY(QImage image READ image WRITE setImage)",
+            "getter_decl": "QImage image() const;",
+            "setter_decl": "void setImage(const QImage& img);",
+            "extra_includes": ["<QImage>"],
+            "extra_cpp_includes": ["<QBuffer>"],
+            "cpp_impl_tmpl": (
+                "QImage {ns}::{cls}::image() const\n"
+                "{{\n"
+                "    return QImage::fromData(m_data);\n"
+                "}}\n"
+                "\n"
+                "void {ns}::{cls}::setImage(const QImage& img)\n"
+                "{{\n"
+                "    const char* qtFmt = m_format.contains(QLatin1String(\"png\")) ? \"PNG\" : \"JPEG\";\n"
+                "    m_data.clear();\n"
+                "    QBuffer buf(&m_data);\n"
+                "    buf.open(QIODevice::WriteOnly);\n"
+                "    img.save(&buf, qtFmt);\n"
+                "}}\n"
+            ),
+        }
+    ],
+    "sensor_msgs/Image": [
+        {
+            "is_computed": True,
+            "name": "image",
+            "qt_type": "QImage",
+            "qt_prop_name": "image",
+            "property_spec": "Q_PROPERTY(QImage image READ image)",
+            "getter_decl": "QImage image() const;",
+            "setter_decl": None,
+            "extra_includes": ["<QImage>"],
+            "extra_cpp_includes": [],
+            "cpp_impl_tmpl": (
+                "QImage {ns}::{cls}::image() const\n"
+                "{{\n"
+                "    if (m_data.isEmpty() || m_width == 0 || m_height == 0)\n"
+                "        return {{}};\n"
+                "    static const QHash<QString, QImage::Format> fmtMap = {{\n"
+                "        {{ QStringLiteral(\"rgb8\"),   QImage::Format_RGB888     }},\n"
+                "        {{ QStringLiteral(\"rgba8\"),  QImage::Format_RGBA8888   }},\n"
+                "        {{ QStringLiteral(\"bgr8\"),   QImage::Format_BGR888     }},\n"
+                "        {{ QStringLiteral(\"mono8\"),  QImage::Format_Grayscale8  }},\n"
+                "        {{ QStringLiteral(\"mono16\"), QImage::Format_Grayscale16 }},\n"
+                "    }};\n"
+                "    const QImage::Format fmt = fmtMap.value(m_encoding, QImage::Format_Invalid);\n"
+                "    if (fmt == QImage::Format_Invalid)\n"
+                "        return {{}};\n"
+                "    return QImage(reinterpret_cast<const uchar*>(m_data.constData()),\n"
+                "                  static_cast<int>(m_width), static_cast<int>(m_height),\n"
+                "                  static_cast<int>(m_step), fmt).copy();\n"
+                "}}\n"
+            ),
+        }
+    ],
+}
+
 
 def build_message_context(package_name: str, message_spec, *, ros_include_override: str | None = None) -> Dict[str, Any]:
     """Prepare commonly used identifiers for message templates."""
@@ -150,6 +216,16 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
             post_init_lines.append("        }")
 
         field_infos.append(info)
+
+    msg_name = message_spec.structure.namespaced_type.name
+    pkg_msg_key = f"{package_name}/{msg_name}"
+    qt_ns = get_qt_namespace(package_name)
+    qt_cls = get_qt_class_name(package_name, msg_name)
+    for tmpl in _COMPUTED_PROPERTIES.get(pkg_msg_key, []):
+        entry: Dict[str, Any] = dict(tmpl)
+        if "cpp_impl_tmpl" in entry:
+            entry["cpp_impl"] = entry.pop("cpp_impl_tmpl").format(ns=qt_ns, cls=qt_cls)
+        field_infos.append(entry)
 
     return {
         "nested_includes": nested_includes,
