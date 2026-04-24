@@ -12,14 +12,34 @@ qt_find_package(WrapRos2 PROVIDED_TARGETS WrapRos2::WrapRos2)
 set(_qtros2_src "${CMAKE_CURRENT_SOURCE_DIR}/rosidl_generator_qtros2")
 set(_qtros2_cmake_dest "${QT_CONFIG_BUILD_DIR}/Qt6Ros2Core")
 
-qt_copy_or_install(COPY
+# In prefix builds qt_copy_or_install only generates install() rules and does not
+# populate the build tree at configure time (qt_non_prefix_copy is a no-op when
+# QT_WILL_INSTALL is TRUE). Explicitly copy the files so that the find_package()
+# call below can locate them at configure time.
+# NOTE: There's probably some idomatic Qt way to do this, but this works for now.
+if(QT_WILL_INSTALL)
+    file(COPY
+        "${CMAKE_SOURCE_DIR}/cmake/rosidl_generator_qtros2Config.cmake"
+        "${_qtros2_src}/cmake/qtros2_generate_from_package.cmake"
+        "${_qtros2_src}/cmake/analyze_idl_dependencies.cmake"
+        "${_qtros2_src}/cmake/rosidl_generator_qtros2_generate_interfaces.cmake"
+        DESTINATION "${_qtros2_cmake_dest}"
+    )
+    file(COPY
+        "${_qtros2_src}/rosidl_generator_qtros2"
+        "${_qtros2_src}/resource"
+        DESTINATION "${_qtros2_cmake_dest}"
+    )
+endif()
+
+qt_copy_or_install(FILES
     "${CMAKE_SOURCE_DIR}/cmake/rosidl_generator_qtros2Config.cmake"
     "${_qtros2_src}/cmake/qtros2_generate_from_package.cmake"
     "${_qtros2_src}/cmake/analyze_idl_dependencies.cmake"
     "${_qtros2_src}/cmake/rosidl_generator_qtros2_generate_interfaces.cmake"
     DESTINATION "${_qtros2_cmake_dest}"
 )
-qt_copy_or_install(COPY
+qt_copy_or_install(DIRECTORY
     "${_qtros2_src}/rosidl_generator_qtros2"
     "${_qtros2_src}/resource"
     DESTINATION "${_qtros2_cmake_dest}"
