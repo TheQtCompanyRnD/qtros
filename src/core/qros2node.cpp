@@ -89,7 +89,8 @@ void QRos2Node::initializeNode()
         for (const auto& [name, types] : topic_names_and_types) {
             QString type_list;
             for (const auto& t : types) {
-                if (!type_list.isEmpty()) type_list += ", ";
+                if (!type_list.isEmpty())
+			type_list += QStringLiteral(", ");
                 type_list += QString::fromStdString(t);
             }
             qCInfo(lcNode) << "   " << QString::fromStdString(name) << "types:" << type_list;
