@@ -38,6 +38,7 @@ QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated
 | rosidl generator + templates (`qtros2_generate_from_package`, EmPy resources, dependency analyzer) | ✅ Ready | Decoupled from the rosidl plugin registry; invoked explicitly via the macro |
 | Wrapper packages (`qtros2_std_msgs`, `qtros2_geometry_msgs`, …) | ✅ Ready | Each package calls `qtros2_generate_from_package()` and re-exports the generated Qt/QML module |
 | QFuture → Promise support for actions/services | ✅ Ready | Powered by `JsFutureWrapper`, usable from QML today |
+| Computed Qt properties on sensor messages (`image` on `sensor_msgs/Image` and `sensor_msgs/CompressedImage`) | ✅ Ready | Converts ROS image data to/from `QImage`; set an image directly from `ImageCapture.imageCaptured` |
 | Action/server-side primitives, lifecycle nodes, ROS parameters | ⚙️ Planned | Architectural hooks exist, implementation slated for post-POC iteration |
 | Test coverage, extended docs, tooling polish | ⚙️ Planned | Outstanding work once the API surface stabilizes |
 
@@ -86,6 +87,9 @@ QtROS2/
 │   ├── RobotMonitor/
 │   └── r6botteachpendant/
 │
+├── tools/                        # Standalone tools
+│   └── urdfviewer/              # URDF file viewer (Qt Quick 3D)
+│
 └── README.md                    # This document
 ```
 
@@ -94,6 +98,7 @@ QtROS2/
 - **qtros2_core** — Reusable Qt module providing base classes for ROS 2 entities, QoS configuration, node management, and QFuture→Promise bridging
 - **rosidl_generator_qtros2** — Code generator that creates strongly-typed Qt/QML wrappers from ROS 2 interface definitions
 - **qtros2_<pkg>** — Auto-generated wrapper packages for standard ROS 2 message types (std_msgs, geometry_msgs, sensor_msgs, etc.)
+- **urdfviewer** — GUI tool for importing URDF robot descriptions and previewing them as Qt Quick 3D scenes (requires `urdf_parser_py` and `jinja2`)
 - **examples** — Sample applications demonstrating publishers, subscribers, services, actions, and QML integration (excluded from workspace build by default)
 
 ## Environment Setup (Ubuntu 24.04)
@@ -139,6 +144,16 @@ sudo apt install -y \
 
 Install Qt 6.8 or later using the official Qt online installer from [qt.io/download](https://www.qt.io/download-qt-installer). During installation, select the Desktop gcc 64-bit component and Qt Quick/QML modules.
 
+### Install urdfviewer Dependencies (optional)
+
+The `urdfviewer` tool converts URDF robot descriptions into Qt Quick 3D scenes. It requires Python 3 with two additional packages:
+
+```bash
+pip3 install urdf_parser_py jinja2
+```
+
+If these packages are not available when `qt-configure-module` is run, the urdfviewer is silently skipped. You can check whether it was detected by looking for the `ros2-urdfviewer` line in the configure summary.
+
 #### Configure qmlls for QtROS2 Module Recognition
 
 The QML Language Server (`qmlls`) needs to recognize the generated QtROS2 wrapper packages through the `QML_IMPORT_PATH` environment variable. By default, Qt Creator launches `qmlls` without preserving environment variables, which prevents it from finding the QtROS2 modules.
@@ -174,40 +189,46 @@ The QML Language Server (`qmlls`) needs to recognize the generated QtROS2 wrappe
    chmod +x ~/Qt/6.8.3/gcc_64/bin/qmlls
    ```
 
-This enables `qmlls` to see the `QML_IMPORT_PATH` injected by the QtROS2 workspace, providing proper code completion and type checking for `import QtROS2.GeometryMsgs` and other generated modules.
+This enables `qmlls` to see the `QML_IMPORT_PATH` injected by the QtROS2 workspace, providing proper code completion and type checking for `import QtRos2.GeometryMsgs` and other generated modules.
 
 ## Building the Workspace
 
-Navigate to the directory where you have checked out the QtROS2 repository and invoke the following commands:
+QtROS2 is built as a Qt module using `qt-configure-module`. Source ROS 2 file first so that CMake can locate the ROS 2 libraries, then configure and build:
+(Alternatively you can provide the ROS2_PATH as a cmake or environment variable).
 
 ```bash
 # Source ROS 2 Jazzy
 source /opt/ros/jazzy/setup.bash
 
-# Set Qt installation path (adjust to your Qt installation)
-export CMAKE_PREFIX_PATH=~/Qt/6.10.1/gcc_64
+# Configure the module against your Qt installation
+# (adjust the path to match your Qt build or installation)
+mkdir -p ~/ros2bridge_build && cd ~/ros2bridge_build
+~/Qt/6.10.1/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge/src \
+    -DROS2_PATH=/opt/ros/jazzy
 
-# Build the workspace
-colcon build --symlink-install --cmake-args -G Ninja -DCMAKE_BUILD_TYPE=Release
+# Build
+cmake --build . --parallel
 ```
+
+The module installs into the Qt prefix automatically (no separate install step is needed for a non-prefix / developer build).
 
 ## Developing with Qt Creator
 
-After the initial `colcon build`, launch Qt Creator from a shell where you've sourced the workspace:
+Launch Qt Creator from a shell where you have already sourced the ROS 2 environment:
 
 ```bash
-source install/setup.bash
+source /opt/ros/jazzy/setup.bash
 ~/Qt/Tools/QtCreator/bin/qtcreator
 ```
 
-The Qt Creator path depends on your Qt installation (e.g., `~/Qt/Tools/QtCreator/bin/qtcreator`). Source the workspace before each Qt Creator session to ensure it sees the generated QML modules and ROS 2 environment.
+The Qt Creator path depends on your Qt installation. Source the ROS 2 environment before each Qt Creator session to ensure it can find the ROS 2 libraries and the generated QML modules.
 
 **When to rebuild:**
 - After modifying `qtros2_core` source code
 - After modifying rosidl generator templates in `rosidl_generator_qtros2/resource/`
 - After adding new message packages to wrap
 
-For application development using the generated types, rebuilding is not required - just edit your QML/C++ code and rerun your application.
+For application development using the generated types, rebuilding is not required — just edit your QML/C++ code and rerun your application.
 
 ## Examples
 
@@ -444,9 +465,9 @@ Automatically generated from ROS 2 interface packages via `qtros2_generate_from_
 find_package(rosidl_generator_qtros2 REQUIRED)
 
 qtros2_generate_from_package(
-    TARGET qtros2_navigation_msgs
-    SOURCE_PACKAGE navigation_msgs
-    QML_MODULE_URI QtROS2.Navigation
+    TARGET qtros2_nav_msgs
+    SOURCE_PACKAGE nav_msgs
+    QML_MODULE_URI QtRos2.NavMsgs
 )
 ```
 
@@ -768,7 +789,7 @@ These snippets reflect the current generator output and Qt APIs.
 ```qml
 import QtQuick
 import QtQuick.Controls
-import QtROS2.GeometryMsgs
+import QtRos2.GeometryMsgs
 
 Window {
     Ros2Node {
@@ -810,7 +831,7 @@ Window {
 ```qml
 import QtQuick
 import QtQuick.Controls
-import QtROS2.StdSrvs
+import QtRos2.Imported.StdSrvs
 
 Window {
     Ros2Node {
@@ -840,7 +861,7 @@ Window {
 ```qml
 import QtQuick
 import QtQuick.Controls
-import Nav2Msgs
+import QtRos2.Imported.Nav2Msgs
 
 Window {
     Ros2Node {
@@ -899,6 +920,36 @@ Window {
 
 ## Key Benefits of Value Type Approach
 
+### Image Property (sensor_msgs/Image and sensor_msgs/CompressedImage)
+
+Both `sensor_msgs/Image` and `sensor_msgs/CompressedImage` expose a computed `image` Qt property
+that converts between ROS image data and `QImage`. This is especially convenient when using
+Qt Multimedia's `ImageCapture`, since `imageCaptured` provides a `QImage` (see [QTBUG-145968](https://bugreports.qt.io/browse/QTBUG-145968)
+for raw compressed data access):
+
+```qml
+import QtMultimedia
+import QtRos2.SensorMsgs
+
+CompressedImagePublisher {
+    id: imagePublisher
+    topic: "/camera/image/compressed"
+}
+
+CaptureSession {
+    imageCapture: ImageCapture {
+        onImageCaptured: (reqId, image) => {
+            imagePublisher.publish({ "format": "jpeg", "image": image })
+        }
+    }
+    camera: Camera { active: true }
+}
+```
+
+`sensor_msgs/Image` exposes `image` as a read-only property (decoded from raw pixel data using
+the `encoding` field), while `sensor_msgs/CompressedImage` exposes `image` as read/write
+(encodes to JPEG or PNG based on the `format` field).
+
 ### Type System Design
 
 - **Message/Service/Action Data**: `Q_GADGET` with `QML_VALUE_TYPE` + `QML_CONSTRUCTIBLE_VALUE`
@@ -930,7 +981,7 @@ For wrapper packages meant to be shared across applications (like the standard `
 
 ```cmake
 cmake_minimum_required(VERSION 3.16)
-project(qtros2_navigation_msgs)
+project(qtros2_nav_msgs)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
@@ -941,8 +992,8 @@ find_package(rosidl_generator_qtros2 REQUIRED)
 # Generate Qt/QML wrappers
 qtros2_generate_from_package(
   TARGET ${PROJECT_NAME}
-  SOURCE_PACKAGE navigation_msgs
-  QML_MODULE_URI QtROS2.Navigation
+  SOURCE_PACKAGE nav_msgs
+  QML_MODULE_URI QtRos2.NavMsgs
 )
 
 if(BUILD_TESTING)
