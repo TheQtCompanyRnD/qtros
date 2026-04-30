@@ -51,8 +51,8 @@ qt_copy_or_install(
     DESTINATION "${_urdfviewer_libexec_dir}"
 )
 qt_copy_or_install(
-    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/script/templates"
-    DESTINATION "${_urdfviewer_libexec_dir}"
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/script/templates/urdfviewer"
+    DESTINATION "${_urdfviewer_libexec_dir}/templates"
 )
 unset(_urdfviewer_libexec_dir)
 

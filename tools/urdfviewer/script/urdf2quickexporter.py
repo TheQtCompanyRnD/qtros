@@ -1011,8 +1011,8 @@ def _list_generated_qtquick3d_modules(qtquick3d_dir: str) -> List[str]:
 
 
 def _make_env(**kwargs) -> Environment:
-    """Return a Jinja2 Environment backed by the co-located *templates/* directory."""
-    templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
+    """Return a Jinja2 Environment backed by the co-located *templates/urdfviewer/* directory."""
+    templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "urdfviewer")
     env = Environment(
         loader=FileSystemLoader(templates_dir),
         trim_blocks=True,
