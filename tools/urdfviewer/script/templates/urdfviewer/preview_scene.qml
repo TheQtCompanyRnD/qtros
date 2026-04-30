@@ -2,6 +2,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick3D
 import QtQuick3D.Helpers
+{% if physics %}
+import QtQuick3D.Physics
+{% endif %}
 
 Item {
     id: root
@@ -47,6 +50,13 @@ Item {
             control: {{ base_name }}Control {}
         }
     }
+{% if physics %}
+
+    PhysicsWorld {
+        scene: view3D.scene
+        gravity: Qt.vector3d(0, 0, 0)
+    }
+{% endif %}
 
     ControlPanel {
         id: panel

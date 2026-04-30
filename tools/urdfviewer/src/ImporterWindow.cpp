@@ -179,6 +179,14 @@ void ImporterWindow::buildUi()
     rosLayout->addRow(QString(), m_rosBridgeCheck);
     rosLayout->addRow(QStringLiteral("Joint States Topic"), m_jointStatesTopicEdit);
 
+    // Physics group
+    auto *physicsGroup = new QGroupBox(QStringLiteral("Physics"), leftPanel);
+    auto *physicsLayout = new QFormLayout(physicsGroup);
+    m_physicsCheck = new QCheckBox(
+        QStringLiteral("Integrate physics bodies (QtQuick3DPhysics)"), physicsGroup);
+    m_physicsCheck->setChecked(true);
+    physicsLayout->addRow(QString(), m_physicsCheck);
+
     auto *logsGroup = new QGroupBox(QStringLiteral("Logs"), leftPanel);
     auto *logsLayout = new QVBoxLayout(logsGroup);
     m_logsEdit = new QPlainTextEdit(logsGroup);
@@ -189,6 +197,7 @@ void ImporterWindow::buildUi()
     leftLayout->addWidget(inputGroup);
     leftLayout->addWidget(settingsGroup, 1);
     leftLayout->addWidget(rosGroup);
+    leftLayout->addWidget(physicsGroup);
     leftLayout->addWidget(logsGroup, 1);
 
     auto *previewGroup = new QGroupBox(QStringLiteral("Preview"), splitter);
@@ -215,6 +224,7 @@ void ImporterWindow::buildUi()
     connect(m_rosBridgeCheck, &QCheckBox::toggled, this, [this](bool checked) {
         m_jointStatesTopicEdit->setEnabled(checked);
     });
+
 }
 
 void ImporterWindow::attachPreviewErrorLogger(QQuickWidget *widget)
@@ -577,6 +587,9 @@ QStringList ImporterWindow::buildExporterArguments(
             args << QStringLiteral("--joint-states-topic") << topic;
         }
     }
+
+    if (m_physicsCheck && m_physicsCheck->isChecked())
+        args << QStringLiteral("--physics");
 
     return args;
 }

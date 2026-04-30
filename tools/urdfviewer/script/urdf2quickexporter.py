@@ -194,9 +194,24 @@ class VisualOrCollision:
 
 
 @dataclass
+class Inertial:
+    mass: float = 0.0
+    origin_xyz: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
+    origin_rpy: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
+    ixx: float = 0.0
+    iyy: float = 0.0
+    izz: float = 0.0
+    ixy: float = 0.0
+    ixz: float = 0.0
+    iyz: float = 0.0
+
+
+@dataclass
 class Link:
     name: str
     visuals: List[VisualOrCollision] = field(default_factory=list)
+    collisions: List[VisualOrCollision] = field(default_factory=list)
+    inertial: Optional["Inertial"] = None
 
 
 @dataclass
@@ -847,7 +862,58 @@ def parse_urdf(
             visuals.append(v)
         if not visuals:
             visuals.append(VisualOrCollision())
-        model.links.append(Link(name=link.name, visuals=visuals))
+
+        # --- collision shapes ---
+        collisions: List[VisualOrCollision] = []
+        for coll in getattr(link, "collisions", []) or []:
+            c = VisualOrCollision()
+            if coll.origin is not None:
+                c.xyz = list(coll.origin.xyz or [0.0, 0.0, 0.0])
+                c.rpy = list(coll.origin.rpy or [0.0, 0.0, 0.0])
+            geom_obj = coll.geometry
+            g = Geometry()
+            if isinstance(geom_obj, Mesh):
+                g.type = "mesh"
+                g.mesh_file = geom_obj.filename or ""
+                g.mesh_scale = _normalize_mesh_scale(getattr(geom_obj, "scale", None))
+            elif isinstance(geom_obj, Box):
+                g.type = "box"
+                g.size = list(geom_obj.size or [0.0, 0.0, 0.0])
+            elif isinstance(geom_obj, Cylinder):
+                g.type = "cylinder"
+                g.size = [float(geom_obj.radius or 0.0), float(geom_obj.length or 0.0)]
+                # CapsuleShape aligns along Y; match the visual cylinder convention
+                c.rpy[0] += math.pi / 2
+            elif isinstance(geom_obj, Sphere):
+                g.type = "sphere"
+                g.size = [float(geom_obj.radius or 0.0)]
+            c.geom = g
+            collisions.append(c)
+
+        # --- inertial ---
+        inertial: Optional[Inertial] = None
+        if getattr(link, "inertial", None) is not None:
+            raw = link.inertial
+            inertial = Inertial(
+                mass=float(raw.mass or 0.0),
+            )
+            if raw.origin is not None:
+                inertial.origin_xyz = list(raw.origin.xyz or [0.0, 0.0, 0.0])
+                inertial.origin_rpy = list(raw.origin.rpy or [0.0, 0.0, 0.0])
+            if raw.inertia is not None:
+                inertial.ixx = float(getattr(raw.inertia, "ixx", 0.0) or 0.0)
+                inertial.iyy = float(getattr(raw.inertia, "iyy", 0.0) or 0.0)
+                inertial.izz = float(getattr(raw.inertia, "izz", 0.0) or 0.0)
+                inertial.ixy = float(getattr(raw.inertia, "ixy", 0.0) or 0.0)
+                inertial.ixz = float(getattr(raw.inertia, "ixz", 0.0) or 0.0)
+                inertial.iyz = float(getattr(raw.inertia, "iyz", 0.0) or 0.0)
+
+        model.links.append(Link(
+            name=link.name,
+            visuals=visuals,
+            collisions=collisions,
+            inertial=inertial,
+        ))
 
     for joint in robot.joints:
         j = Joint(
@@ -1010,6 +1076,59 @@ def _list_generated_qtquick3d_modules(qtquick3d_dir: str) -> List[str]:
     return modules
 
 
+def _collision_shape_params(
+    coll: "VisualOrCollision",
+    *,
+    scene_units_per_meter: float = 100.0,
+) -> Optional[Dict[str, Any]]:
+    """Return a dict describing the QtQuick3DPhysics shape for a collision element,
+    or None if the geometry is a mesh (shapes must be added manually by the user).
+
+    Keys returned:
+      shape_type    – QML type name, e.g. "BoxShape"
+      extents       – [x, y, z] in scene units; only set for BoxShape
+      diameter      – float in scene units; set for SphereShape / CapsuleShape
+      height        – float in scene units; set for CapsuleShape (None for SphereShape)
+      origin_xyz    – [x, y, z] offset in scene units
+      origin_rpy    – [roll, pitch, yaw] radians (already adjusted for cylinder Y-up)
+    """
+    g = coll.geom
+    spm = scene_units_per_meter
+    origin_xyz = [v * spm for v in coll.xyz]
+    origin_rpy = list(coll.rpy)
+
+    if g.type == "box":
+        return {
+            "shape_type": "BoxShape",
+            "extents": [g.size[0] * spm, g.size[1] * spm, g.size[2] * spm],
+            "diameter": None,
+            "height": None,
+            "origin_xyz": origin_xyz,
+            "origin_rpy": origin_rpy,
+        }
+    if g.type == "sphere":
+        return {
+            "shape_type": "SphereShape",
+            "extents": None,
+            "diameter": g.size[0] * 2.0 * spm,
+            "height": None,
+            "origin_xyz": origin_xyz,
+            "origin_rpy": origin_rpy,
+        }
+    if g.type == "cylinder":
+        # URDF size = [radius, length]; rpy[0] already +π/2 from parsing
+        return {
+            "shape_type": "CapsuleShape",
+            "extents": None,
+            "diameter": g.size[0] * 2.0 * spm,
+            "height": g.size[1] * spm,
+            "origin_xyz": origin_xyz,
+            "origin_rpy": origin_rpy,
+        }
+    # Mesh geometry: collision shape must be added manually in a visual editor.
+    return None
+
+
 def _make_env(**kwargs) -> Environment:
     """Return a Jinja2 Environment backed by the co-located *templates/urdfviewer/* directory."""
     templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "urdfviewer")
@@ -1029,6 +1148,20 @@ def _make_env(**kwargs) -> Environment:
     env.filters["qt_quat_with_offset"] = format_quat_with_offset
     env.filters["qt_rgba"] = format_rgba
     env.filters["qml_id"] = qml_id
+
+    def _collision_shapes_filter(
+        link: "Link",
+        scene_units_per_meter: float = 100.0,
+    ) -> List[Dict[str, Any]]:
+        return [
+            s for s in (
+                _collision_shape_params(c, scene_units_per_meter=scene_units_per_meter)
+                for c in link.collisions
+            )
+            if s is not None
+        ]
+
+    env.filters["collision_shapes"] = _collision_shapes_filter
     return env
 
 
@@ -1179,6 +1312,7 @@ def generate_qml(
     module_prefix: str = "Generated.QtQuick3D.",
     axis_transform: bool = True,
     mesh_rotation: Optional[List[float]] = None,
+    physics: bool = False,
 ) -> str:
     root = build_tree(model)
     if not root:
@@ -1217,6 +1351,7 @@ def generate_qml(
         mesh_rotation=mesh_rotation,
         zero_rpy=zero_rpy,
         pi=math.pi,
+        physics=physics,
     )
 
 
@@ -1313,20 +1448,23 @@ def write_control_qmldir(base_name: str, out_dir: str, *, header_comment: Option
         f.write(qmldir)
 
 
-def generate_preview_scene_qml(base_name: str) -> str:
+def generate_preview_scene_qml(base_name: str, *, physics: bool = False) -> str:
     """Return an embeddable QML scene for previewing the generated robot model."""
-    return _make_env().get_template("preview_scene.qml").render(base_name=base_name)
+    return _make_env().get_template("preview_scene.qml").render(
+        base_name=base_name, physics=physics
+    )
 
 
 def write_preview_scene_qml(
     base_name: str,
     out_dir: str,
     *,
+    physics: bool = False,
     header_comment: Optional[str] = None,
 ) -> None:
     """Write the embeddable preview scene QML file."""
     qml_path = os.path.join(out_dir, "PreviewScene.qml")
-    qml = generate_preview_scene_qml(base_name)
+    qml = generate_preview_scene_qml(base_name, physics=physics)
     if header_comment:
         qml = f"// {header_comment}\n" + qml
     with open(qml_path, "w", encoding="utf-8") as f:
@@ -1615,6 +1753,7 @@ def generate_model_cmake(
     joints_name: str,
     *,
     ros_bridge: bool = False,
+    physics: bool = False,
 ) -> str:
     """Generate CMakeLists.txt for the robot model module."""
     return _make_env().get_template("model.cmake").render(
@@ -1622,6 +1761,7 @@ def generate_model_cmake(
         plugins=component_plugins,
         joints_name=joints_name,
         ros_bridge=ros_bridge,
+        physics=physics,
     )
 
 
@@ -1632,9 +1772,11 @@ def write_model_cmake_file(
     joints_name: str,
     *,
     ros_bridge: bool = False,
+    physics: bool = False,
     header_comment: Optional[str] = None,
 ) -> None:
-    cmake = generate_model_cmake(base_name, component_plugins, joints_name, ros_bridge=ros_bridge)
+    cmake = generate_model_cmake(base_name, component_plugins, joints_name,
+                                 ros_bridge=ros_bridge, physics=physics)
     if header_comment:
         cmake = f"# {header_comment}\n" + cmake
     with open(path, "w", encoding="utf-8") as f:
@@ -1647,9 +1789,11 @@ def generate_robot_cmake(
     joints_name: str,
     *,
     ros_bridge: bool = False,
+    physics: bool = False,
 ) -> str:
     """Generate the top-level CMakeLists.txt for the robot."""
-    return generate_model_cmake(base_name, component_plugins, joints_name, ros_bridge=ros_bridge)
+    return generate_model_cmake(base_name, component_plugins, joints_name,
+                                ros_bridge=ros_bridge, physics=physics)
 
 
 def write_robot_cmake_file(
@@ -1659,9 +1803,11 @@ def write_robot_cmake_file(
     joints_name: str,
     *,
     ros_bridge: bool = False,
+    physics: bool = False,
     header_comment: Optional[str] = None,
 ) -> None:
-    cmake = generate_robot_cmake(base_name, component_plugins, joints_name, ros_bridge=ros_bridge)
+    cmake = generate_robot_cmake(base_name, component_plugins, joints_name,
+                                 ros_bridge=ros_bridge, physics=physics)
     if header_comment:
         cmake = f"# {header_comment}\n" + cmake
     with open(path, "w", encoding="utf-8") as f:
@@ -1842,6 +1988,19 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         default="/joint_states",
         help="ROS2 topic to subscribe to for joint states when --ros-bridge is used (default: /joint_states).",
     )
+    parser.add_argument(
+        "--physics",
+        dest="physics",
+        action="store_true",
+        default=False,
+        help=(
+            "Integrate QtQuick3DPhysics rigid bodies into the robot model. "
+            "Each link is wrapped in a DynamicRigidBody (or StaticRigidBody for "
+            "the root), with collision shapes generated from URDF <collision> "
+            "primitive geometry. Mesh collision geometry is skipped and must be "
+            "added manually. Requires Qt6::Quick3DPhysics at build/runtime."
+        ),
+    )
     return parser
 
 
@@ -1893,6 +2052,7 @@ def _manifest_invocation(args: argparse.Namespace) -> Dict[str, Any]:
         "license_source": os.path.abspath(args.license_source) if args.license_source else None,
         "ros_bridge": bool(args.ros_bridge),
         "joint_states_topic": args.joint_states_topic,
+        "physics": bool(args.physics),
     }
 
 
@@ -2062,6 +2222,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             instance_scale=instance_scale,
             mesh_rotation=mesh_rotation,
             header_comment=header_comment,
+            physics=args.physics,
         )
         write_control_files(
             model,
@@ -2080,6 +2241,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             component_plugins,
             joints_name,
             ros_bridge=args.ros_bridge,
+            physics=args.physics,
             header_comment=header_comment,
         )
         write_qmldir(base_name, os.path.join(robot_dir, "qmldir"), header_comment=header_comment)
@@ -2090,7 +2252,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             header_comment=header_comment,
         )
         write_control_panel_qml(base_name, robot_dir, header_comment=header_comment)
-        write_preview_scene_qml(base_name, robot_dir, header_comment=header_comment)
+        write_preview_scene_qml(base_name, robot_dir, physics=args.physics, header_comment=header_comment)
         write_preview_qml(base_name, robot_dir, header_comment=header_comment)
         write_main_cpp(base_name, robot_dir, header_comment=header_comment)
         write_qmlproject(base_name, robot_dir, header_comment=header_comment)
@@ -2108,6 +2270,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             write_ros_main_qml(base_name, robot_dir, header_comment=header_comment)
             manifest["files"]["ros_preview_scene_qml"] = os.path.abspath(ros_preview_scene_path)
             manifest["files"]["ros_main_qml"] = os.path.abspath(ros_main_qml_path)
+
+        # Physics bodies are integrated into the robot model QML directly.
 
         generated_dir = os.path.join(robot_dir, "Generated")
         if args.license_source and os.path.isdir(generated_dir):

@@ -7,8 +7,64 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 {{ r | qt_quat }}
 {%- endmacro %}
 
-{% macro render(node, depth) -%}
-{{ indent * depth }}Node {
+{# Emit a single collision shape block at the given indent level. #}
+{% macro shape_block(s, d) %}
+{{ indent * d }}{% if s.shape_type == 'BoxShape' %}BoxShape {
+{{ indent * (d+1) }}extents: {{ v3(s.extents[0]|round(6), s.extents[1]|round(6), s.extents[2]|round(6)) }}
+{% if s.origin_xyz != [0.0, 0.0, 0.0] %}
+{{ indent * (d+1) }}position: {{ v3(s.origin_xyz[0]|round(6), s.origin_xyz[1]|round(6), s.origin_xyz[2]|round(6)) }}
+{% endif %}
+{% if s.origin_rpy != [0.0, 0.0, 0.0] %}
+{{ indent * (d+1) }}rotation: {{ quat(s.origin_rpy) }}
+{% endif %}
+{{ indent * d }}}
+{% elif s.shape_type == 'SphereShape' %}SphereShape {
+{{ indent * (d+1) }}diameter: {{ s.diameter|round(6) }}
+{% if s.origin_xyz != [0.0, 0.0, 0.0] %}
+{{ indent * (d+1) }}position: {{ v3(s.origin_xyz[0]|round(6), s.origin_xyz[1]|round(6), s.origin_xyz[2]|round(6)) }}
+{% endif %}
+{% if s.origin_rpy != [0.0, 0.0, 0.0] %}
+{{ indent * (d+1) }}rotation: {{ quat(s.origin_rpy) }}
+{% endif %}
+{{ indent * d }}}
+{% else %}CapsuleShape {
+{{ indent * (d+1) }}diameter: {{ s.diameter|round(6) }}
+{{ indent * (d+1) }}height: {{ s.height|round(6) }}
+{% if s.origin_xyz != [0.0, 0.0, 0.0] %}
+{{ indent * (d+1) }}position: {{ v3(s.origin_xyz[0]|round(6), s.origin_xyz[1]|round(6), s.origin_xyz[2]|round(6)) }}
+{% endif %}
+{% if s.origin_rpy != [0.0, 0.0, 0.0] %}
+{{ indent * (d+1) }}rotation: {{ quat(s.origin_rpy) }}
+{% endif %}
+{{ indent * d }}}
+{% endif %}
+{%- endmacro %}
+
+{# Render one tree node.  is_root is True for the top-level link (no parent joint). #}
+{% macro render(node, depth, is_root) -%}
+{% set shapes = (node.link | collision_shapes(scene_units_per_meter)) if physics else [] %}
+{% set movable = node.joint and node.joint.type in ['revolute', 'prismatic', 'continuous'] %}
+{% if movable %}
+{% set d = depth + 2 %}
+{% else %}
+{% set d = depth + (1 if node.joint else 0) %}
+{% endif %}
+{# When physics is on, every link gets a body (root → StaticRigidBody, others → DynamicRigidBody). #}
+{% set use_body = physics %}
+{# Content depth: inside the physics body for non-root, otherwise same as d #}
+{% set content_d = d + (1 if (use_body and not is_root) else 0) %}
+{# === Outer container: joint-offset Node (non-root) or StaticRigidBody/Node (root) === #}
+{{ indent * depth }}{% if is_root and use_body %}StaticRigidBody{% else %}Node{% endif %} {
+{% if is_root and use_body %}
+{{ indent * (depth+1) }}id: {{ node.link.name | qml_id }}Physics
+{% if shapes %}
+{{ indent * (depth+1) }}collisionShapes: [
+{% for s in shapes %}
+{{ shape_block(s, depth + 2) }}{% if not loop.last %},{% endif %}
+{% endfor %}
+{{ indent * (depth+1) }}]
+{% endif %}
+{% endif %}
 {% if node.joint %}
 {{ indent * (depth + 1) }}id: {{ node.joint.name | qml_id }}
 {{ indent * (depth + 1) }}position: {{ v3((node.joint.xyz[0] * scene_units_per_meter)|round(6), (node.joint.xyz[1] * scene_units_per_meter)|round(6), (node.joint.xyz[2] * scene_units_per_meter)|round(6)) }}
@@ -16,7 +72,7 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 {{ indent * (depth + 1) }}rotation: {{ quat(node.joint.rpy) }}
 {% endif %}
 {% endif %}
-{% set movable = node.joint and node.joint.type in ['revolute', 'prismatic', 'continuous'] %}
+{# === Pivot for movable joints === #}
 {% if movable %}
 {{ indent * (depth + 1) }}Node {
 {{ indent * (depth + 2) }}id: {{ node.joint.name | qml_id }}Pivot
@@ -26,49 +82,73 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 {% else %}
 {{ indent * (depth + 2) }}rotation: Quaternion.fromAxisAndAngle(axis, rootNode.toEulerAngle(rootNode.control.{{ node.joint | joint_prop_name }}))
 {% endif %}
-{% set d = depth + 2 %}
-{% else %}
-{% set d = depth + 1 %}
 {% endif %}
+{# === DynamicRigidBody wrapper for non-root links === #}
+{% if use_body and not is_root %}
+{{ indent * d }}DynamicRigidBody {
+{{ indent * (d+1) }}id: {{ node.link.name | qml_id }}Physics
+{{ indent * (d+1) }}isKinematic: true
+{% if node.link.inertial %}
+{{ indent * (d+1) }}mass: {{ node.link.inertial.mass }}
+{% if node.link.inertial.ixx or node.link.inertial.iyy or node.link.inertial.izz %}
+{{ indent * (d+1) }}massMode: DynamicRigidBody.MassAndInertiaMatrix
+{{ indent * (d+1) }}// inertia matrix: [ixx, ixy, ixz, iyx, iyy, iyz, izx, izy, izz]
+{{ indent * (d+1) }}inertiaMatrix: [{{ node.link.inertial.ixx }}, {{ node.link.inertial.ixy }}, {{ node.link.inertial.ixz }}, {{ node.link.inertial.ixy }}, {{ node.link.inertial.iyy }}, {{ node.link.inertial.iyz }}, {{ node.link.inertial.ixz }}, {{ node.link.inertial.iyz }}, {{ node.link.inertial.izz }}]
+{% endif %}
+{% endif %}
+{% if shapes %}
+{{ indent * (d+1) }}collisionShapes: [
+{% for s in shapes %}
+{{ shape_block(s, d + 2) }}{% if not loop.last %},{% endif %}
+{% endfor %}
+{{ indent * (d+1) }}]
+{% endif %}
+{% endif %}
+{# === Visual mesh components (inside physics body when use_body, at content_d) === #}
 {% if node.link.visuals %}
 {% for v in node.link.visuals %}
-{{ indent * d }}{% if v.geom.type == 'mesh' %}{{ v.geom.mesh_file | mesh_component(node.link.name) }}{% elif v.geom.type == 'node' %}Node{% else %}Model{% endif %} {
-{{ indent * d }}    id: {{ node.link.name | qml_id }}{% if not loop.first %}{{ loop.index0 }}{% endif %}
+{{ indent * content_d }}{% if v.geom.type == 'mesh' %}{{ v.geom.mesh_file | mesh_component(node.link.name) }}{% elif v.geom.type == 'node' %}Node{% else %}Model{% endif %} {
+{{ indent * content_d }}    id: {{ node.link.name | qml_id }}{% if not loop.first %}{{ loop.index0 }}{% endif %}
 
 {% if v.xyz != [0.0, 0.0, 0.0] %}
-{{ indent * d }}    position: {{ v3((v.xyz[0] * scene_units_per_meter)|round(6), (v.xyz[1] * scene_units_per_meter)|round(6), (v.xyz[2] * scene_units_per_meter)|round(6)) }}
+{{ indent * content_d }}    position: {{ v3((v.xyz[0] * scene_units_per_meter)|round(6), (v.xyz[1] * scene_units_per_meter)|round(6), (v.xyz[2] * scene_units_per_meter)|round(6)) }}
 {% endif %}
 {% set mesh_offset = v.geom.type == 'mesh' and mesh_rotation != zero_rpy %}
 {% if v.rpy != zero_rpy or mesh_offset %}
-{{ indent * d }}    rotation: {{ v.rpy | qt_quat_with_offset(mesh_rotation if v.geom.type == 'mesh' else zero_rpy) }}
+{{ indent * content_d }}    rotation: {{ v.rpy | qt_quat_with_offset(mesh_rotation if v.geom.type == 'mesh' else zero_rpy) }}
 {% endif %}
 {% if v.geom.type == 'mesh' %}
-{{ indent * d }}    scale: {{ v3((scene_units_per_meter * v.geom.mesh_unit_to_meter * v.geom.mesh_scale[0])|round(6), (scene_units_per_meter * v.geom.mesh_unit_to_meter * v.geom.mesh_scale[1])|round(6), (scene_units_per_meter * v.geom.mesh_unit_to_meter * v.geom.mesh_scale[2])|round(6)) }}
+{{ indent * content_d }}    scale: {{ v3((scene_units_per_meter * v.geom.mesh_unit_to_meter * v.geom.mesh_scale[0])|round(6), (scene_units_per_meter * v.geom.mesh_unit_to_meter * v.geom.mesh_scale[1])|round(6), (scene_units_per_meter * v.geom.mesh_unit_to_meter * v.geom.mesh_scale[2])|round(6)) }}
 {% elif v.geom.type == 'box' %}
-{{ indent * d }}    source: "#Cube"
-{{ indent * d }}    scale: {{ v3((v.geom.size[0] * scene_units_per_meter / 100.0)|round(6), (v.geom.size[1] * scene_units_per_meter / 100.0)|round(6), (v.geom.size[2] * scene_units_per_meter / 100.0)|round(6)) }}
+{{ indent * content_d }}    source: "#Cube"
+{{ indent * content_d }}    scale: {{ v3((v.geom.size[0] * scene_units_per_meter / 100.0)|round(6), (v.geom.size[1] * scene_units_per_meter / 100.0)|round(6), (v.geom.size[2] * scene_units_per_meter / 100.0)|round(6)) }}
 {% elif v.geom.type == 'cylinder' %}
-{{ indent * d }}    source: "#Cylinder"
-{{ indent * d }}    scale: {{ v3((v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6), (v.geom.size[1] * scene_units_per_meter / 100.0)|round(6), (v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6)) }}
+{{ indent * content_d }}    source: "#Cylinder"
+{{ indent * content_d }}    scale: {{ v3((v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6), (v.geom.size[1] * scene_units_per_meter / 100.0)|round(6), (v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6)) }}
 {% elif v.geom.type == 'sphere' %}
-{{ indent * d }}    source: "#Sphere"
-{{ indent * d }}    scale: {{ v3((v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6), (v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6), (v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6)) }}
+{{ indent * content_d }}    source: "#Sphere"
+{{ indent * content_d }}    scale: {{ v3((v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6), (v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6), (v.geom.size[0] * 2 * scene_units_per_meter / 100.0)|round(6)) }}
 {% endif %}
 {% if v.geom.type not in ['mesh', 'node'] and v.material and v.material.color and not v.material.texture %}
-{{ indent * d }}    materials: [ PrincipledMaterial { baseColor: {{ v.material.color | qt_rgba }} } ]
+{{ indent * content_d }}    materials: [ PrincipledMaterial { baseColor: {{ v.material.color | qt_rgba }} } ]
 {% elif not (v.material and v.material.texture) and v.geom.type not in ['mesh', 'node'] %}
-{{ indent * d }}    materials: [ PrincipledMaterial { } ]
+{{ indent * content_d }}    materials: [ PrincipledMaterial { } ]
 {% endif %}
-{{ indent * d }}}
+{{ indent * content_d }}}
 {% endfor %}
 {% else %}
-{{ indent * d }}Node {
-{{ indent * d }}    id: {{ node.link.name | qml_id }}
+{{ indent * content_d }}Node {
+{{ indent * content_d }}    id: {{ node.link.name | qml_id }}
+{{ indent * content_d }}}
+{% endif %}
+{# === Child nodes (inside physics body when use_body) === #}
+{% for c in node.children %}
+{{ render(c, content_d, false) }}
+{% endfor %}
+{# === Closings (innermost first) === #}
+{% if use_body and not is_root %}
 {{ indent * d }}}
 {% endif %}
-{% for c in node.children %}
-{{ render(c, depth + (2 if movable else 1)) }}
-{% endfor %}
 {% if movable %}
 {{ indent * (depth + 1) }}}
 {% endif %}
@@ -78,6 +158,9 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Helpers
+{% if physics %}
+import QtQuick3D.Physics
+{% endif %}
 {% for c in components %}
 import {{ c }}
 {% endfor %}
@@ -102,5 +185,5 @@ Node {
 {{ indent }}rotation: {{ quat([-pi/2, -pi/2, 0]) }}
 {% endif %}
 
-{{ render(root, 1) }}
+{{ render(root, 1, true) }}
 }

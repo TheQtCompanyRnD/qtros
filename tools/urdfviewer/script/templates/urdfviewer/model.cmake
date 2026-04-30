@@ -55,6 +55,12 @@ target_link_libraries(Robot_{{ base_name }} PUBLIC
     qtros2_sensor_msgs::qtros2_sensor_msgs_qtcpp
 )
 {% endif %}
+{% if physics %}
+
+# --- QtQuick3DPhysics dependency ---
+find_package(Qt6 REQUIRED COMPONENTS Quick3DPhysics)
+target_link_libraries(Robot_{{ base_name }} PUBLIC Qt6::Quick3DPhysics)
+{% endif %}
 
 set(ROBOT_{{ base_name }}_PLUGIN
     Robot_{{ base_name }}plugin

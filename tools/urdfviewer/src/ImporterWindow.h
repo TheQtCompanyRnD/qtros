@@ -84,6 +84,9 @@ private:
     QCheckBox *m_rosBridgeCheck = nullptr;
     QLineEdit *m_jointStatesTopicEdit = nullptr;
 
+    // Physics
+    QCheckBox *m_physicsCheck = nullptr;
+
     std::unique_ptr<QTemporaryDir> m_previewTempDir;
     bool m_isRunning = false;
 };
