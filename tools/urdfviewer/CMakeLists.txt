@@ -50,6 +50,10 @@ qt_copy_or_install(
     PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/script/urdf2quickexporter.py"
     DESTINATION "${_urdfviewer_libexec_dir}"
 )
+qt_copy_or_install(
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/script/templates"
+    DESTINATION "${_urdfviewer_libexec_dir}"
+)
 unset(_urdfviewer_libexec_dir)
 
 qt_internal_return_unless_building_tools()
