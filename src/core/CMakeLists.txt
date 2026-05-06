@@ -58,3 +58,7 @@ target_link_libraries(Ros2Core PUBLIC
     rclcpp_action::rclcpp_action
     rosidl_runtime_cpp::rosidl_runtime_cpp
 )
+
+qt_internal_add_docs(Ros2Core
+    ../doc/qtros2.qdocconf
+)

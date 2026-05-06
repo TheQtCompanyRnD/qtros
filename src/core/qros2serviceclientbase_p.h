@@ -17,7 +17,9 @@
 
 #include <QtRos2Core/qtros2coreexports.h>
 #include "qros2entity_p.h"
+#ifndef Q_QDOC
 #include <rclcpp/rclcpp.hpp>
+#endif
 #include <QObject>
 #include <QString>
 #include <QFuture>

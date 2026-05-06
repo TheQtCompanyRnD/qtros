@@ -110,8 +110,10 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 @[if feedback_include]@
 #include @(feedback_include)
 @[end if]@
+#ifndef Q_QDOC
 #include <@(ros_include)>
 #include <rclcpp_action/rclcpp_action.hpp>
+#endif
 #include <QFuture>
 #include <QTimer>
 #include <QJSValue>
@@ -161,8 +163,10 @@ public slots:
     void cancelGoal() override;
 
 private:
+#ifndef Q_QDOC
     rclcpp_action::Client<@(ros_action_type)>::SharedPtr m_client;
     rclcpp_action::ClientGoalHandle<@(ros_action_type)>::SharedPtr m_goalHandle;
+#endif
 
 @[if feedback_class != 'void']@
     @(feedback_class_full) m_feedback{};

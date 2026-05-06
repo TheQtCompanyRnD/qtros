@@ -23,7 +23,9 @@
 #include <QQmlEngine>
 #include <QQmlListProperty>
 #include <QQmlParserStatus>
+#ifndef Q_QDOC
 #include <rclcpp/rclcpp.hpp>
+#endif
 
 QT_BEGIN_NAMESPACE
 
@@ -56,7 +58,9 @@ public:
 
     bool initialized() const { return m_initialized; }
 
+#ifndef Q_QDOC
     rclcpp::Node::SharedPtr rosNode() const { return m_rosNode; }
+#endif
 
     QQmlListProperty<QRos2Entity> childEntities();
 
@@ -89,7 +93,9 @@ private:
     bool m_initialized = false;
     bool m_componentComplete = false;
 
+#ifndef Q_QDOC
     rclcpp::Node::SharedPtr m_rosNode;
+#endif
     QTimer m_healthTimer;
 
     QList<QRos2Entity *> m_children;

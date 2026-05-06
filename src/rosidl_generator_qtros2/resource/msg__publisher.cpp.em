@@ -60,7 +60,7 @@ namespace @(qt_namespace) {
 /*!
     \qmlmethod void @(qt_class_name)Publisher::publish(@(qml_value_type_name) msg)
 
-    Publishes \a msg to the ROS 2 topic set by the \l topic property.
+    Publishes \l @(qml_value_type_name) \a msg to the ROS 2 topic set by the \l topic property.
     Does nothing if the publisher is not connected.
 */
 

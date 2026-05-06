@@ -137,7 +137,11 @@ ros_action_type = '::'.join(name_list)
 header_file = to_snake_case(action_name)
 qml_module_uri = get_qml_module_uri(package_name)
 feedback_param_doc = feedback_class_qml + ' feedback' if feedback_class != 'void' else ''
-sends_goal_phrase = '\\a goal to' if goal_param_qml else 'a goal to'
+goal_l_type = ('\\l ' + goal_class_qml) if goal_needs_wrap else goal_class_qml
+result_l_type = ('\\l ' + result_class_qml) if result_needs_wrap else result_class_qml
+feedback_l_type = ('\\l ' + feedback_class_qml) if feedback_needs_wrap else feedback_class_qml
+sends_goal_phrase = (goal_l_type + ' \\a goal to') if goal_param_qml else 'a goal to'
+result_resolves_phrase = ('resolves with a ' + result_l_type + ' result') if result_class != 'void' else 'resolves'
 }@
 #include "@(header_file)_action_client.hpp"
 #include <QtRos2Core/private/qros2node_p.h>
@@ -176,7 +180,7 @@ namespace @(qt_namespace) {
     \qmlmethod QJSValue @(qt_class_name)ActionClient::sendGoal(@(goal_param_qml))
 
     Sends @(sends_goal_phrase) the \c @(action_name) action server.
-    Returns a JS promise that resolves with the result or rejects on failure or cancellation.
+    Returns a JS promise that @(result_resolves_phrase) or rejects on failure or cancellation.
     \l isServerReady must be \c true before calling.
 */
 
@@ -185,7 +189,7 @@ namespace @(qt_namespace) {
     \qmlsignal @(qt_class_name)ActionClient::feedbackChanged(@(feedback_param_doc))
 
     Emitted when feedback is received from the action server.
-    \a feedback contains the latest feedback value.
+    \a feedback is a @(feedback_l_type) value.
 */
 @[else]@
 /*!

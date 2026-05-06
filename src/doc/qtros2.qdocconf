@@ -1,0 +1,38 @@
+include($QT_INSTALL_DOCS/global/qt-module-defaults.qdocconf)
+
+project = QtRos2
+description = Qt ROS2 Bridge Reference Documentation
+version = $QT_VERSION
+
+qhp.projects = QtRos2
+
+qhp.QtRos2.file = qtros2.qhp
+qhp.QtRos2.namespace = org.qt-project.qtros2.$QT_VERSION_TAG
+qhp.QtRos2.virtualFolder = qtros2
+qhp.QtRos2.indexTitle = Qt ROS2
+qhp.QtRos2.indexRoot =
+
+qhp.QtRos2.subprojects = qmltypes
+qhp.QtRos2.subprojects.qmltypes.title = QML Types
+qhp.QtRos2.subprojects.qmltypes.indexTitle = Qt ROS2 QML Types
+qhp.QtRos2.subprojects.qmltypes.selectors = qmlclass
+qhp.QtRos2.subprojects.qmltypes.sortPages = true
+
+depends = qtcore qtdoc qtqml qtquick3d
+
+moduleheader = QtRos2Core
+
+headerdirs += ../
+sourcedirs += ../
+imagedirs += images
+
+includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include
+includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include/QtCore
+includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include/QtQml
+includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include/QtRos2Core/6.8.0
+
+navigation.landingpage = "Qt ROS2"
+navigation.qmltypespage = "Qt ROS2 QML Types"
+
+tagfile = qtros2.tags
+

@@ -91,8 +91,10 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 @[if resp_include]@
 #include @(resp_include)
 @[end if]@
+#ifndef Q_QDOC
 #include <@(ros_include)>
 #include <rclcpp/rclcpp.hpp>
+#endif
 #include <QJSValue>
 #include <QFuture>
 
@@ -135,7 +137,9 @@ protected:
     void checkHealth() override;
 
 private:
+#ifndef Q_QDOC
     rclcpp::Client<@(ros_srv_type)>::SharedPtr m_client;
+#endif
 
 @[if resp_class == 'void']@
 @[  if req_param]@

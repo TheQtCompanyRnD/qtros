@@ -68,7 +68,7 @@ namespace @(qt_namespace) {
 /*!
     \qmlsignal @(qt_class_name)Subscriber::messageReceived(@(qml_value_type_name) msg)
 
-    Emitted when a new message arrives on \l topic. \a msg contains the received message.
+    Emitted when a new \l @(qml_value_type_name) arrives on \l topic. \a msg contains the received value.
 */
 
 @(qt_class_name)Subscriber::@(qt_class_name)Subscriber(QObject* parent)

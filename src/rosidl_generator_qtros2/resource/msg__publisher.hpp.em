@@ -38,12 +38,14 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 
 #include <QtRos2Core/private/qros2publisherbase_p.h>
 #include "@(value_type_include)"
+#ifndef Q_QDOC
 #include <@(ros_include)>  // ROS message type
 #include <rclcpp/rclcpp.hpp>  // for rclcpp::Publisher
+#endif
 
 namespace @(qt_namespace) {
 
-/**
+/*!
  * @@brief Qt publisher for @(ros_msg_type)
  *
  * Publishes @(qt_class_name) messages to a ROS 2 topic.
@@ -57,7 +59,7 @@ class @(qt_export_macro) @(qt_class_name)Publisher : public QRos2PublisherBase
 public:
     explicit @(qt_class_name)Publisher(QObject* parent = nullptr);
 
-    /**
+    /*!
      * @@brief Publish a message
      * @@param msg The message to publish
      */
@@ -69,7 +71,9 @@ protected:
     void checkHealth() override;
 
 private:
+#ifndef Q_QDOC
     rclcpp::Publisher<@(ros_msg_type)>::SharedPtr m_publisher;
+#endif
 };
 
 } // namespace @(qt_namespace)

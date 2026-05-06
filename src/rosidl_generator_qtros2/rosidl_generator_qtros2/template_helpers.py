@@ -17,6 +17,7 @@ from rosidl_parser.definition import (
 )
 
 from . import (
+    get_qml_value_type_name,
     get_qt_class_name,
     get_qt_class_name_full,
     get_qt_namespace,
@@ -26,6 +27,11 @@ from . import (
     snake_to_camel,
     to_snake_case,
 )
+
+
+def get_qml_module_uri(package_name: str) -> str:
+    """Compute the QML module URI for a ROS package (e.g. QtRos2.BuiltinInterfaces)."""
+    return 'QtRos2.' + ''.join(w.capitalize() for w in package_name.split('_') if w)
 
 NestedInclude = Tuple[str, str, bool]
 
@@ -108,6 +114,8 @@ def build_message_context(package_name: str, message_spec, *, ros_include_overri
         "qt_namespace": get_qt_namespace(package_name),
         "qt_class_name": get_qt_class_name(package_name, msg_name),
         "qt_class_name_full": get_qt_class_name_full(package_name, msg_name),
+        "qml_value_type_name": get_qml_value_type_name(package_name, msg_name),
+        "qml_module_uri": get_qml_module_uri(package_name),
         "ros_msg_type": "::".join(ns_list + [msg_name]),
         "ros_include": ros_include,
         "header_file": header_file,

@@ -79,7 +79,10 @@ if hasattr(response_msg, 'structure') and hasattr(response_msg.structure, 'membe
 qml_module_uri = get_qml_module_uri(package_name)
 req_param_qml = ('const ' + req_class_qml + '& request') if req_param else ''
 resp_param_doc = resp_class_qml + ' response' if resp_class != 'void' else ''
-with_request_phrase = ' with \\a request' if req_param_qml else ''
+req_l_type = ('\\l ' + req_class_qml) if req_needs_wrap else req_class_qml
+resp_l_type = ('\\l ' + resp_class_qml) if resp_needs_wrap else resp_class_qml
+with_request_phrase = (' with ' + req_l_type + ' \\a request') if req_param_qml else ''
+resp_resolves_phrase = ('resolves with a ' + resp_l_type + ' response') if resp_class != 'void' else 'resolves'
 }@
 #include "@(service_header)_service_client.hpp"
 #include <QtRos2Core/private/qros2node_p.h>
@@ -109,7 +112,7 @@ namespace @(qt_namespace) {
     \qmlmethod QJSValue @(qt_class_name)ServiceClient::callService(@(req_param_qml))
 
     Calls the \c @(service_name) ROS 2 service@(with_request_phrase).
-    Returns a JS promise that resolves with the response or rejects with an error string.
+    Returns a JS promise that @(resp_resolves_phrase) or rejects with an error string.
     \l isServiceReady must be \c true before calling.
 */
 
@@ -118,7 +121,7 @@ namespace @(qt_namespace) {
     \qmlsignal @(qt_class_name)ServiceClient::responseReceived(@(resp_param_doc))
 
     Emitted when the service call completes successfully.
-    \a response contains the service response.
+    \a response is a @(resp_l_type) value.
 */
 @[else]@
 /*!

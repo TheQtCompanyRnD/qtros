@@ -57,7 +57,9 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 #include <QString>
 #include <QList>
 #include <QByteArray>
+#ifndef Q_QDOC
 #include <@(ros_include)>
+#endif
 @[for pkg, msg_name, is_cross in nested_includes]@
 @[  if is_cross]@
 #include <@(qt_package_mapping.get(pkg, f'qtros2_{pkg}'))/msg/@(to_snake_case(msg_name)).hpp>
@@ -76,7 +78,7 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 namespace @(qt_namespace) {
 
 @[if emit_wrapper_flag]@
-/**
+/*!
  * @@brief Qt wrapper for @(ros_msg_type)
  *
  * This is a Q_GADGET value type that can be used in QML.
@@ -99,19 +101,10 @@ class @(qt_export_macro) @(qt_class_name)
 public:
     @(qt_class_name)() = default;
 
-    /**
-     * @@brief Implicit conversion FROM ROS message
-     *
-     * Allows automatic conversion from ROS messages to Qt types.
-     */
+#ifndef Q_QDOC
     @(qt_class_name)(const @(ros_msg_type)& ros);
-
-    /**
-     * @@brief Explicit conversion TO ROS message
-     *
-     * Converts this Qt type back to a ROS message.
-     */
     explicit operator @(ros_msg_type)() const;
+#endif
 
     // Equality operators
 @{
@@ -179,7 +172,7 @@ if not info['is_sequence']:
 @[end for]@
 };
 @[else]@
-/**
+/*!
  * @@brief No Qt wrapper generated for @(ros_msg_type)
  *
  * This service/action interface carries a single field, so the direct Qt type

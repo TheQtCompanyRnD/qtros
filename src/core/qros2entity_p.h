@@ -19,7 +19,9 @@
 #include <QObject>
 #include <QString>
 #include <QQmlEngine>
+#ifndef Q_QDOC
 #include <rmw/types.h>
+#endif
 #include "qros2qos_p.h"
 
 QT_BEGIN_NAMESPACE
@@ -44,37 +46,56 @@ public:
 
     // QoS enum definitions matching RMW values
     enum class ReliabilityPolicy {
+#ifndef Q_QDOC
         ReliabilitySystemDefault = RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT,
         ReliabilityReliable = RMW_QOS_POLICY_RELIABILITY_RELIABLE,
         ReliabilityBestEffort = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
         ReliabilityUnknown = RMW_QOS_POLICY_RELIABILITY_UNKNOWN,
         ReliabilityBestAvailable = RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE
+#else
+        ReliabilitySystemDefault, ReliabilityReliable, ReliabilityBestEffort,
+        ReliabilityUnknown, ReliabilityBestAvailable
+#endif
     };
     Q_ENUM(ReliabilityPolicy)
 
     enum class DurabilityPolicy {
+#ifndef Q_QDOC
         DurabilitySystemDefault = RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT,
         DurabilityTransientLocal = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL,
         DurabilityVolatile = RMW_QOS_POLICY_DURABILITY_VOLATILE,
         DurabilityUnknown = RMW_QOS_POLICY_DURABILITY_UNKNOWN,
         DurabilityBestAvailable = RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE
+#else
+        DurabilitySystemDefault, DurabilityTransientLocal, DurabilityVolatile,
+        DurabilityUnknown, DurabilityBestAvailable
+#endif
     };
     Q_ENUM(DurabilityPolicy)
 
     enum class HistoryPolicy {
+#ifndef Q_QDOC
         HistorySystemDefault = RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT,
         HistoryKeepLast = RMW_QOS_POLICY_HISTORY_KEEP_LAST,
         HistoryKeepAll = RMW_QOS_POLICY_HISTORY_KEEP_ALL,
         HistoryUnknown = RMW_QOS_POLICY_HISTORY_UNKNOWN
+#else
+        HistorySystemDefault, HistoryKeepLast, HistoryKeepAll, HistoryUnknown
+#endif
     };
     Q_ENUM(HistoryPolicy)
 
     enum class LivelinessPolicy {
+#ifndef Q_QDOC
         LivelinessSystemDefault = RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
         LivelinessAutomatic = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC,
-        LivelinessManualByNode = 2, //actually RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_NODE - but causes a lot of spam because of depreciation warning,
+        LivelinessManualByNode = 2,
         LivelinessManualByTopic = RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC,
         LivelinessUnknown = RMW_QOS_POLICY_LIVELINESS_UNKNOWN
+#else
+        LivelinessSystemDefault, LivelinessAutomatic, LivelinessManualByNode,
+        LivelinessManualByTopic, LivelinessUnknown
+#endif
     };
     Q_ENUM(LivelinessPolicy)
 

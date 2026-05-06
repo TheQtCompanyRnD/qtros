@@ -10,7 +10,7 @@
 @# - message
 @# - spec
 @{
-from rosidl_generator_qtros2 import get_qml_value_type_name
+from rosidl_generator_qtros2 import get_qt_namespace, get_qml_value_type_name
 from rosidl_generator_qtros2.template_helpers import (
     build_message_context,
     build_value_type_descriptors,
@@ -27,6 +27,8 @@ emit_wrapper_flag = emit_wrapper if 'emit_wrapper' in locals() else True
 value_helpers = build_value_type_descriptors(package_name, message)
 field_infos = value_helpers['field_infos']
 post_init_lines = value_helpers['post_init_lines']
+qml_value_type_name = get_qml_value_type_name(package_name, message.structure.namespaced_type.name)
+qml_module_uri = 'QtRos2.' + ''.join(w.capitalize() for w in package_name.split('_'))
 }@
 #include "@(header_file).hpp"
 @[for info in field_infos]@
@@ -41,21 +43,33 @@ post_init_lines = value_helpers['post_init_lines']
 /*!
     \qmlvaluetype @(qml_value_type_name)
     \inqmlmodule @(qml_module_uri)
-@[if msg_brief]@
-    \brief @(msg_brief)
-@[else]@
-    \brief Qt value type wrapper for \c @(ros_msg_type) ROS 2 messages.
-@[end if]@
+    \brief Qt value type wrapper for @(ros_msg_type) ROS 2 messages.
 
-@[for line in msg_details]@
-    @(line)
-@[end for]@
-@[if msg_details]@
-
-@[end if]@
-    @(qml_value_type_name) is a structured value type usable in QML.
+    @(qt_class_name) is a structured value type usable in QML.
     It maps directly to the \c @(ros_msg_type) ROS 2 message type.
 */
+
+@[for info in field_infos]@
+@{
+_field_name = info.get('name')
+_field_doc_lines = field_docs.get(_field_name, []) if _field_name else []
+_qt_prop = info.get('qt_prop_name') or _field_name
+_qt_type = info.get('qt_type') or 'var'
+}@
+@[  if _qt_prop and _field_doc_lines]@
+/*!
+    \qmlproperty @(_qt_type) @(qml_value_type_name)::@(_qt_prop)
+    \brief @(_field_doc_lines[0])
+@[    if len(_field_doc_lines) > 1]@
+
+@[      for line in _field_doc_lines[1:]]@
+    @(line)
+@[      end for]@
+@[    end if]@
+*/
+
+@[  end if]@
+@[end for]@
 
 @{_nc = [i for i in field_infos if not i.get('is_computed')]}@
 @(qt_namespace)::@(qt_class_name)::@(qt_class_name)(const @(ros_msg_type)& ros)

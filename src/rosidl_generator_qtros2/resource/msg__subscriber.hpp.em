@@ -38,12 +38,14 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 
 #include <QtRos2Core/private/qros2subscriberbase_p.h>
 #include "@(value_type_include)"
+#ifndef Q_QDOC
 #include <@(ros_include)>  // ROS message type
 #include <rclcpp/rclcpp.hpp>  // for rclcpp::Subscription
+#endif
 
 namespace @(qt_namespace) {
 
-/**
+/*!
  * @@brief Qt subscriber for @(ros_msg_type)
  *
  * Subscribes to @(qt_class_name) messages from a ROS 2 topic.
@@ -59,7 +61,7 @@ class @(qt_export_macro) @(qt_class_name)Subscriber : public QRos2SubscriberBase
 public:
     explicit @(qt_class_name)Subscriber(QObject* parent = nullptr);
 
-    /**
+    /*!
      * @@brief Get the last received message
      * @@return The last message received
      */
@@ -69,7 +71,7 @@ public:
     void clearConnection() override;
 
 Q_SIGNALS:
-    /**
+    /*!
      * @@brief Emitted when a new message is received
      * @@param msg The received message
      */
@@ -79,16 +81,11 @@ protected:
     void checkHealth() override;
 
 private:
-    /**
-     * @@brief Handle incoming ROS messages
-     *
-     * This runs in the ROS executor thread context, so we marshal
-     * to the Qt main thread using QMetaObject::invokeMethod.
-     */
-    void handleMessage(const @(ros_msg_type)::SharedPtr msg);
-
     @(qt_class_name_full) m_message;
+#ifndef Q_QDOC
+    void handleMessage(const @(ros_msg_type)::SharedPtr msg);
     rclcpp::Subscription<@(ros_msg_type)>::SharedPtr m_subscription;
+#endif
 };
 
 } // namespace @(qt_namespace)

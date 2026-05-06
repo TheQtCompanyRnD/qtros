@@ -17,8 +17,10 @@
 
 #include <QtRos2Core/qtros2coreexports.h>
 #include <QObject>
+#ifndef Q_QDOC
 #include <rclcpp/qos.hpp>
 #include <rmw/types.h>
+#endif
 #include <QQmlEngine>
 
 QT_BEGIN_NAMESPACE
@@ -60,21 +62,21 @@ public:
     int liveliness() const { return m_liveliness; }
     void setLiveliness(int value) { m_liveliness = value; }
 
-    /**
-     * @brief Cast operator for implicit conversion to rclcpp::QoS
-     *
-     * Converts this Qt QoS object to an rclcpp QoS object that can be used
-     * when creating subscriptions and publishers.
-     */
+#ifndef Q_QDOC
     operator rclcpp::QoS() const;
+#endif
 
 
 private:
     int m_queueSize = 10;
+#ifndef Q_QDOC
     int m_reliability = RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT;
     int m_durability = RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT;
     int m_history = RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT;
     int m_liveliness = RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT;
+#else
+    int m_reliability = 0, m_durability = 0, m_history = 0, m_liveliness = 0;
+#endif
 };
 
 QT_END_NAMESPACE
