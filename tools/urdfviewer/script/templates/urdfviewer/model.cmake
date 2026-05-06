@@ -1,12 +1,22 @@
 
-qt_add_library(Robot_{{ base_name }} STATIC)
+cmake_minimum_required(VERSION 3.19)
+project(Robot_{{ base_name }} LANGUAGES CXX)
+
+set(CMAKE_AUTOMOC ON)
+
+find_package(Qt6 REQUIRED COMPONENTS Quick Quick3D)
+
+qt_add_executable(Robot_{{ base_name }}
+    main.cpp
+)
+
 qt_add_qml_module(Robot_{{ base_name }}
-    URI "{{ base_name }}"
+    URI {{ base_name }}
     VERSION 1.0
-    RESOURCE_PREFIX "/qt/qml"
-    OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     QML_FILES
+        "Main.qml"
         "{{ base_name }}.qml"
+        "PreviewScene.qml"
 {% if ros_bridge %}
         "RosPreviewScene.qml"
         "RosMain.qml"
@@ -20,7 +30,12 @@ qt_add_qml_module(Robot_{{ base_name }}
         "{{ joints_name }}_joints.json"
 )
 
-target_link_libraries(Robot_{{ base_name }} PUBLIC Qt6::Gui)
+set_target_properties(Robot_{{ base_name }} PROPERTIES
+    WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
+)
+
+target_link_libraries(Robot_{{ base_name }} PUBLIC Qt6::Quick3D)
 {% if plugins %}
 add_subdirectory(Generated)
 {% endif %}

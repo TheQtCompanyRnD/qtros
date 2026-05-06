@@ -1407,6 +1407,26 @@ def write_preview_qml(
         f.write(qml)
 
 
+def generate_main_cpp(base_name: str) -> str:
+    """Return C++ main() source for the standalone robot preview executable."""
+    return _make_env().get_template("main.cpp").render(base_name=base_name)
+
+
+def write_main_cpp(
+    base_name: str,
+    out_dir: str,
+    *,
+    header_comment: Optional[str] = None,
+) -> None:
+    """Write main.cpp for the standalone robot preview executable."""
+    path = os.path.join(out_dir, "main.cpp")
+    cpp = generate_main_cpp(base_name)
+    if header_comment:
+        cpp = f"// {header_comment}\n" + cpp
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(cpp)
+
+
 def generate_qmlproject(base_name: str) -> str:
     """Return a qmlproject file for previewing the robot model."""
     return _make_env().get_template("robot.qmlproject").render(base_name=base_name)
@@ -2072,6 +2092,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         write_control_panel_qml(base_name, robot_dir, header_comment=header_comment)
         write_preview_scene_qml(base_name, robot_dir, header_comment=header_comment)
         write_preview_qml(base_name, robot_dir, header_comment=header_comment)
+        write_main_cpp(base_name, robot_dir, header_comment=header_comment)
         write_qmlproject(base_name, robot_dir, header_comment=header_comment)
 
         if args.ros_bridge:
