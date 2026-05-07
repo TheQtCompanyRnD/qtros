@@ -3,7 +3,12 @@
 
 set(QT_SBOM_DEFAULT_QT_LICENSE_ID_LIBRARIES "QT_COMMERCIAL_OR_GPL3")
 
-qt_find_package(WrapRos2 PROVIDED_TARGETS WrapRos2::WrapRos2)
+qt_find_package(WrapRos2 PROVIDED_TARGETS
+    WrapRos2::WrapRos2
+    rclcpp::rclcpp
+    rclcpp_action::rclcpp_action
+    rosidl_runtime_cpp::rosidl_runtime_cpp
+)
 
 # Populate ${QT_CONFIG_BUILD_DIR}/Qt6Ros2Core/ with the generator cmake files,
 # Python package, and resource templates BEFORE find_package so the deployed

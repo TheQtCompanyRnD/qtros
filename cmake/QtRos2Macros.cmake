@@ -244,3 +244,230 @@ function(qt_ros2_configure_target _qt_ros2_app_target)
       "call qt_ros2_configure_target after qt_add_executable/qt_add_qml_module.")
   endif()
 endfunction()
+
+# Private helper: locate urdf2quickexporter.py.
+# Sets _qt_ros2_urdf_exporter_script in the caller's scope.
+function(_qt_ros2_find_exporter_script)
+  set(_script "urdf2quickexporter.py")
+
+  # 1. In source: If this listfile is inside the source tree the script folder is a sibling of this folder
+  # so: ../tools/urdfviewer/script/
+  set(_src_candidate
+      "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../tools/urdfviewer/script/${_script}")
+  get_filename_component(_src_candidate "${_src_candidate}" ABSOLUTE)
+
+  # 2. Installed: The exporter script is installed into libexec/, so we go through the Qt6_DIR,
+  # so: ../../../libexec (<prefix>/lib/cmake/Qt6/ vs <prefix>/libexec/)
+  set(_installed_candidate "")
+  if(DEFINED Qt6_DIR)
+    set(_installed_candidate "${Qt6_DIR}/../../../libexec/${_script}")
+    get_filename_component(_installed_candidate "${_installed_candidate}" ABSOLUTE)
+  endif()
+
+  if(EXISTS "${_src_candidate}")
+    set(_qt_ros2_urdf_exporter_script "${_src_candidate}" PARENT_SCOPE)
+  elseif(_installed_candidate AND EXISTS "${_installed_candidate}")
+    set(_qt_ros2_urdf_exporter_script "${_installed_candidate}" PARENT_SCOPE)
+  else()
+    message(FATAL_ERROR
+      "qt_ros2_import_urdf: cannot locate ${_script}.\n"
+      "Searched:\n"
+      "  ${_src_candidate}\n"
+      "  ${_installed_candidate}\n"
+      "Ensure the Qt ROS2 bridge is built or installed correctly.")
+  endif()
+endfunction()
+
+# qt_ros2_import_urdf(<target> <urdf_file>
+#     [DEST_DIR <dir>]
+#     [QML_MODULE_URI <uri>]
+#     [QML_MODULE_VERSION <ver>]
+#     [PHYSICS]
+#     [ROS_BRIDGE]
+#     [SCENE_UNITS_PER_METER <n>]
+#     [INSTANCE_SCALE <n>]
+# )
+#
+# Runs urdf2quickexporter.py at configure time, then registers the generated
+# QML/C++ files as a new QML module that is automatically linked to <target>.
+#
+# Generated files land in DEST_DIR/<robot_name>/ (default:
+# ${CMAKE_CURRENT_BINARY_DIR}/urdf_generated). The robot's QML module URI
+# defaults to the PascalCase robot name (e.g. "SimpleArm"); override with
+# QML_MODULE_URI.
+function(qt_ros2_import_urdf _qt_ros2_urdf_target _qt_ros2_urdf_file)
+  cmake_parse_arguments(_URDF
+    "PHYSICS;ROS_BRIDGE"
+    "DEST_DIR;QML_MODULE_URI;QML_MODULE_VERSION;SCENE_UNITS_PER_METER;INSTANCE_SCALE"
+    ""
+    ${ARGN}
+  )
+
+  # Resolve URDF path
+  if(NOT IS_ABSOLUTE "${_qt_ros2_urdf_file}")
+    set(_qt_ros2_urdf_file "${CMAKE_CURRENT_SOURCE_DIR}/${_qt_ros2_urdf_file}")
+  endif()
+  if(NOT EXISTS "${_qt_ros2_urdf_file}")
+    message(FATAL_ERROR "qt_ros2_import_urdf: URDF file not found: ${_qt_ros2_urdf_file}")
+  endif()
+
+  # Output directory
+  if(_URDF_DEST_DIR)
+    set(_urdf_dest "${_URDF_DEST_DIR}")
+  else()
+    set(_urdf_dest "${CMAKE_CURRENT_BINARY_DIR}/urdf_generated")
+  endif()
+  file(MAKE_DIRECTORY "${_urdf_dest}")
+
+  # Locate the exporter script and Python 3
+  _qt_ros2_find_exporter_script()
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+  # Build the exporter command line
+  set(_urdf_manifest "${_urdf_dest}/_urdf_manifest.json")
+  set(_urdf_cmd
+    "${Python3_EXECUTABLE}"
+    "${_qt_ros2_urdf_exporter_script}"
+    "${_qt_ros2_urdf_file}"
+    "${_urdf_dest}"
+    "--manifest-out" "${_urdf_manifest}"
+  )
+  if(_URDF_PHYSICS)
+    list(APPEND _urdf_cmd "--physics")
+  endif()
+  if(_URDF_ROS_BRIDGE)
+    list(APPEND _urdf_cmd "--ros-bridge")
+  endif()
+  if(_URDF_SCENE_UNITS_PER_METER)
+    list(APPEND _urdf_cmd "--scene-units-per-meter" "${_URDF_SCENE_UNITS_PER_METER}")
+  endif()
+  if(_URDF_INSTANCE_SCALE)
+    list(APPEND _urdf_cmd "--instance-scale" "${_URDF_INSTANCE_SCALE}")
+  endif()
+  # When importing URDFs there's no main entry point created in QML or C++, as it's
+  # expected that the user provides those.
+  list(APPEND _urdf_cmd "--no-main-qml")
+  # PreviewScene.qml is likewise a standalone viewer entry point, not a module type.
+  list(APPEND _urdf_cmd "--no-preview-scene")
+
+  # Re-run configure when the URDF changes
+  set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_qt_ros2_urdf_file}"
+  )
+
+  # Run the exporter at configure time
+  execute_process(
+    COMMAND ${_urdf_cmd}
+    RESULT_VARIABLE _urdf_result
+    OUTPUT_VARIABLE _urdf_stdout
+    ERROR_VARIABLE  _urdf_stderr
+  )
+  if(NOT _urdf_result EQUAL 0)
+    message(FATAL_ERROR
+      "qt_ros2_import_urdf: exporter failed (exit ${_urdf_result}).\n"
+      "Command: ${_urdf_cmd}\n"
+      "stdout:\n${_urdf_stdout}\n"
+      "stderr:\n${_urdf_stderr}")
+  endif()
+
+  # Parse the manifest
+  if(NOT EXISTS "${_urdf_manifest}")
+    message(FATAL_ERROR
+      "qt_ros2_import_urdf: exporter succeeded but manifest not found: ${_urdf_manifest}")
+  endif()
+  file(READ "${_urdf_manifest}" _urdf_manifest_json)
+  string(JSON _urdf_base_name  GET "${_urdf_manifest_json}" base_name)
+  string(JSON _urdf_robot_dir  GET "${_urdf_manifest_json}" robot_dir)
+  string(JSON _urdf_robot_qml  GET "${_urdf_manifest_json}" files robot_qml)
+  string(JSON _urdf_preview    ERROR_VARIABLE _urdf_preview_err GET "${_urdf_manifest_json}" files preview_scene_qml)
+  string(JSON _urdf_ctrl_qml   GET "${_urdf_manifest_json}" files control_qml)
+  string(JSON _urdf_ctrl_panel ERROR_VARIABLE _urdf_ctrl_panel_err GET "${_urdf_manifest_json}" files control_panel_qml)
+  string(JSON _urdf_joints     GET "${_urdf_manifest_json}" files joints_json)
+
+  # QML module URI and version
+  if(_URDF_QML_MODULE_URI)
+    set(_urdf_uri "${_URDF_QML_MODULE_URI}")
+  else()
+    set(_urdf_uri "${_urdf_base_name}")
+  endif()
+  if(_URDF_QML_MODULE_VERSION)
+    set(_urdf_ver "${_URDF_QML_MODULE_VERSION}")
+  else()
+    set(_urdf_ver "1.0")
+  endif()
+
+  # Collect generated C++ sources
+  set(_urdf_cpp_sources
+    "${_urdf_robot_dir}/${_urdf_base_name}ControlBase.h"
+    "${_urdf_robot_dir}/${_urdf_base_name}ControlBase.cpp"
+    "${_urdf_robot_dir}/${_urdf_base_name}Control.h"
+    "${_urdf_robot_dir}/${_urdf_base_name}Control.cpp"
+  )
+
+  # Collect generated QML files — Main.qml and PreviewScene.qml are intentionally
+  # excluded: they are standalone entry-point windows, not reusable module types.
+  # Users provide their own application entry point and scene when integrating
+  # via qt_ros2_import_urdf().
+  set(_urdf_qml_files
+    "${_urdf_robot_qml}"
+    "${_urdf_ctrl_qml}"
+  )
+  if(_urdf_ctrl_panel AND NOT _urdf_ctrl_panel STREQUAL "null")
+    list(APPEND _urdf_qml_files "${_urdf_ctrl_panel}")
+  endif()
+  if(_urdf_preview AND NOT _urdf_preview STREQUAL "null")
+    list(APPEND _urdf_qml_files "${_urdf_preview}")
+  endif()
+
+  # Optional ROS bridge QML files
+  string(JSON _urdf_ros_bridge ERROR_VARIABLE _urdf_ros_err GET "${_urdf_manifest_json}" files ros_bridge_qml)
+  if(_urdf_ros_bridge AND NOT _urdf_ros_bridge STREQUAL "null")
+    list(APPEND _urdf_qml_files "${_urdf_ros_bridge}")
+  endif()
+
+  # Qt's resource system requires relative paths for QML files. Set
+  # QT_RESOURCE_ALIAS to the bare filename for each absolute-path generated file.
+  foreach(_urdf_qml_file IN LISTS _urdf_qml_files)
+    get_filename_component(_urdf_qml_alias "${_urdf_qml_file}" NAME)
+    set_source_files_properties("${_urdf_qml_file}"
+      PROPERTIES QT_RESOURCE_ALIAS "${_urdf_qml_alias}"
+    )
+  endforeach()
+  get_filename_component(_urdf_joints_alias "${_urdf_joints}" NAME)
+  set_source_files_properties("${_urdf_joints}"
+    PROPERTIES QT_RESOURCE_ALIAS "${_urdf_joints_alias}"
+  )
+
+  # Create the robot QML module target
+  string(REPLACE "." "/" _urdf_target_path "${_urdf_uri}")
+  set(_urdf_module_target "${_qt_ros2_urdf_target}_${_urdf_base_name}")
+  qt_add_library("${_urdf_module_target}" STATIC)
+  set_target_properties("${_urdf_module_target}" PROPERTIES AUTOMOC ON)
+  qt_add_qml_module("${_urdf_module_target}"
+    URI "${_urdf_uri}"
+    VERSION "${_urdf_ver}"
+    OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${_urdf_target_path}"
+    QML_FILES ${_urdf_qml_files}
+    SOURCES   ${_urdf_cpp_sources}
+    RESOURCES "${_urdf_joints}"
+    NO_CACHEGEN
+  )
+
+  # Generated headers live in the robot output directory. Add it so the compiler
+  # and the qt-generated qmltyperegistrations.cpp can find e.g. <SimpleArmControl.h>.
+  target_include_directories("${_urdf_module_target}" PUBLIC "${_urdf_robot_dir}")
+
+  # Link Quick3D (always required) and optionally Quick3DPhysics
+  find_package(Qt6 REQUIRED COMPONENTS Quick Quick3D)
+  target_link_libraries("${_urdf_module_target}" PUBLIC Qt6::Quick Qt6::Quick3D)
+  if(_URDF_PHYSICS)
+    find_package(Qt6 REQUIRED COMPONENTS Quick3DPhysics)
+    target_link_libraries("${_urdf_module_target}" PUBLIC Qt6::Quick3DPhysics)
+  endif()
+
+  # Link the robot module plugin into the caller's target
+  target_link_libraries("${_qt_ros2_urdf_target}" PRIVATE
+    "${_urdf_module_target}"
+    "${_urdf_module_target}plugin"
+  )
+endfunction()
