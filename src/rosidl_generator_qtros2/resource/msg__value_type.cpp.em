@@ -10,7 +10,7 @@
 @# - message
 @# - spec
 @{
-from rosidl_generator_qtros2 import get_qt_namespace
+from rosidl_generator_qtros2 import get_qml_value_type_name
 from rosidl_generator_qtros2.template_helpers import (
     build_message_context,
     build_value_type_descriptors,
@@ -19,6 +19,7 @@ from rosidl_generator_qtros2.template_helpers import (
 context = build_message_context(package_name, message)
 qt_namespace = context['qt_namespace']
 qt_class_name = context['qt_class_name']
+qml_value_type_name = get_qml_value_type_name(package_name, message.structure.namespaced_type.name)
 ros_msg_type = context['ros_msg_type']
 header_file = context['header_file']
 header_subdir = qtros2_interface_subdir if 'qtros2_interface_subdir' in locals() and qtros2_interface_subdir else 'msg'
@@ -37,6 +38,25 @@ post_init_lines = value_helpers['post_init_lines']
 @[end for]@
 
 @[if emit_wrapper_flag]@
+/*!
+    \qmlvaluetype @(qml_value_type_name)
+    \inqmlmodule @(qml_module_uri)
+@[if msg_brief]@
+    \brief @(msg_brief)
+@[else]@
+    \brief Qt value type wrapper for \c @(ros_msg_type) ROS 2 messages.
+@[end if]@
+
+@[for line in msg_details]@
+    @(line)
+@[end for]@
+@[if msg_details]@
+
+@[end if]@
+    @(qml_value_type_name) is a structured value type usable in QML.
+    It maps directly to the \c @(ros_msg_type) ROS 2 message type.
+*/
+
 @{_nc = [i for i in field_infos if not i.get('is_computed')]}@
 @(qt_namespace)::@(qt_class_name)::@(qt_class_name)(const @(ros_msg_type)& ros)
 @[if _nc]@

@@ -671,9 +671,22 @@ def to_snake_case(name: str) -> str:
 
 
 def get_qml_value_type_name(package: str, message_name: str) -> str:
-    """Build a stable QML value type identifier with the package prefix."""
-    pkg_prefix = package.replace('_', '').lower()
-    return f"{pkg_prefix}_{message_name.lower()}"
+    """QML value type name for a ROS message, in lowercase camelCase.
+
+    Qt's QML value-type convention uses a lowercase initial letter
+    (e.g. ``point``, ``rect``, ``color``). The QML module URI provides
+    package scoping; users alias with ``import ... as`` on the rare
+    collision (e.g. ``keyValue`` exists in both diagnostic_msgs and
+    type_description_interfaces).
+
+    Examples::
+
+        Duration            -> duration
+        TwistWithCovariance -> twistWithCovariance
+        NavSatFix           -> navSatFix
+    """
+    name = get_qt_class_name(package, message_name)
+    return name[:1].lower() + name[1:] if name else name
 
 
 def get_qt_namespace(package: str) -> str:
@@ -689,10 +702,7 @@ def get_qt_namespace(package: str) -> str:
 
 def get_qt_class_name(package: str, message_name: str) -> str:
     """Generate Qt class name from package and message name (without namespace)."""
-    action_suffixes = ('_Goal', '_Result', '_Feedback')
-    if message_name.endswith(action_suffixes):
-        return message_name.replace('_', '')
-    return message_name
+    return message_name.replace('_', '')
 
 
 def get_qt_class_name_full(package: str, message_name: str) -> str:
