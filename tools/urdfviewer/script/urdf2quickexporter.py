@@ -2208,10 +2208,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         # main_qml is filled in below after we decide whether to generate it
         manifest["files"] = {
             "robot_qml": os.path.abspath(qml_path),
-            "preview_scene_qml": os.path.abspath(preview_scene_path),
+            "preview_scene_qml": None,
             "main_qml": None,
             "control_qml": os.path.abspath(control_qml_path),
-            "control_panel_qml": os.path.abspath(control_panel_qml_path),
+            "control_panel_qml": None,
             "joints_json": os.path.abspath(joints_path),
             "ros_preview_scene_qml": None,
             "ros_main_qml": None,
