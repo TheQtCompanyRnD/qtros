@@ -14,9 +14,14 @@ qt_add_qml_module(Robot_{{ base_name }}
     URI {{ base_name }}
     VERSION 1.0
     QML_FILES
+{% if main_qml %}
         "Main.qml"
+{% endif %}
         "{{ base_name }}.qml"
+{% if preview_scene %}
+        "ControlPanel.qml"
         "PreviewScene.qml"
+{% endif %}
 {% if ros_bridge %}
         "RosPreviewScene.qml"
         "RosMain.qml"

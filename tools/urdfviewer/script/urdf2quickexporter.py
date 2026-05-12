@@ -1535,14 +1535,24 @@ def write_preview_qml(
     out_dir: str,
     *,
     header_comment: Optional[str] = None,
-) -> None:
-    """Write the standalone preview window QML file."""
+) -> bool:
+    """Write the standalone preview window QML file.
+
+    The file is treated as a user-editable entry point: it is only created when
+    it does not already exist (create-once semantics, like SimpleArmControl.h).
+
+    Returns True if the file was written, False if it already existed and was
+    left untouched.
+    """
     qml_path = os.path.join(out_dir, "Main.qml")
+    if os.path.exists(qml_path):
+        return False
     qml = generate_preview_qml(base_name)
     if header_comment:
         qml = f"// {header_comment}\n" + qml
     with open(qml_path, "w", encoding="utf-8") as f:
         f.write(qml)
+    return True
 
 
 def generate_main_cpp(base_name: str) -> str:
@@ -1754,6 +1764,8 @@ def generate_model_cmake(
     *,
     ros_bridge: bool = False,
     physics: bool = False,
+    main_qml: bool = True,
+    preview_scene: bool = True,
 ) -> str:
     """Generate CMakeLists.txt for the robot model module."""
     return _make_env().get_template("model.cmake").render(
@@ -1762,6 +1774,8 @@ def generate_model_cmake(
         joints_name=joints_name,
         ros_bridge=ros_bridge,
         physics=physics,
+        main_qml=main_qml,
+        preview_scene=preview_scene,
     )
 
 
@@ -1773,10 +1787,13 @@ def write_model_cmake_file(
     *,
     ros_bridge: bool = False,
     physics: bool = False,
+    main_qml: bool = True,
+    preview_scene: bool = True,
     header_comment: Optional[str] = None,
 ) -> None:
     cmake = generate_model_cmake(base_name, component_plugins, joints_name,
-                                 ros_bridge=ros_bridge, physics=physics)
+                                 ros_bridge=ros_bridge, physics=physics, main_qml=main_qml,
+                                 preview_scene=preview_scene)
     if header_comment:
         cmake = f"# {header_comment}\n" + cmake
     with open(path, "w", encoding="utf-8") as f:
@@ -1790,10 +1807,13 @@ def generate_robot_cmake(
     *,
     ros_bridge: bool = False,
     physics: bool = False,
+    main_qml: bool = True,
+    preview_scene: bool = True,
 ) -> str:
     """Generate the top-level CMakeLists.txt for the robot."""
     return generate_model_cmake(base_name, component_plugins, joints_name,
-                                ros_bridge=ros_bridge, physics=physics)
+                                ros_bridge=ros_bridge, physics=physics, main_qml=main_qml,
+                                preview_scene=preview_scene)
 
 
 def write_robot_cmake_file(
@@ -1804,10 +1824,13 @@ def write_robot_cmake_file(
     *,
     ros_bridge: bool = False,
     physics: bool = False,
+    main_qml: bool = True,
+    preview_scene: bool = True,
     header_comment: Optional[str] = None,
 ) -> None:
     cmake = generate_robot_cmake(base_name, component_plugins, joints_name,
-                                 ros_bridge=ros_bridge, physics=physics)
+                                 ros_bridge=ros_bridge, physics=physics, main_qml=main_qml,
+                                 preview_scene=preview_scene)
     if header_comment:
         cmake = f"# {header_comment}\n" + cmake
     with open(path, "w", encoding="utf-8") as f:
@@ -2001,6 +2024,26 @@ def _create_argument_parser() -> argparse.ArgumentParser:
             "added manually. Requires Qt6::Quick3DPhysics at build/runtime."
         ),
     )
+    parser.add_argument(
+        "--no-main-qml",
+        dest="no_main_qml",
+        action="store_true",
+        default=False,
+        help=(
+            "Do not generate Main.qml. Use this when integrating the generated files "
+            "into an existing CMake project that provides its own application entry point."
+        ),
+    )
+    parser.add_argument(
+        "--no-preview-scene",
+        dest="no_preview_scene",
+        action="store_true",
+        default=False,
+        help=(
+            "Do not generate PreviewScene.qml. Use this when integrating the generated "
+            "files into an existing CMake project that provides its own scene."
+        ),
+    )
     return parser
 
 
@@ -2015,6 +2058,7 @@ def _empty_manifest(invocation: Dict[str, Any]) -> Dict[str, Any]:
             "preview_scene_qml": None,
             "main_qml": None,
             "control_qml": None,
+            "control_panel_qml": None,
             "joints_json": None,
             "ros_preview_scene_qml": None,
             "ros_main_qml": None,
@@ -2053,6 +2097,8 @@ def _manifest_invocation(args: argparse.Namespace) -> Dict[str, Any]:
         "ros_bridge": bool(args.ros_bridge),
         "joint_states_topic": args.joint_states_topic,
         "physics": bool(args.physics),
+        "no_main_qml": bool(args.no_main_qml),
+        "no_preview_scene": bool(args.no_preview_scene),
     }
 
 
@@ -2150,6 +2196,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         control_header_path = os.path.join(robot_dir, f"{base_name}Control.h")
         control_source_path = os.path.join(robot_dir, f"{base_name}Control.cpp")
         control_qml_path = os.path.join(robot_dir, f"{base_name}Control.qml")
+        control_panel_qml_path = os.path.join(robot_dir, "ControlPanel.qml")
         joints_path = os.path.join(robot_dir, f"{joints_name}_joints.json")
         preview_scene_path = os.path.join(robot_dir, "PreviewScene.qml")
         main_qml_path = os.path.join(robot_dir, "Main.qml")
@@ -2158,11 +2205,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         manifest["robot_name"] = model.name
         manifest["base_name"] = base_name
         manifest["robot_dir"] = os.path.abspath(robot_dir)
+        # main_qml is filled in below after we decide whether to generate it
         manifest["files"] = {
             "robot_qml": os.path.abspath(qml_path),
             "preview_scene_qml": os.path.abspath(preview_scene_path),
-            "main_qml": os.path.abspath(main_qml_path),
+            "main_qml": None,
             "control_qml": os.path.abspath(control_qml_path),
+            "control_panel_qml": os.path.abspath(control_panel_qml_path),
             "joints_json": os.path.abspath(joints_path),
             "ros_preview_scene_qml": None,
             "ros_main_qml": None,
@@ -2242,6 +2291,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             joints_name,
             ros_bridge=args.ros_bridge,
             physics=args.physics,
+            main_qml=not args.no_main_qml,
+            preview_scene=not args.no_preview_scene,
             header_comment=header_comment,
         )
         write_qmldir(base_name, os.path.join(robot_dir, "qmldir"), header_comment=header_comment)
@@ -2251,11 +2302,19 @@ def main(argv: Optional[List[str]] = None) -> int:
             load_from_json=args.use_joints_json,
             header_comment=header_comment,
         )
-        write_control_panel_qml(base_name, robot_dir, header_comment=header_comment)
-        write_preview_scene_qml(base_name, robot_dir, physics=args.physics, header_comment=header_comment)
-        write_preview_qml(base_name, robot_dir, header_comment=header_comment)
-        write_main_cpp(base_name, robot_dir, header_comment=header_comment)
-        write_qmlproject(base_name, robot_dir, header_comment=header_comment)
+        if not args.no_preview_scene:
+            written = write_preview_scene_qml(base_name, robot_dir, physics=args.physics, header_comment=header_comment)
+            if written or os.path.exists(preview_scene_path):
+                manifest["files"]["preview_scene_qml"] = os.path.abspath(preview_scene_path)
+            written = write_control_panel_qml(base_name, robot_dir, header_comment=header_comment)
+            if written or os.path.exists(control_panel_qml_path):
+                manifest["files"]["control_panel_qml"] = os.path.abspath(control_panel_qml_path)
+        if not args.no_main_qml:
+            written = write_preview_qml(base_name, robot_dir, header_comment=header_comment)
+            if written or os.path.exists(main_qml_path):
+                manifest["files"]["main_qml"] = os.path.abspath(main_qml_path)
+            write_main_cpp(base_name, robot_dir, header_comment=header_comment)
+            write_qmlproject(base_name, robot_dir, header_comment=header_comment)
 
         if args.ros_bridge:
             ros_preview_scene_path = os.path.join(robot_dir, "RosPreviewScene.qml")
