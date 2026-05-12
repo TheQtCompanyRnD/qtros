@@ -30,7 +30,7 @@ QT_BEGIN_NAMESPACE
 class Q_ROS2CORE_EXPORT QRos2ServiceClientBase : public QRos2Entity
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(ServiceClientBase)
     QML_UNCREATABLE("QRos2ServiceClientBase is abstract")
 
     Q_PROPERTY(bool isServiceReady READ isServiceReady NOTIFY isServiceReadyChanged)

@@ -95,7 +95,7 @@ QtObject {
 
         readonly property list<InstanceListEntry> instancePool: []
 
-        readonly property Ros2Node node: Ros2Node {
+        readonly property Node node: Node {
             id: rosNode
             nodeName: "qt_robot_monitor"
 

@@ -3,8 +3,9 @@
 
 @# Generation template for Qt service client implementation
 @{
-from rosidl_generator_qtros2 import get_qt_class_name, get_qt_class_name_full, msg_type_to_qt, msg_type_to_cpp, to_snake_case
+from rosidl_generator_qtros2 import get_qml_value_type_name, get_qt_class_name, get_qt_class_name_full, msg_type_to_qt, msg_type_to_cpp, to_snake_case
 from rosidl_generator_qtros2 import get_qt_namespace
+from rosidl_generator_qtros2.template_helpers import get_qml_module_uri
 from rosidl_parser.definition import (
     NamespacedType,
     AbstractNestedType,
@@ -37,10 +38,12 @@ resp_needs_wrap = needs_wrapper_type(response_msg)
 if req_needs_wrap:
     req_class = get_qt_class_name(package_name, request_msg.structure.namespaced_type.name)
     req_class_full = get_qt_class_name_full(package_name, request_msg.structure.namespaced_type.name)
+    req_class_qml = get_qml_value_type_name(package_name, request_msg.structure.namespaced_type.name)
     req_param = 'const ' + req_class_full + '& request'
 else:
     req_class = get_single_field_type(request_msg, package_name)
     req_class_full = req_class
+    req_class_qml = req_class
     if req_class != 'void':
         req_param = 'const ' + req_class_full + '& request'
     else:
@@ -49,9 +52,11 @@ else:
 if resp_needs_wrap:
     resp_class = get_qt_class_name(package_name, response_msg.structure.namespaced_type.name)
     resp_class_full = get_qt_class_name_full(package_name, response_msg.structure.namespaced_type.name)
+    resp_class_qml = get_qml_value_type_name(package_name, response_msg.structure.namespaced_type.name)
 else:
     resp_class = get_single_field_type(response_msg, package_name)
     resp_class_full = resp_class
+    resp_class_qml = resp_class
 
 # Determine template type for QFuture/QPromise
 if resp_class == 'void':
@@ -71,6 +76,10 @@ if hasattr(request_msg, 'structure') and hasattr(request_msg.structure, 'members
 resp_members = []
 if hasattr(response_msg, 'structure') and hasattr(response_msg.structure, 'members'):
     resp_members = [m for m in response_msg.structure.members if m.name != 'structure_needs_at_least_one_member']
+qml_module_uri = get_qml_module_uri(package_name)
+req_param_qml = ('const ' + req_class_qml + '& request') if req_param else ''
+resp_param_doc = resp_class_qml + ' response' if resp_class != 'void' else ''
+with_request_phrase = ' with \\a request' if req_param_qml else ''
 }@
 #include "@(service_header)_service_client.hpp"
 #include <QtRos2Core/private/qros2node_p.h>
@@ -85,6 +94,45 @@ if hasattr(response_msg, 'structure') and hasattr(response_msg.structure, 'membe
 #include <memory>
 
 namespace @(qt_namespace) {
+
+/*!
+    \qmltype @(qt_class_name)ServiceClient
+    \inqmlmodule @(qml_module_uri)
+    \inherits ServiceClientBase
+    \brief Qt service client for the @(service_name) ROS 2 service.
+
+    @(qt_class_name)ServiceClient calls a ROS 2 service.
+    Set the \c topic and \c node properties, then call \c callService() to invoke the service.
+*/
+
+/*!
+    \qmlmethod QJSValue @(qt_class_name)ServiceClient::callService(@(req_param_qml))
+
+    Calls the \c @(service_name) ROS 2 service@(with_request_phrase).
+    Returns a JS promise that resolves with the response or rejects with an error string.
+    \l isServiceReady must be \c true before calling.
+*/
+
+@[if resp_param_doc]@
+/*!
+    \qmlsignal @(qt_class_name)ServiceClient::responseReceived(@(resp_param_doc))
+
+    Emitted when the service call completes successfully.
+    \a response contains the service response.
+*/
+@[else]@
+/*!
+    \qmlsignal @(qt_class_name)ServiceClient::responseReceived()
+
+    Emitted when the service call completes successfully.
+*/
+@[end if]@
+
+/*!
+    \qmlsignal @(qt_class_name)ServiceClient::callFailed(string error)
+
+    Emitted when the service call fails. \a error contains the error message.
+*/
 
 @(qt_class_name)ServiceClient::@(qt_class_name)ServiceClient(QObject* parent)
     : QRos2ServiceClientBase(parent)

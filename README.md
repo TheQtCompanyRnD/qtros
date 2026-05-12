@@ -815,10 +815,11 @@ These snippets reflect the current generator output and Qt APIs.
 ```qml
 import QtQuick
 import QtQuick.Controls
+import QtRos2.Core as Ros2
 import QtRos2.GeometryMsgs
 
 Window {
-    Ros2Node {
+    Ros2.Node {
         id: rosNode
         nodeName: "example_node"
 
@@ -860,7 +861,7 @@ import QtQuick.Controls
 import QtRos2.StdSrvs
 
 Window {
-    Ros2Node {
+    Node {
         id: rosNode
         nodeName: "service_client_node"
 
@@ -890,7 +891,7 @@ import QtQuick.Controls
 import QtRos2.Imported.Nav2Msgs
 
 Window {
-    Ros2Node {
+    Node {
         id: rosNode
         nodeName: "nav_client_node"
 

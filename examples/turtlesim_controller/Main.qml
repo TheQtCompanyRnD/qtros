@@ -21,7 +21,7 @@ ApplicationWindow {
     ?? null
     property int currentIndex: turtleSelection.currentIndex
 
-    Ros2Node {
+    Node {
         id: rootRosNode
         nodeName: `qt_main_node`
 

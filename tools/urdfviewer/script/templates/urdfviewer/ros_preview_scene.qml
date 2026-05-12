@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick3D
 import QtQuick3D.Helpers
-import QtRos2.Core
+import QtRos2.Core as Ros2
 import QtRos2.SensorMsgs as SensorMsgs
 
 Item {
@@ -22,7 +22,7 @@ Item {
 {% endfor %}
     })
 
-    Ros2Node {
+    Ros2.Node {
         id: ros2Node
         nodeName: "urdf_preview_node"
 

@@ -13,7 +13,7 @@ Window {
     property int publishCount: 0
     property string lastPayload: "Press the button to publish a PoseStamped message."
 
-    Ros2Node {
+    Node {
         id: rosNode
         nodeName: "simple_publisher_node"
 

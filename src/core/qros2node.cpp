@@ -8,6 +8,56 @@
 #include <QDebug>
 #include <QLoggingCategory>
 
+/*!
+    \qmltype Node
+    \inqmlmodule QtRos2.Core
+    \brief Represents a ROS 2 node and hosts publisher, subscriber, and
+    client entities.
+
+    Node is the primary attachment point for publisher, subscriber,
+    service-client, and action-client items. Set the \c node property of
+    each entity to this node.
+
+    \qml
+    import QtRos2.Core
+
+    Node {
+        nodeName: "my_qt_node"
+    }
+    \endqml
+
+    Child entities declared inside a Node item are automatically
+    registered with it via the \c childEntities default property.
+*/
+
+/*!
+    \qmlproperty string Node::nodeName
+
+    The ROS 2 node name. Must be a valid ROS identifier. Set this before
+    the component completes; changing it after initialization has no effect.
+*/
+
+/*!
+    \qmlproperty string Node::nodeNamespace
+
+    The ROS 2 namespace for this node. Defaults to \c "/" (global namespace).
+*/
+
+/*!
+    \qmlproperty bool Node::initialized
+
+    Read-only. \c true once the underlying rclcpp node has been created and
+    the ROS executor is running. All child entities start their connections
+    when this becomes \c true.
+*/
+
+/*!
+    \qmlproperty list<Entity> Node::entities
+
+    Read-only. The list of \l Entity items currently registered with
+    this node. Managed automatically as entities are created and destroyed.
+*/
+
 QT_BEGIN_NAMESPACE
 
 Q_STATIC_LOGGING_CATEGORY(lcNode, "qt.robotics.node")

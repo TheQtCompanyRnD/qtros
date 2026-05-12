@@ -15,7 +15,7 @@ Window {
     property geometrymsgs_point position: poseSubscriber.message.pose.position
     property geometrymsgs_quaternion orientation: poseSubscriber.message.pose.orientation
 
-    Ros2Node {
+    Node {
         id: rosNode
         nodeName: "simple_subscriber_node"
         PoseStampedSubscriber {

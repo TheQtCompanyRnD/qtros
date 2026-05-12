@@ -31,7 +31,7 @@ class Q_ROS2CORE_EXPORT QRos2ContextItem : public QObject, public QQmlParserStat
     Q_PROPERTY(int threadCount READ threadCount WRITE setThreadCount NOTIFY threadCountChanged)
 
     Q_INTERFACES(QQmlParserStatus)
-    QML_NAMED_ELEMENT(Ros2Context)
+    QML_NAMED_ELEMENT(Context)
 
 public:
     explicit QRos2ContextItem(QObject *parent = nullptr);

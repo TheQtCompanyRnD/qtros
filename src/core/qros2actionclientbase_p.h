@@ -29,7 +29,7 @@ QT_BEGIN_NAMESPACE
 class Q_ROS2CORE_EXPORT QRos2ActionClientBase : public QRos2Entity
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(Ros2ActionClientBase)
+    QML_NAMED_ELEMENT(ActionClientBase)
     QML_UNCREATABLE("Abstract")
 
     Q_PROPERTY(bool isServerReady READ isServerReady NOTIFY isServerReadyChanged)

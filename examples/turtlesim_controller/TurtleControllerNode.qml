@@ -6,7 +6,7 @@ import QtRos2.GeometryMsgs as Geom
 Item {
     id: root
     property string baseName: ""
-    required property Ros2Node rosNode
+    required property Node rosNode
     readonly property alias rotateAction: rotateAction
     readonly property alias setPenService: setPenService
     readonly property alias twistPublisher: twistPublisher

@@ -1,0 +1,436 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+
+/*!
+    \qmlmodule QtRos2.Core
+    \title Qt ROS2 Core QML Types
+    \brief QML types for the Qt ROS2 Core module.
+*/
+
+/*!
+    \qmlmodule QtRos2.BuiltinInterfaces
+    \title Qt ROS2 builtin_interfaces QML Types
+    \brief QML types for \c builtin_interfaces ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.CompositionInterfaces
+    \title Qt ROS2 composition_interfaces QML Types
+    \brief QML types for \c composition_interfaces ROS 2 messages and services.
+*/
+
+/*!
+    \qmlmodule QtRos2.RclInterfaces
+    \title Qt ROS2 rcl_interfaces QML Types
+    \brief QML types for \c rcl_interfaces ROS 2 messages and services.
+*/
+
+/*!
+    \qmlmodule QtRos2.TypeDescriptionInterfaces
+    \title Qt ROS2 type_description_interfaces QML Types
+    \brief QML types for \c type_description_interfaces ROS 2 messages and services.
+*/
+
+/*!
+    \qmlmodule QtRos2.ActionMsgs
+    \title Qt ROS2 action_msgs QML Types
+    \brief QML types for \c action_msgs ROS 2 messages and services.
+*/
+
+/*!
+    \qmlmodule QtRos2.DiagnosticMsgs
+    \title Qt ROS2 diagnostic_msgs QML Types
+    \brief QML types for \c diagnostic_msgs ROS 2 messages and services.
+*/
+
+/*!
+    \qmlmodule QtRos2.GeometryMsgs
+    \title Qt ROS2 geometry_msgs QML Types
+    \brief QML types for \c geometry_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.LifecycleMsgs
+    \title Qt ROS2 lifecycle_msgs QML Types
+    \brief QML types for \c lifecycle_msgs ROS 2 messages and services.
+*/
+
+/*!
+    \qmlmodule QtRos2.NavMsgs
+    \title Qt ROS2 nav_msgs QML Types
+    \brief QML types for \c nav_msgs ROS 2 messages and services.
+*/
+
+/*!
+    \qmlmodule QtRos2.RosgraphMsgs
+    \title Qt ROS2 rosgraph_msgs QML Types
+    \brief QML types for \c rosgraph_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.SensorMsgs
+    \title Qt ROS2 sensor_msgs QML Types
+    \brief QML types for \c sensor_msgs ROS 2 messages and services.
+*/
+
+/*!
+    \qmlmodule QtRos2.ServiceMsgs
+    \title Qt ROS2 service_msgs QML Types
+    \brief QML types for \c service_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.ShapeMsgs
+    \title Qt ROS2 shape_msgs QML Types
+    \brief QML types for \c shape_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.StatisticsMsgs
+    \title Qt ROS2 statistics_msgs QML Types
+    \brief QML types for \c statistics_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.StdMsgs
+    \title Qt ROS2 std_msgs QML Types
+    \brief QML types for \c std_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.StereoMsgs
+    \title Qt ROS2 stereo_msgs QML Types
+    \brief QML types for \c stereo_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.TrajectoryMsgs
+    \title Qt ROS2 trajectory_msgs QML Types
+    \brief QML types for \c trajectory_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.UniqueIdentifierMsgs
+    \title Qt ROS2 unique_identifier_msgs QML Types
+    \brief QML types for \c unique_identifier_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.VisualizationMsgs
+    \title Qt ROS2 visualization_msgs QML Types
+    \brief QML types for \c visualization_msgs ROS 2 messages and services.
+*/
+
+/*!
+    \module QtRos2
+    \title Qt ROS2 Module
+    \qtcmakepackage QtRos2
+    \brief Provides Qt and QML integration with ROS 2 (Robot Operating System).
+
+    Qt ROS2 Bridge enables Qt applications to communicate with ROS 2 nodes
+    by publishing and subscribing to topics, calling services, and sending
+    action goals — all from C++ or QML.
+
+    \section1 Getting Started
+
+    Include the core module in your CMakeLists.txt:
+
+    \code
+    find_package(QtRos2 REQUIRED COMPONENTS Core)
+    target_link_libraries(my_target QtRos2::Core)
+    \endcode
+
+    Declare a ROS 2 context and nodes in QML:
+
+    \qml
+    import QtRos2.Core
+
+    Context {}
+
+    Node {
+        nodeName: "my_qt_node"
+    }
+    \endqml
+*/
+
+/*!
+    \page qtros2-index.html
+    \title Qt ROS2
+    \brief Qt and QML integration with ROS 2.
+
+    Qt ROS2 Bridge connects Qt/QML applications to a running ROS 2 graph.
+    It provides publisher and subscriber types for every ROS 2 message type,
+    service clients, and action clients — all usable directly in QML.
+
+    \section1 Guides
+
+    \list
+        \li \l{Choosing Sensor Message Types}
+        \li \l{Teleoperation and Remote Control}
+    \endlist
+
+    \section1 Reference
+
+    \list
+        \li \l{Qt ROS2 QML Types}
+    \endlist
+*/
+
+/*!
+    \page qtros2-qmltypes.html
+    \title Qt ROS2 QML Types
+    \brief QML types provided by Qt ROS2.
+
+    \section1 QtRos2.Core
+
+    The following QML types are available when you import \c{QtRos2.Core}:
+
+    \generatelist qmltypesbymodule QtRos2.Core
+
+    \section1 QtRos2.BuiltinInterfaces
+
+    The following QML types are available when you import \c{QtRos2.BuiltinInterfaces}:
+
+    \generatelist qmltypesbymodule QtRos2.BuiltinInterfaces
+    \generatelist qmlvaluetypesbymodule QtRos2.BuiltinInterfaces
+
+    \section1 QtRos2.CompositionInterfaces
+
+    The following QML types are available when you import \c{QtRos2.CompositionInterfaces}:
+
+    \generatelist qmltypesbymodule QtRos2.CompositionInterfaces
+    \generatelist qmlvaluetypesbymodule QtRos2.CompositionInterfaces
+
+    \section1 QtRos2.RclInterfaces
+
+    The following QML types are available when you import \c{QtRos2.RclInterfaces}:
+
+    \generatelist qmltypesbymodule QtRos2.RclInterfaces
+    \generatelist qmlvaluetypesbymodule QtRos2.RclInterfaces
+
+    \section1 QtRos2.TypeDescriptionInterfaces
+
+    The following QML types are available when you import \c{QtRos2.TypeDescriptionInterfaces}:
+
+    \generatelist qmltypesbymodule QtRos2.TypeDescriptionInterfaces
+    \generatelist qmlvaluetypesbymodule QtRos2.TypeDescriptionInterfaces
+
+    \section1 QtRos2.ActionMsgs
+
+    The following QML types are available when you import \c{QtRos2.ActionMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.ActionMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.ActionMsgs
+
+    \section1 QtRos2.DiagnosticMsgs
+
+    The following QML types are available when you import \c{QtRos2.DiagnosticMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.DiagnosticMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.DiagnosticMsgs
+
+    \section1 QtRos2.GeometryMsgs
+
+    The following QML types are available when you import \c{QtRos2.GeometryMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.GeometryMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.GeometryMsgs
+
+    \section1 QtRos2.LifecycleMsgs
+
+    The following QML types are available when you import \c{QtRos2.LifecycleMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.LifecycleMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.LifecycleMsgs
+
+    \section1 QtRos2.NavMsgs
+
+    The following QML types are available when you import \c{QtRos2.NavMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.NavMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.NavMsgs
+
+    \section1 QtRos2.RosgraphMsgs
+
+    The following QML types are available when you import \c{QtRos2.RosgraphMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.RosgraphMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.RosgraphMsgs
+
+    \section1 QtRos2.SensorMsgs
+
+    The following QML types are available when you import \c{QtRos2.SensorMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.SensorMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.SensorMsgs
+
+    \section1 QtRos2.ServiceMsgs
+
+    The following QML types are available when you import \c{QtRos2.ServiceMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.ServiceMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.ServiceMsgs
+
+    \section1 QtRos2.ShapeMsgs
+
+    The following QML types are available when you import \c{QtRos2.ShapeMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.ShapeMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.ShapeMsgs
+
+    \section1 QtRos2.StatisticsMsgs
+
+    The following QML types are available when you import \c{QtRos2.StatisticsMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.StatisticsMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.StatisticsMsgs
+
+    \section1 QtRos2.StdMsgs
+
+    The following QML types are available when you import \c{QtRos2.StdMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.StdMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.StdMsgs
+
+    \section1 QtRos2.StereoMsgs
+
+    The following QML types are available when you import \c{QtRos2.StereoMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.StereoMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.StereoMsgs
+
+    \section1 QtRos2.TrajectoryMsgs
+
+    The following QML types are available when you import \c{QtRos2.TrajectoryMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.TrajectoryMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.TrajectoryMsgs
+
+    \section1 QtRos2.UniqueIdentifierMsgs
+
+    The following QML types are available when you import \c{QtRos2.UniqueIdentifierMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.UniqueIdentifierMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.UniqueIdentifierMsgs
+
+    \section1 QtRos2.VisualizationMsgs
+
+    The following QML types are available when you import \c{QtRos2.VisualizationMsgs}:
+
+    \generatelist qmltypesbymodule QtRos2.VisualizationMsgs
+    \generatelist qmlvaluetypesbymodule QtRos2.VisualizationMsgs
+*/
+
+/*!
+    \namespace Qtros2BuiltinInterfacesMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c builtin_interfaces message types.
+*/
+
+/*!
+    \namespace Qtros2CompositionInterfacesMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c composition_interfaces message and service types.
+*/
+
+/*!
+    \namespace Qtros2RclInterfacesMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c rcl_interfaces message and service types.
+*/
+
+/*!
+    \namespace Qtros2TypeDescriptionInterfacesMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c type_description_interfaces message types.
+*/
+
+/*!
+    \namespace Qtros2ActionMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c action_msgs message and service types.
+*/
+
+/*!
+    \namespace Qtros2DiagnosticMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c diagnostic_msgs message and service types.
+*/
+
+/*!
+    \namespace Qtros2GeometryMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c geometry_msgs message types.
+*/
+
+/*!
+    \namespace Qtros2LifecycleMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c lifecycle_msgs message and service types.
+*/
+
+/*!
+    \namespace Qtros2NavMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c nav_msgs message and service types.
+*/
+
+/*!
+    \namespace Qtros2RosgraphMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c rosgraph_msgs message types.
+*/
+
+/*!
+    \namespace Qtros2SensorMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c sensor_msgs message and service types.
+*/
+
+/*!
+    \namespace Qtros2ServiceMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c service_msgs message types.
+*/
+
+/*!
+    \namespace Qtros2ShapeMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c shape_msgs message types.
+*/
+
+/*!
+    \namespace Qtros2StatisticsMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c statistics_msgs message types.
+*/
+
+/*!
+    \namespace Qtros2StdMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c std_msgs message types.
+*/
+
+/*!
+    \namespace Qtros2StereoMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c stereo_msgs message types.
+*/
+
+/*!
+    \namespace Qtros2TrajectoryMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c trajectory_msgs message types.
+*/
+
+/*!
+    \namespace Qtros2UniqueIdentifierMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c unique_identifier_msgs message types.
+*/
+
+/*!
+    \namespace Qtros2VisualizationMsgs
+    \inmodule QtRos2
+    \brief Qt wrappers for ROS 2 \c visualization_msgs message and service types.
+*/

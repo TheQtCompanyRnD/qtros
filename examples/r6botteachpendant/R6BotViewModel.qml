@@ -29,7 +29,7 @@ QtObject {
         id: tfBuffer
     }
 
-    readonly property Ros2Node ros2Node: Ros2Node {
+    readonly property Node ros2Node: Node {
         id: ros2Node
 
         property string jointStateTopic: "/joint_states"

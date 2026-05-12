@@ -33,7 +33,7 @@ class Q_ROS2CORE_EXPORT QRos2Node : public QObject, public QQmlParserStatus
 {
     Q_OBJECT
     Q_INTERFACES(QQmlParserStatus)
-    QML_NAMED_ELEMENT(Ros2Node)
+    QML_NAMED_ELEMENT(Node)
     Q_CLASSINFO("DefaultProperty", "childEntities")
 
     Q_PROPERTY(QString nodeName READ nodeName WRITE setNodeName NOTIFY nodeNameChanged)
