@@ -1,0 +1,60 @@
+\startuml
+    skinparam shadowing false
+
+    rectangle "**Author-side**" as authoring {
+        artifact "*.msg / *.srv / *.action\n(legacy ROS format)" as msg
+        artifact "*.idl\n(OMG IDL — the\ncanonical form)" as idl
+    }
+
+    rectangle "**rosidl build pipeline**" as rosidl {
+        component "rosidl_adapter\n(upstream)" as adapter
+        component "rosidl_parser.parse_idl_file()\n→ Message / Service / Action IR" as parser
+    }
+
+    rectangle "**rosidl_generator_qtros2**" as qtros2 {
+        component "qtros2_generate_from_package()\n(CMake macro — explicit call by user/Qt build)" as macro
+        component "rosidl_generator_qtros2_generate_interfaces.cmake\n(included by macro, not auto-registered)" as cmake
+        component "python3 -m rosidl_generator_qtros2\n(generate_qtros2)" as pygen
+        artifact "EmPy templates\nresource/*.em" as templates
+        component "EmPy interpreter\n(em.Interpreter)" as empy
+    }
+
+    rectangle "**Generated outputs**" as outputs {
+        artifact "value type\n<name>.{hpp,cpp}\n(Q_GADGET / QML value type)" as vt
+        artifact "publisher\n<name>_publisher.{hpp,cpp}" as pub
+        artifact "subscriber\n<name>_subscriber.{hpp,cpp}" as sub
+        artifact "service_client\n<name>_service_client.{hpp,cpp}" as svc
+        artifact "action_client\n<name>_action_client.{hpp,cpp}" as act
+        artifact "qtros2_generated_files.cmake\n(file manifest)" as manifest
+        artifact "qtros2_module_vars.cmake\n(qt_add_qml_module args)" as vars
+    }
+
+    rectangle "**Consumed by**" as consumed {
+        component "qt_add_qml_module /\nqt_internal_add_qml_module" as qml
+        component "Qt user app\n(C++ / QML)" as app
+    }
+
+    msg --> adapter : ① rosidl_adapter
+    adapter --> idl
+    idl --> parser : ② parse
+    macro --> cmake : ③ include()
+    cmake --> pygen : ④ execute_process (configure-time)
+    parser --> pygen : IR objects
+    templates --> empy
+    pygen --> empy : ⑤ expand per template + context
+    empy --> vt
+    empy --> pub
+    empy --> sub
+    empy --> svc
+    empy --> act
+    pygen --> manifest : ⑥ emit
+    cmake --> vars : ⑦ invoke generate_cmake_vars
+    manifest --> cmake : include()
+    vars --> qml : include() → SOURCES, IMPORTS, ...
+    vt --> qml
+    pub --> qml
+    sub --> qml
+    svc --> qml
+    act --> qml
+    qml --> app
+\enduml
