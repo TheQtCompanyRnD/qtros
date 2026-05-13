@@ -1,0 +1,21 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+
+/*!
+    \page sensormsgs-laserscan-extras.html
+    \title Supplement: LaserScan
+
+    \keyword lidar
+    \keyword LiDAR
+    \keyword LIDAR
+    \keyword laser scan
+    \keyword laser range-finder
+    \keyword range finder
+    \keyword 2D lidar
+    \keyword laser scanner
+    \keyword planar lidar
+
+    \brief Qt type wrapper for the LaserScan ROS 2 message, used with 2D lidar/laser range-finders.
+
+    \sa sensormsg_laserscan, {Choosing Sensor Message Types}
+*/
