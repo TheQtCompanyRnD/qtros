@@ -10,10 +10,11 @@
 @# - message
 @# - spec
 @{
-from rosidl_generator_qtros2 import get_qt_namespace, get_qml_value_type_name
+from rosidl_generator_qtros2 import get_qml_value_type_name
 from rosidl_generator_qtros2.template_helpers import (
     build_message_context,
     build_value_type_descriptors,
+    extract_doc_info,
 )
 
 context = build_message_context(package_name, message)
@@ -27,8 +28,15 @@ emit_wrapper_flag = emit_wrapper if 'emit_wrapper' in locals() else True
 value_helpers = build_value_type_descriptors(package_name, message)
 field_infos = value_helpers['field_infos']
 post_init_lines = value_helpers['post_init_lines']
-qml_value_type_name = get_qml_value_type_name(package_name, message.structure.namespaced_type.name)
 qml_module_uri = 'QtRos2.' + ''.join(w.capitalize() for w in package_name.split('_'))
+doc_info = extract_doc_info(message)
+msg_brief = doc_info['brief']
+msg_brief_continuation = doc_info['brief_continuation']
+msg_details = doc_info['details']
+field_docs = doc_info['field_docs']
+deprecated = doc_info['deprecated']
+deprecated_since = doc_info['deprecated_since']
+deprecated_tag = ('[' + deprecated_since + '] ') if deprecated_since else ''
 }@
 #include "@(header_file).hpp"
 @[for info in field_infos]@
@@ -43,9 +51,25 @@ qml_module_uri = 'QtRos2.' + ''.join(w.capitalize() for w in package_name.split(
 /*!
     \qmlvaluetype @(qml_value_type_name)
     \inqmlmodule @(qml_module_uri)
-    \brief Qt value type wrapper for @(ros_msg_type) ROS 2 messages.
+@[if msg_brief]@
+    \brief @(msg_brief)
+@[for line in msg_brief_continuation]@
+    @(line)
+@[end for]@
+@[else]@
+    \brief Qt value type wrapper for \c @(ros_msg_type) ROS 2 messages.
+@[end if]@
+@[if deprecated]@
+    \deprecated @(deprecated_tag)
+@[end if]@
 
-    @(qt_class_name) is a structured value type usable in QML.
+@[for line in msg_details]@
+    @(line)
+@[end for]@
+@[if msg_details]@
+
+@[end if]@
+    @(qml_value_type_name) is a structured value type usable in QML.
     It maps directly to the \c @(ros_msg_type) ROS 2 message type.
 */
 
@@ -55,16 +79,19 @@ _field_name = info.get('name')
 _field_doc_lines = field_docs.get(_field_name, []) if _field_name else []
 _qt_prop = info.get('qt_prop_name') or _field_name
 _qt_type = info.get('qt_type') or 'var'
+_qml_doc_type = info.get('qml_doc_type') or _qt_type
 }@
-@[  if _qt_prop and _field_doc_lines]@
+@[  if _qt_prop]@
 /*!
-    \qmlproperty @(_qt_type) @(qml_value_type_name)::@(_qt_prop)
+    \qmlproperty @(_qml_doc_type) @(qml_value_type_name)::@(_qt_prop)
+@[    if _field_doc_lines]@
     \brief @(_field_doc_lines[0])
-@[    if len(_field_doc_lines) > 1]@
+@[      if len(_field_doc_lines) > 1]@
 
-@[      for line in _field_doc_lines[1:]]@
+@[        for line in _field_doc_lines[1:]]@
     @(line)
-@[      end for]@
+@[        end for]@
+@[      end if]@
 @[    end if]@
 */
 

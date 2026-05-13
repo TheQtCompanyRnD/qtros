@@ -223,6 +223,27 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
             post_init_lines.append(f"            m_{member.name}.append({info['sequence_inner_qt']}(value));")
             post_init_lines.append("        }")
 
+        # QML-friendly type name used in \qmlproperty docs so qdoc can auto-link.
+        _QT_TO_QML: Dict[str, str] = {"QString": "string", "QStringList": "list<string>"}
+        if info["is_sequence"]:
+            if info["is_qbytearray"]:
+                info["qml_doc_type"] = "ArrayBuffer"
+            elif info["is_qstring_list"] or info["sequence_inner_is_string"] or info["sequence_inner_is_wstring"]:
+                info["qml_doc_type"] = "list<string>"
+            elif info["sequence_inner_is_nested"]:
+                inner = info["sequence_value_type"]
+                pkg = inner.namespaces[0] if inner.namespaces else package_name
+                info["qml_doc_type"] = f"list<{get_qml_value_type_name(pkg, inner.name)}>"
+            else:
+                inner_qt = info["sequence_inner_qt"] or ""
+                info["qml_doc_type"] = f"list<{inner_qt}>"
+        elif info["is_nested"]:
+            t = resolved_type
+            pkg = t.namespaces[0] if t.namespaces else package_name
+            info["qml_doc_type"] = get_qml_value_type_name(pkg, t.name)
+        else:
+            info["qml_doc_type"] = _QT_TO_QML.get(info["qt_type"], info["qt_type"])
+
         field_infos.append(info)
 
     msg_name = message_spec.structure.namespaced_type.name
@@ -239,6 +260,125 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
         "nested_includes": nested_includes,
         "field_infos": field_infos,
         "post_init_lines": post_init_lines,
+    }
+
+
+def _strip_blank_edges(lines: List[str]) -> List[str]:
+    out = list(lines)
+    while out and not out[0].strip():
+        out.pop(0)
+    while out and not out[-1].strip():
+        out.pop()
+    return out
+
+
+def _sanitize_doc_line(line: str) -> str:
+    """Defensively neutralize sequences that would break a qdoc /*! ... */ block."""
+    return line.replace("*/", "* /")
+
+
+def _format_list_items(lines: List[str]) -> List[str]:
+    """Convert runs of indented lines in ROS comment text to qdoc \\list / \\li markup.
+
+    ROS .msg comments frequently use leading-whitespace indentation for lists of
+    named items (e.g. the image topic list in sensor_msgs/CameraInfo). qdoc
+    ignores extra whitespace, so without this conversion the items render as
+    undifferentiated paragraph text.  Any contiguous block of lines that start
+    with at least one space is wrapped in \\list ... \\endlist, with each line
+    emitted as a \\li item (with the leading whitespace stripped).
+    """
+    result: List[str] = []
+    in_list = False
+    for line in lines:
+        stripped = line.lstrip()
+        is_indented = len(line) > len(stripped) and bool(stripped)
+        if is_indented and not in_list:
+            result.append(r'\list')
+            in_list = True
+        elif not is_indented and in_list:
+            result.append(r'\endlist')
+            in_list = False
+        result.append((r'\li ' + stripped) if is_indented else line)
+    if in_list:
+        result.append(r'\endlist')
+    return result
+
+
+_DEPRECATED_RE = re.compile(r'\bdeprecated\b', re.IGNORECASE)
+_DEPRECATED_VERSION_RE = re.compile(r'\b(?:as\s+of|since)\s+([\w]+)', re.IGNORECASE)
+_DEPRECATED_FAVOUR_RE = re.compile(r'\bin\s+favou?r\s+of\s+(.+?)\.?\s*$', re.IGNORECASE)
+
+
+def extract_doc_info(message_spec) -> Dict[str, Any]:
+    """
+    Pull human-authored documentation out of a parsed ROS interface.
+
+    The ROS .msg comments are preserved by rosidl_adapter as
+    @verbatim(language="comment", ...) annotations on the struct and on
+    each member. rosidl_parser exposes them via Annotatable.get_comment_lines().
+    Both struct-level and per-member text flow through here so the qdoc
+    templates can emit a meaningful \\brief and per-property documentation.
+
+    Deprecation notices (lines containing the word "deprecated") are stripped
+    from the main text and returned separately as ``deprecated`` /
+    ``deprecated_since`` so templates can emit a qdoc \\deprecated tag.
+    """
+    msg_lines: List[str] = []
+    try:
+        msg_lines = list(message_spec.structure.get_comment_lines() or [])
+    except (AttributeError, ValueError):
+        msg_lines = []
+    msg_lines = [_sanitize_doc_line(ln) for ln in _strip_blank_edges(msg_lines)]
+
+    # Detect and strip deprecation lines before building brief/details
+    deprecated = False
+    deprecated_since = ''
+    clean_lines: List[str] = []
+    for line in msg_lines:
+        if _DEPRECATED_RE.search(line):
+            deprecated = True
+            if not deprecated_since:
+                m = _DEPRECATED_VERSION_RE.search(line)
+                if m:
+                    deprecated_since = m.group(1)
+            # "deprecated in favour of X" → capture as version-less detail
+            # (kept in clean_lines so it becomes part of brief/details)
+            if _DEPRECATED_FAVOUR_RE.search(line):
+                clean_lines.append(line)
+        else:
+            clean_lines.append(line)
+    if deprecated:
+        msg_lines = list(_strip_blank_edges(clean_lines))
+
+    # Split at the first blank line: everything before is the brief paragraph,
+    # everything after is the detailed description. This preserves multi-line
+    # first paragraphs so \brief doesn't end mid-sentence.
+    first_blank = next((i for i, l in enumerate(msg_lines) if not l.strip()), len(msg_lines))
+    brief_lines = msg_lines[:first_blank]
+    details = _format_list_items(list(_strip_blank_edges(msg_lines[first_blank + 1:] if first_blank < len(msg_lines) else [])))
+
+    brief = brief_lines[0].strip() if brief_lines else ""
+    brief_continuation = brief_lines[1:] if len(brief_lines) > 1 else []
+
+    field_docs: Dict[str, List[str]] = {}
+    members = []
+    if hasattr(message_spec, "structure") and hasattr(message_spec.structure, "members"):
+        members = message_spec.structure.members
+    for member in members:
+        try:
+            lines = list(member.get_comment_lines() or [])
+        except (AttributeError, ValueError):
+            lines = []
+        lines = _format_list_items([_sanitize_doc_line(ln) for ln in _strip_blank_edges(lines)])
+        field_docs[member.name] = lines
+
+    return {
+        "brief": brief,
+        "brief_continuation": brief_continuation,
+        "details": details,
+        "field_docs": field_docs,
+        "deprecated": deprecated,
+        "deprecated_since": deprecated_since,
     }
 
 

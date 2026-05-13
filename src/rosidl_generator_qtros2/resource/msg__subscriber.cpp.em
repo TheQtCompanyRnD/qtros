@@ -26,7 +26,11 @@ ros_include = context['ros_include']
 header_file = context['header_file']
 doc_info = extract_doc_info(message)
 msg_brief = doc_info['brief']
+msg_brief_continuation = doc_info['brief_continuation']
 msg_details = doc_info['details']
+deprecated = doc_info['deprecated']
+deprecated_since = doc_info['deprecated_since']
+deprecated_tag = ('[' + deprecated_since + '] ') if deprecated_since else ''
 }@
 #include "@(header_file)_subscriber.hpp"
 #include <@(ros_include)>  // ROS message type
@@ -43,8 +47,14 @@ namespace @(qt_namespace) {
     \inherits SubscriberBase
 @[if msg_brief]@
     \brief Subscribes to \c @(ros_msg_type) messages — @(msg_brief)
+@[for line in msg_brief_continuation]@
+    @(line)
+@[end for]@
 @[else]@
     \brief Subscribes to \c @(ros_msg_type) messages from a ROS 2 topic.
+@[end if]@
+@[if deprecated]@
+    \deprecated @(deprecated_tag)
 @[end if]@
 
 @[for line in msg_details]@
