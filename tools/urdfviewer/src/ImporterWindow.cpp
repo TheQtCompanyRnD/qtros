@@ -325,6 +325,37 @@ void ImporterWindow::browseOutputDirectory()
     }
 }
 
+void ImporterWindow::setUrdfPath(const QString &path)
+{
+    m_urdfPathEdit->setText(QDir::toNativeSeparators(path));
+}
+
+void ImporterWindow::setOutputPath(const QString &path)
+{
+    m_outputDirEdit->setText(QDir::toNativeSeparators(path));
+}
+
+void ImporterWindow::setExportAssets(bool v)
+{
+    m_generateAssetsCheck->setChecked(v);
+}
+
+void ImporterWindow::setRosBridge(bool v)
+{
+    m_rosBridgeCheck->setChecked(v);
+}
+
+void ImporterWindow::setUnitsPerMeter(double v)
+{
+    m_sceneUnitsPerMeterSpin->setValue(v);
+}
+
+void ImporterWindow::setTopicPrefix(const QString &pfx)
+{
+    m_jointStatesTopicEdit->setText((pfx.startsWith('/') ? pfx : '/' + pfx) +
+                                    m_jointStatesTopicEdit->text());
+}
+
 void ImporterWindow::runPreview()
 {
     if (m_isRunning) {
