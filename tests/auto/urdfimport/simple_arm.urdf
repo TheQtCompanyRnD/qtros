@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+<!--
+  simple_arm.urdf
+  A minimal 3-revolute-joint robot arm built entirely from primitive shapes.
+  No mesh files needed — perfect for testing the urdf2quick3d ROS bridge export.
+
+  Joints (all revolute):
+    shoulder_pan   – rotates the whole arm around the vertical (Z) axis
+    shoulder_lift  – raises/lowers the upper arm (Y axis)
+    elbow_flex     – bends the forearm relative to the upper arm (Y axis)
+
+  Use with joint_state_publisher_gui (see README.md).
+-->
+<robot name="simple_arm">
+
+  <!-- ============================================================
+       Links
+       ============================================================ -->
+
+  <!-- Fixed base pedestal -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.15 0.15 0.10"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.55 0.55 0.55 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.15 0.15 0.10"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Upper-arm segment -->
+  <link name="upper_arm_link">
+    <visual>
+      <!-- Centred along the segment, which extends 0.28 m upward from joint -->
+      <origin xyz="0 0 0.14" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.08 0.08 0.28"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.20 0.40 0.80 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.14" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.08 0.08 0.28"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+  </link>
+
+  <!-- Forearm segment -->
+  <link name="forearm_link">
+    <visual>
+      <!-- Centred along the segment, which extends 0.24 m upward from joint -->
+      <origin xyz="0 0 0.12" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07 0.07 0.24"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0.20 0.70 0.30 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.12" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07 0.07 0.24"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.8"/>
+      <inertia ixx="0.005" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.005"/>
+    </inertial>
+  </link>
+
+  <!-- End-effector / wrist marker -->
+  <link name="wrist_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.04"/>
+      </geometry>
+      <material name="orange">
+        <color rgba="0.90 0.50 0.10 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.04"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.3"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- ============================================================
+       Joints
+       ============================================================ -->
+
+  <!--
+    shoulder_pan: rotates the arm around the vertical axis.
+    Maps to QML property: shoulderPanAngle
+  -->
+  <joint name="shoulder_pan" type="revolute">
+    <parent link="base_link"/>
+    <child link="upper_arm_link"/>
+    <origin xyz="0 0 0.10" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="1.0"/>
+    <dynamics damping="0.1" friction="0.0"/>
+  </joint>
+
+  <!--
+    shoulder_lift: raises / lowers the upper arm.
+    Maps to QML property: shoulderLiftAngle
+  -->
+  <joint name="shoulder_lift" type="revolute">
+    <parent link="upper_arm_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="0 0 0.28" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="1.0"/>
+    <dynamics damping="0.1" friction="0.0"/>
+  </joint>
+
+  <!--
+    elbow_flex: bends the forearm relative to the upper arm.
+    Maps to QML property: elbowFlexAngle
+  -->
+  <joint name="elbow_flex" type="revolute">
+    <parent link="forearm_link"/>
+    <child link="wrist_link"/>
+    <origin xyz="0 0 0.24" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="1.0"/>
+    <dynamics damping="0.1" friction="0.0"/>
+  </joint>
+
+</robot>
