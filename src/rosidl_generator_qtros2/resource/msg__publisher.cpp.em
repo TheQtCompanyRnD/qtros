@@ -11,6 +11,7 @@
 @# - spec
 @{
 from rosidl_generator_qtros2.template_helpers import (
+    build_field_props_for_pubsub,
     build_message_context,
     build_single_field_info,
     extract_doc_info,
@@ -26,6 +27,7 @@ ros_msg_type = context['ros_msg_type']
 ros_include = context['ros_include']
 header_file = context['header_file']
 sf = build_single_field_info(package_name, message)
+fps = build_field_props_for_pubsub(package_name, message)
 doc_info = extract_doc_info(message)
 msg_brief = doc_info['brief']
 msg_brief_continuation = doc_info['brief_continuation']
@@ -90,11 +92,45 @@ namespace @(qt_namespace) {
     Does nothing if the publisher is not connected.
 */
 
+@[if fps]@
+@[  for fp in fps]@
+/*!
+    \qmlproperty @(fp['qml_doc_type']) @(qt_class_name)Publisher::@(fp['prop_name'])
+
+    The \c @(fp['prop_name']) field value included in the next \l publish() call.
+    Setting this property emits \l @(fp['signal_name']).
+*/
+
+@[  end for]@
+@[end if]@
 @(qt_class_name)Publisher::@(qt_class_name)Publisher(QObject* parent)
     : QRos2PublisherBase(parent)
 {
 }
 
+@[if fps]@
+void @(qt_class_name)Publisher::publish()
+{
+    if (!m_publisher) {
+        return;
+    }
+
+    auto ros_msg = static_cast<@(ros_msg_type)>(m_message);
+    m_publisher->publish(ros_msg);
+}
+
+@[  for fp in fps]@
+void @(qt_class_name)Publisher::@(fp['setter_name'])(@(fp['param_decl']))
+{
+    if (m_message.@(fp['prop_name'])() == @(fp['prop_name'])) {
+        return;
+    }
+    m_message.@(fp['setter_name'])(@(fp['prop_name']));
+    emit @(fp['signal_name'])(@(fp['getter_expr']));
+}
+
+@[  end for]@
+@[end if]@
 @[if sf]@
 void @(qt_class_name)Publisher::publish(@(sf['param_decl']))
 {

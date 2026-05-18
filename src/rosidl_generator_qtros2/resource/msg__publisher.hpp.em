@@ -11,6 +11,7 @@
 @# - spec
 @{
 from rosidl_generator_qtros2.template_helpers import (
+    build_field_props_for_pubsub,
     build_include_guard,
     build_message_context,
     build_single_field_info,
@@ -27,6 +28,7 @@ header_guard = build_include_guard(package_name, 'msg', context['header_file'] +
 qt_export_macro = f'Q_{qt_module_name.upper()}_EXPORT'
 qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 sf = build_single_field_info(package_name, message)
+fps = build_field_props_for_pubsub(package_name, message)
 }@
 #ifndef @(header_guard)
 #define @(header_guard)
@@ -66,9 +68,21 @@ class @(qt_export_macro) @(qt_class_name)Publisher : public QRos2PublisherBase
     Q_OBJECT
     QML_ELEMENT
 
+@[if fps]@
+@[  for fp in fps]@
+    Q_PROPERTY(@(fp['qt_type']) @(fp['prop_name']) READ @(fp['prop_name']) WRITE @(fp['setter_name']) NOTIFY @(fp['signal_name']))
+@[  end for]@
+@[end if]@
+
 public:
     explicit @(qt_class_name)Publisher(QObject* parent = nullptr);
 
+@[if fps]@
+@[  for fp in fps]@
+    @(fp['qt_type']) @(fp['prop_name'])() const { return @(fp['getter_expr']); }
+@[  end for]@
+    Q_INVOKABLE void publish();
+@[end if]@
     /*!
      * @@brief Publish a message
      * @@param msg The message to publish
@@ -79,12 +93,29 @@ public:
     Q_INVOKABLE void publish(const @(qt_class_name_full)& msg);
 @[end if]@
 
+@[if fps]@
+public Q_SLOTS:
+@[  for fp in fps]@
+    void @(fp['setter_name'])(@(fp['param_decl']));
+@[  end for]@
+
+@[end if]@
+@[if fps]@
+Q_SIGNALS:
+@[  for fp in fps]@
+    void @(fp['signal_name'])(@(fp['param_decl']));
+@[  end for]@
+
+@[end if]@
 protected:
     void setupConnection() override;
     void clearConnection() override;
     void checkHealth() override;
 
 private:
+@[if fps]@
+    @(qt_class_name_full) m_message;
+@[end if]@
 #ifndef Q_QDOC
     rclcpp::Publisher<@(ros_msg_type)>::SharedPtr m_publisher;
 #endif

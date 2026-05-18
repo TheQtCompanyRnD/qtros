@@ -215,6 +215,48 @@ def build_single_field_info(package_name: str, message_spec) -> Dict[str, Any] |
     }
 
 
+def build_field_props_for_pubsub(package_name: str, message_spec) -> List[Dict[str, Any]] | None:
+    """Per-field Q_PROPERTY descriptors for multi-field pub/sub templates.
+
+    Returns None for empty messages and single-field messages (those are handled by
+    build_single_field_info or suppressed). For messages with two or more fields,
+    returns one descriptor per field with keys:
+      qt_type, field_name, prop_name, setter_name, signal_name,
+      param_decl, const_ref, getter_expr, qml_doc_type.
+    """
+    members = message_spec.structure.members
+    real_members = [m for m in members if m.name != 'structure_needs_at_least_one_member']
+    if len(real_members) < 2:
+        return None
+
+    vt = build_value_type_descriptors(package_name, message_spec)
+    real_infos = [fi for fi in vt['field_infos'] if not fi.get('is_computed')]
+
+    result = []
+    for fi in real_infos:
+        prop_name = fi['qt_prop_name']
+        setter_name = 'set' + prop_name[0].upper() + prop_name[1:]
+        signal_name = prop_name + 'Changed'
+        const_ref = (
+            fi['is_nested'] or fi['is_string'] or fi['is_wstring'] or fi['is_sequence']
+        )
+        qt_type = fi['qt_type']
+        param_decl = f'const {qt_type}& {prop_name}' if const_ref else f'{qt_type} {prop_name}'
+        result.append({
+            'qt_type':      qt_type,
+            'field_name':   fi['name'],
+            'prop_name':    prop_name,
+            'setter_name':  setter_name,
+            'signal_name':  signal_name,
+            'param_decl':   param_decl,
+            'const_ref':    const_ref,
+            'getter_expr':  f'm_message.{prop_name}()',
+            'qml_doc_type': fi['qml_doc_type'],
+        })
+
+    return result if result else None
+
+
 def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, Any]:
     """
     Compute field descriptors and nested includes needed by the value type template.

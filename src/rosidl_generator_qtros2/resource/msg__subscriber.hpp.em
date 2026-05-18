@@ -11,6 +11,7 @@
 @# - spec
 @{
 from rosidl_generator_qtros2.template_helpers import (
+    build_field_props_for_pubsub,
     build_include_guard,
     build_message_context,
     build_single_field_info,
@@ -27,6 +28,7 @@ header_guard = build_include_guard(package_name, 'msg', context['header_file'] +
 qt_export_macro = f'Q_{qt_module_name.upper()}_EXPORT'
 qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 sf = build_single_field_info(package_name, message)
+fps = build_field_props_for_pubsub(package_name, message)
 }@
 #ifndef @(header_guard)
 #define @(header_guard)
@@ -66,6 +68,11 @@ class @(qt_export_macro) @(qt_class_name)Subscriber : public QRos2SubscriberBase
     Q_OBJECT
     QML_ELEMENT
 
+@[if fps]@
+@[  for fp in fps]@
+    Q_PROPERTY(@(fp['qt_type']) @(fp['prop_name']) READ @(fp['prop_name']) NOTIFY @(fp['signal_name']))
+@[  end for]@
+@[end if]@
 @[if sf]@
     Q_PROPERTY(@(sf['qt_type']) message READ message NOTIFY messageReceived)
 @[else]@
@@ -75,6 +82,11 @@ class @(qt_export_macro) @(qt_class_name)Subscriber : public QRos2SubscriberBase
 public:
     explicit @(qt_class_name)Subscriber(QObject* parent = nullptr);
 
+@[if fps]@
+@[  for fp in fps]@
+    @(fp['qt_type']) @(fp['prop_name'])() const { return @(fp['getter_expr']); }
+@[  end for]@
+@[end if]@
     /*!
      * @@brief Get the last received message
      * @@return The last message received
@@ -89,6 +101,11 @@ public:
     void clearConnection() override;
 
 Q_SIGNALS:
+@[if fps]@
+@[  for fp in fps]@
+    void @(fp['signal_name'])(@(fp['param_decl']));
+@[  end for]@
+@[end if]@
     /*!
      * @@brief Emitted when a new message is received
      * @@param msg The received message
