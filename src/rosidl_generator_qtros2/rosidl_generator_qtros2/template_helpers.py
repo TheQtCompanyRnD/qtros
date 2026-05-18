@@ -215,6 +215,21 @@ def build_single_field_info(package_name: str, message_spec) -> Dict[str, Any] |
     }
 
 
+# camelCase property/method names that must not be shadowed by generated per-field
+# Q_PROPERTYs.  These come from the pub/sub base-class hierarchy and from the
+# fixed properties/methods the pub/sub templates themselves always emit.
+_PUBSUB_RESERVED_PROP_NAMES: frozenset = frozenset({
+    'topic', 'node', 'qos',                   # QRos2Entity
+    'subscriberCount',                         # QRos2PublisherBase
+    'connected',                               # QRos2SubscriberBase
+    'objectName', 'parent',                    # QObject
+    'message',                                 # subscriber's own 'message' Q_PROPERTY
+    'publish',                                 # publisher's publish() method
+    'setupConnection', 'clearConnection',      # pure virtuals in both base classes
+    'checkHealth', 'handleMessage',            # methods in generated pub/sub
+})
+
+
 def build_field_props_for_pubsub(package_name: str, message_spec) -> List[Dict[str, Any]] | None:
     """Per-field Q_PROPERTY descriptors for multi-field pub/sub templates.
 
@@ -223,6 +238,9 @@ def build_field_props_for_pubsub(package_name: str, message_spec) -> List[Dict[s
     returns one descriptor per field with keys:
       qt_type, field_name, prop_name, setter_name, signal_name,
       param_decl, const_ref, getter_expr, qml_doc_type.
+
+    Fields whose camelCase names collide with inherited base-class properties
+    (topic, node, qos, …) are silently omitted.
     """
     members = message_spec.structure.members
     real_members = [m for m in members if m.name != 'structure_needs_at_least_one_member']
@@ -235,6 +253,8 @@ def build_field_props_for_pubsub(package_name: str, message_spec) -> List[Dict[s
     result = []
     for fi in real_infos:
         prop_name = fi['qt_prop_name']
+        if prop_name in _PUBSUB_RESERVED_PROP_NAMES:
+            continue
         setter_name = 'set' + prop_name[0].upper() + prop_name[1:]
         signal_name = prop_name + 'Changed'
         const_ref = (
