@@ -13,6 +13,7 @@
 from rosidl_generator_qtros2.template_helpers import (
     build_include_guard,
     build_message_context,
+    build_single_field_info,
 )
 
 context = build_message_context(package_name, message)
@@ -25,6 +26,7 @@ value_type_include = context['value_type_include']
 header_guard = build_include_guard(package_name, 'msg', context['header_file'] + '_subscriber')
 qt_export_macro = f'Q_{qt_module_name.upper()}_EXPORT'
 qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
+sf = build_single_field_info(package_name, message)
 }@
 #ifndef @(header_guard)
 #define @(header_guard)
@@ -37,7 +39,15 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 #endif
 
 #include <QtRos2Core/private/qros2subscriberbase_p.h>
+@[if sf]@
+@[  if sf['extra_inc'] and not sf['extra_inc'].endswith('.hpp')]@
+#include @(sf['extra_inc'])
+@[  elif sf['extra_inc']]@
+#include "@(sf['extra_inc'])"
+@[  end if]@
+@[else]@
 #include "@(value_type_include)"
+@[end if]@
 #ifndef Q_QDOC
 #include <@(ros_include)>  // ROS message type
 #include <rclcpp/rclcpp.hpp>  // for rclcpp::Subscription
@@ -56,7 +66,11 @@ class @(qt_export_macro) @(qt_class_name)Subscriber : public QRos2SubscriberBase
     Q_OBJECT
     QML_ELEMENT
 
+@[if sf]@
+    Q_PROPERTY(@(sf['qt_type']) message READ message NOTIFY messageReceived)
+@[else]@
     Q_PROPERTY(@(qt_class_name_full) message READ message NOTIFY messageReceived)
+@[end if]@
 
 public:
     explicit @(qt_class_name)Subscriber(QObject* parent = nullptr);
@@ -65,7 +79,11 @@ public:
      * @@brief Get the last received message
      * @@return The last message received
      */
+@[if sf]@
+    @(sf['qt_type']) message() const { return m_message; }
+@[else]@
     @(qt_class_name_full) message() const { return m_message; }
+@[end if]@
 
     void setupConnection() override;
     void clearConnection() override;
@@ -75,13 +93,21 @@ Q_SIGNALS:
      * @@brief Emitted when a new message is received
      * @@param msg The received message
      */
+@[if sf]@
+    void messageReceived(@(sf['param_decl']));
+@[else]@
     void messageReceived(const @(qt_class_name_full)& msg);
+@[end if]@
 
 protected:
     void checkHealth() override;
 
 private:
+@[if sf]@
+    @(sf['qt_type']) m_message;
+@[else]@
     @(qt_class_name_full) m_message;
+@[end if]@
 #ifndef Q_QDOC
     void handleMessage(const @(ros_msg_type)::SharedPtr msg);
     rclcpp::Subscription<@(ros_msg_type)>::SharedPtr m_subscription;

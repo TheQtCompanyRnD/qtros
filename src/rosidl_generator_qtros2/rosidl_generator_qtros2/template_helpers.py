@@ -123,6 +123,98 @@ def build_message_context(package_name: str, message_spec, *, ros_include_overri
     }
 
 
+# Per-message overrides for single-field pub/sub type.  Keys are "package/MessageName".
+# These bypass the normal field-type inspection and return a fully specified info dict.
+_SINGLE_FIELD_TYPE_OVERRIDES: Dict[str, Dict[str, Any]] = {
+    # uint8[16] uuid → QString (RFC 4122 without braces, e.g. "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+    # QUuid is not a QML value type so using it as a Q_PROPERTY would give QML an opaque var.
+    "unique_identifier_msgs/UUID": {
+        "qt_type":      "QString",
+        "field_name":   "uuid",
+        "param_decl":   "const QString& uuid",
+        "ros_to_qt":    "QUuid::fromRfc4122(QByteArray("
+                        "reinterpret_cast<const char*>(msg->uuid.data()), 16))"
+                        ".toString(QUuid::WithoutBraces)",
+        "qt_to_ros":    "const QByteArray _b = QUuid::fromString(uuid).toRfc4122();\n"
+                        "    std::copy(_b.begin(), _b.end(), ros_msg.uuid.begin());",
+        "extra_inc":    "<QtCore/QUuid>",
+        "qml_doc_type": "string",
+    },
+}
+
+
+def build_single_field_info(package_name: str, message_spec) -> Dict[str, Any] | None:
+    """For single-field messages, return type/conversion info for direct use in pub/sub.
+
+    Returns None for empty messages and messages with 2+ fields.
+    """
+    msg_name = message_spec.structure.namespaced_type.name
+    key = f"{package_name}/{msg_name}"
+    if key in _SINGLE_FIELD_TYPE_OVERRIDES:
+        return _SINGLE_FIELD_TYPE_OVERRIDES[key]
+
+    members = message_spec.structure.members
+    if len(members) != 1 or members[0].name == 'structure_needs_at_least_one_member':
+        return None
+
+    member = members[0]
+    field_name = member.name
+    field_type = member.type
+
+    # Array/sequence fields need non-trivial conversions — keep the wrapper for those.
+    if isinstance(field_type, (Array, BoundedSequence, UnboundedSequence)):
+        return None
+
+    resolved_type = field_type
+    if isinstance(resolved_type, AbstractNestedType):
+        resolved_type = resolved_type.value_type
+
+    qt_type = msg_type_to_qt_full(field_type)
+
+    if isinstance(resolved_type, AbstractWString):
+        ros_to_qt = f'QString::fromStdWString(msg->{field_name})'
+        qt_to_ros = f'ros_msg.{field_name} = {field_name}.toStdWString();'
+        extra_inc = '<QtCore/QString>'
+        const_ref = True
+    elif isinstance(resolved_type, AbstractString):
+        ros_to_qt = f'QString::fromStdString(msg->{field_name})'
+        qt_to_ros = f'ros_msg.{field_name} = {field_name}.toStdString();'
+        extra_inc = '<QtCore/QString>'
+        const_ref = True
+    elif isinstance(resolved_type, NamespacedType):
+        nested_pkg = resolved_type.namespaces[0] if resolved_type.namespaces else package_name
+        nested_ros = '::'.join(resolved_type.namespaces + [resolved_type.name])
+        nested_qt  = get_qt_class_name_full(nested_pkg, resolved_type.name)
+        ros_to_qt  = f'{nested_qt}(msg->{field_name})'
+        qt_to_ros  = f'ros_msg.{field_name} = static_cast<{nested_ros}>({field_name});'
+        extra_inc  = to_snake_case(resolved_type.name) + '.hpp'
+        const_ref  = True
+    else:
+        ros_to_qt = f'msg->{field_name}'
+        qt_to_ros = f'ros_msg.{field_name} = {field_name};'
+        extra_inc = None
+        const_ref = False
+
+    _QT_TO_QML: Dict[str, str] = {'QString': 'string', 'QStringList': 'list<string>'}
+    if isinstance(resolved_type, NamespacedType):
+        nested_pkg = resolved_type.namespaces[0] if resolved_type.namespaces else package_name
+        qml_doc_type = get_qml_value_type_name(nested_pkg, resolved_type.name)
+    else:
+        qml_doc_type = _QT_TO_QML.get(qt_type, qt_type)
+
+    param_decl = f'const {qt_type}& {field_name}' if const_ref else f'{qt_type} {field_name}'
+
+    return {
+        'qt_type':      qt_type,
+        'field_name':   field_name,
+        'param_decl':   param_decl,
+        'ros_to_qt':    ros_to_qt,
+        'qt_to_ros':    qt_to_ros,
+        'extra_inc':    extra_inc,
+        'qml_doc_type': qml_doc_type,
+    }
+
+
 def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, Any]:
     """
     Compute field descriptors and nested includes needed by the value type template.

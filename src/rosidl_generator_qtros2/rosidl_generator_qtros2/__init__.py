@@ -124,6 +124,9 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
         out_src_subdir.mkdir(parents=True, exist_ok=True)
 
         needs_wrap = needs_wrapper_type(message_spec)
+        # Always generate the wrapper for msg types: single-field messages may be used
+        # as nested field types in other messages and must have a header to include.
+        # For srv/action, only generate wrapper when the message has 2+ fields.
         emit_wrapper = True
         if interface_type in ('srv', 'action'):
             emit_wrapper = needs_wrap
@@ -670,6 +673,15 @@ def to_snake_case(name: str) -> str:
     return s2.replace('__', '_').lower()
 
 
+# Override QML type names that would conflict with built-in QML value types.
+# Keys are "package/MessageName"; values are the QML type name to use instead.
+_QML_NAME_OVERRIDES: dict = {
+    # 'string' is a built-in QML value type; using it would prevent qdoc from
+    # linking plain 'string' properties to the built-in type.
+    "std_msgs/String": "rosString",
+}
+
+
 def get_qml_value_type_name(package: str, message_name: str) -> str:
     """QML value type name for a ROS message, in lowercase camelCase.
 
@@ -685,6 +697,9 @@ def get_qml_value_type_name(package: str, message_name: str) -> str:
         TwistWithCovariance -> twistWithCovariance
         NavSatFix           -> navSatFix
     """
+    key = f"{package}/{message_name}"
+    if key in _QML_NAME_OVERRIDES:
+        return _QML_NAME_OVERRIDES[key]
     name = get_qt_class_name(package, message_name)
     return name[:1].lower() + name[1:] if name else name
 

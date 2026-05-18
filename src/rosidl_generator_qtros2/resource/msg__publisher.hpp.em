@@ -13,6 +13,7 @@
 from rosidl_generator_qtros2.template_helpers import (
     build_include_guard,
     build_message_context,
+    build_single_field_info,
 )
 
 context = build_message_context(package_name, message)
@@ -25,6 +26,7 @@ value_type_include = context['value_type_include']
 header_guard = build_include_guard(package_name, 'msg', context['header_file'] + '_publisher')
 qt_export_macro = f'Q_{qt_module_name.upper()}_EXPORT'
 qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
+sf = build_single_field_info(package_name, message)
 }@
 #ifndef @(header_guard)
 #define @(header_guard)
@@ -37,7 +39,15 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 #endif
 
 #include <QtRos2Core/private/qros2publisherbase_p.h>
+@[if sf]@
+@[  if sf['extra_inc'] and not sf['extra_inc'].endswith('.hpp')]@
+#include @(sf['extra_inc'])
+@[  elif sf['extra_inc']]@
+#include "@(sf['extra_inc'])"
+@[  end if]@
+@[else]@
 #include "@(value_type_include)"
+@[end if]@
 #ifndef Q_QDOC
 #include <@(ros_include)>  // ROS message type
 #include <rclcpp/rclcpp.hpp>  // for rclcpp::Publisher
@@ -63,7 +73,11 @@ public:
      * @@brief Publish a message
      * @@param msg The message to publish
      */
+@[if sf]@
+    Q_INVOKABLE void publish(@(sf['param_decl']));
+@[else]@
     Q_INVOKABLE void publish(const @(qt_class_name_full)& msg);
+@[end if]@
 
 protected:
     void setupConnection() override;

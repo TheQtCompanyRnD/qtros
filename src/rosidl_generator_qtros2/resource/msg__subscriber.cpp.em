@@ -12,6 +12,7 @@
 @{
 from rosidl_generator_qtros2.template_helpers import (
     build_message_context,
+    build_single_field_info,
     extract_doc_info,
 )
 
@@ -24,6 +25,7 @@ qml_module_uri = context['qml_module_uri']
 ros_msg_type = context['ros_msg_type']
 ros_include = context['ros_include']
 header_file = context['header_file']
+sf = build_single_field_info(package_name, message)
 doc_info = extract_doc_info(message)
 msg_brief = doc_info['brief']
 msg_brief_continuation = doc_info['brief_continuation']
@@ -63,22 +65,42 @@ namespace @(qt_namespace) {
 @[if msg_details]@
 
 @[end if]@
+@[if sf]@
+    @(qt_class_name)Subscriber receives @(sf['qml_doc_type']) values from a ROS 2 topic.
+@[else]@
     @(qt_class_name)Subscriber receives \l @(qml_value_type_name) values from a ROS 2 topic.
+@[end if]@
     Set the \c topic and \c node properties, then connect to the \c messageReceived() signal.
 
+@[if sf]@
+    \sa @(qt_class_name)Publisher
+@[else]@
     \sa @(qt_class_name)Publisher, @(qml_value_type_name)
+@[end if]@
 */
 
 /*!
+@[if sf]@
+    \qmlproperty @(sf['qml_doc_type']) @(qt_class_name)Subscriber::message
+
+    The last @(sf['qml_doc_type']) received on \l topic. Updated whenever a new message arrives.
+@[else]@
     \qmlproperty @(qml_value_type_name) @(qt_class_name)Subscriber::message
 
     The last message received on \l topic. Updated whenever a new message arrives.
+@[end if]@
 */
 
 /*!
+@[if sf]@
+    \qmlsignal @(qt_class_name)Subscriber::messageReceived(@(sf['qml_doc_type']) @(sf['field_name']))
+
+    Emitted when a new @(sf['qml_doc_type']) arrives on \l topic. \a @(sf['field_name']) contains the received value.
+@[else]@
     \qmlsignal @(qt_class_name)Subscriber::messageReceived(@(qml_value_type_name) msg)
 
     Emitted when a new \l @(qml_value_type_name) arrives on \l topic. \a msg contains the received value.
+@[end if]@
 */
 
 @(qt_class_name)Subscriber::@(qt_class_name)Subscriber(QObject* parent)
@@ -142,10 +164,11 @@ void @(qt_class_name)Subscriber::checkHealth()
 
 void @(qt_class_name)Subscriber::handleMessage(const @(ros_msg_type)::SharedPtr msg)
 {
-    // Convert ROS message to Qt type (implicit conversion)
+@[if sf]@
+    m_message = @(sf['ros_to_qt']);
+@[else]@
     m_message = *msg;
-
-    // Emit signal for QML
+@[end if]@
     emit messageReceived(m_message);
 }
 

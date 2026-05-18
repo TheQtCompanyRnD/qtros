@@ -12,6 +12,7 @@
 @{
 from rosidl_generator_qtros2.template_helpers import (
     build_message_context,
+    build_single_field_info,
     extract_doc_info,
 )
 
@@ -24,6 +25,7 @@ qml_module_uri = context['qml_module_uri']
 ros_msg_type = context['ros_msg_type']
 ros_include = context['ros_include']
 header_file = context['header_file']
+sf = build_single_field_info(package_name, message)
 doc_info = extract_doc_info(message)
 msg_brief = doc_info['brief']
 msg_brief_continuation = doc_info['brief_continuation']
@@ -61,16 +63,30 @@ namespace @(qt_namespace) {
 @[if msg_details]@
 
 @[end if]@
+@[if sf]@
+    @(qt_class_name)Publisher publishes @(sf['qml_doc_type']) values to a ROS 2 topic.
+@[else]@
     @(qt_class_name)Publisher publishes \l @(qml_value_type_name) values to a ROS 2 topic.
+@[end if]@
     Set the \c topic and \c node properties, then call \c publish() to send messages.
 
+@[if sf]@
+    \sa @(qt_class_name)Subscriber
+@[else]@
     \sa @(qt_class_name)Subscriber, @(qml_value_type_name)
+@[end if]@
 */
 
 /*!
+@[if sf]@
+    \qmlmethod void @(qt_class_name)Publisher::publish(@(sf['qml_doc_type']) @(sf['field_name']))
+
+    Publishes \a @(sf['field_name']) to the ROS 2 topic set by the \l topic property.
+@[else]@
     \qmlmethod void @(qt_class_name)Publisher::publish(@(qml_value_type_name) msg)
 
     Publishes \l @(qml_value_type_name) \a msg to the ROS 2 topic set by the \l topic property.
+@[end if]@
     Does nothing if the publisher is not connected.
 */
 
@@ -79,6 +95,18 @@ namespace @(qt_namespace) {
 {
 }
 
+@[if sf]@
+void @(qt_class_name)Publisher::publish(@(sf['param_decl']))
+{
+    if (!m_publisher) {
+        return;
+    }
+
+    @(ros_msg_type) ros_msg;
+    @(sf['qt_to_ros'])
+    m_publisher->publish(ros_msg);
+}
+@[else]@
 void @(qt_class_name)Publisher::publish(const @(qt_class_name_full)& msg)
 {
     if (!m_publisher) {
@@ -88,6 +116,7 @@ void @(qt_class_name)Publisher::publish(const @(qt_class_name_full)& msg)
     auto ros_msg = static_cast<@(ros_msg_type)>(msg);
     m_publisher->publish(ros_msg);
 }
+@[end if]@
 
 void @(qt_class_name)Publisher::setupConnection()
 {
