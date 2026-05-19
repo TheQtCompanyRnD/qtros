@@ -464,6 +464,17 @@ function(qt_ros2_import_urdf _qt_ros2_urdf_target _qt_ros2_urdf_file)
     find_package(Qt6 REQUIRED COMPONENTS Quick3DPhysics)
     target_link_libraries("${_urdf_module_target}" PUBLIC Qt6::Quick3DPhysics)
   endif()
+  if(_URDF_ROS_BRIDGE)
+    # For RosBridge.qml (pure QML, no generated C++), only Ros2Core is needed at
+    # cmake link level. The QtRos2.SensorMsgs QML import is resolved at runtime by the
+    # QML plugin system, so no cmake dependency on Qt6::QtRos2SensorMessages is needed.
+    # Avoid qt_ros2_configure_target here: it sets rosidl_generator_qtros2_DIR as a
+    # CACHE FORCE variable which triggers a cmake reconfigure during the generate phase,
+    # causing errors in the standalone test build when Qt module targets are re-loaded
+    # before sensor_msgs and related ROS packages are found.
+    find_package(Qt6 REQUIRED COMPONENTS Ros2Core)
+    target_link_libraries("${_urdf_module_target}" PUBLIC Qt6::Ros2Core)
+  endif()
 
   # Link the robot module plugin into the caller's target
   target_link_libraries("${_qt_ros2_urdf_target}" PRIVATE
