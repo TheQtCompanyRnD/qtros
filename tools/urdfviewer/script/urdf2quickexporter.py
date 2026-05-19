@@ -1448,10 +1448,10 @@ def write_control_qmldir(base_name: str, out_dir: str, *, header_comment: Option
         f.write(qmldir)
 
 
-def generate_preview_scene_qml(base_name: str, *, physics: bool = False) -> str:
+def generate_preview_scene_qml(base_name: str, *, physics: bool = False, ros: bool = False) -> str:
     """Return an embeddable QML scene for previewing the generated robot model."""
     return _make_env().get_template("preview_scene.qml").render(
-        base_name=base_name, physics=physics
+        base_name=base_name, physics=physics, ros=ros
     )
 
 
@@ -1460,35 +1460,36 @@ def write_preview_scene_qml(
     out_dir: str,
     *,
     physics: bool = False,
+    ros: bool = False,
     header_comment: Optional[str] = None,
 ) -> None:
     """Write the embeddable preview scene QML file."""
     qml_path = os.path.join(out_dir, "PreviewScene.qml")
-    qml = generate_preview_scene_qml(base_name, physics=physics)
+    qml = generate_preview_scene_qml(base_name, physics=physics, ros=ros)
     if header_comment:
         qml = f"// {header_comment}\n" + qml
     with open(qml_path, "w", encoding="utf-8") as f:
         f.write(qml)
 
 
-def generate_ros_preview_scene_qml(
+def generate_ros_bridge_qml(
     base_name: str,
     model: "RobotModel",
     joint_states_topic: str = "/joint_states",
 ) -> str:
-    """Return a QML scene that drives the robot live from /joint_states via qt-ros2-bridge."""
+    """Return a standalone ROS-bridge component that drives a {base_name}Control from /joint_states."""
     joint_map = [
         {"ros_name": j.name, "qml_prop": joint_prop_name(j)}
         for j in _movable_joints(model)
     ]
-    return _make_env().get_template("ros_preview_scene.qml").render(
+    return _make_env().get_template("ros_bridge.qml").render(
         base_name=base_name,
         joint_states_topic=joint_states_topic,
         joint_map=joint_map,
     )
 
 
-def write_ros_preview_scene_qml(
+def write_ros_bridge_qml(
     base_name: str,
     model: "RobotModel",
     out_dir: str,
@@ -1496,44 +1497,26 @@ def write_ros_preview_scene_qml(
     joint_states_topic: str = "/joint_states",
     header_comment: Optional[str] = None,
 ) -> None:
-    """Write RosPreviewScene.qml — a live ROS-bridge-connected scene."""
-    qml_path = os.path.join(out_dir, "RosPreviewScene.qml")
-    qml = generate_ros_preview_scene_qml(base_name, model, joint_states_topic)
+    """Write RosBridge.qml — a reusable ROS 2 subscriber component."""
+    qml_path = os.path.join(out_dir, "RosBridge.qml")
+    qml = generate_ros_bridge_qml(base_name, model, joint_states_topic)
     if header_comment:
         qml = f"// {header_comment}\n" + qml
     with open(qml_path, "w", encoding="utf-8") as f:
         f.write(qml)
 
 
-def generate_ros_main_qml(base_name: str) -> str:
-    """Return a standalone Window QML that wraps RosPreviewScene."""
-    return _make_env().get_template("ros_main.qml").render(base_name=base_name)
 
-
-def write_ros_main_qml(
-    base_name: str,
-    out_dir: str,
-    *,
-    header_comment: Optional[str] = None,
-) -> None:
-    """Write RosMain.qml — a standalone window for the ROS-bridge preview."""
-    qml_path = os.path.join(out_dir, "RosMain.qml")
-    qml = generate_ros_main_qml(base_name)
-    if header_comment:
-        qml = f"// {header_comment}\n" + qml
-    with open(qml_path, "w", encoding="utf-8") as f:
-        f.write(qml)
-
-
-def generate_preview_qml(base_name: str) -> str:
+def generate_preview_qml(base_name: str, *, ros: bool = False) -> str:
     """Return the standalone preview window QML that wraps PreviewScene."""
-    return _make_env().get_template("preview_main.qml").render(base_name=base_name)
+    return _make_env().get_template("preview_main.qml").render(base_name=base_name, ros=ros)
 
 
 def write_preview_qml(
     base_name: str,
     out_dir: str,
     *,
+    ros: bool = False,
     header_comment: Optional[str] = None,
 ) -> bool:
     """Write the standalone preview window QML file.
@@ -1547,7 +1530,7 @@ def write_preview_qml(
     qml_path = os.path.join(out_dir, "Main.qml")
     if os.path.exists(qml_path):
         return False
-    qml = generate_preview_qml(base_name)
+    qml = generate_preview_qml(base_name, ros=ros)
     if header_comment:
         qml = f"// {header_comment}\n" + qml
     with open(qml_path, "w", encoding="utf-8") as f:
@@ -2000,8 +1983,9 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help=(
-            "Generate ROS-bridge-aware preview files (RosPreviewScene.qml, RosMain.qml). "
-            "The generated scene subscribes to /joint_states and drives the robot live. "
+            "Generate a standalone RosBridge.qml component that subscribes to /joint_states "
+            "and drives the robot live. When combined with preview scene generation, "
+            "PreviewScene.qml uses RosBridge instead of the manual ControlPanel. "
             "Requires QtRos2Core and QtRos2SensorMessages at build/runtime."
         ),
     )
@@ -2060,8 +2044,7 @@ def _empty_manifest(invocation: Dict[str, Any]) -> Dict[str, Any]:
             "control_qml": None,
             "control_panel_qml": None,
             "joints_json": None,
-            "ros_preview_scene_qml": None,
-            "ros_main_qml": None,
+            "ros_bridge_qml": None,
         },
         "generated_modules": [],
         "warnings": [],
@@ -2213,8 +2196,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             "control_qml": os.path.abspath(control_qml_path),
             "control_panel_qml": None,
             "joints_json": os.path.abspath(joints_path),
-            "ros_preview_scene_qml": None,
-            "ros_main_qml": None,
+            "ros_bridge_qml": None,
         }
 
         license_hint = None
@@ -2303,32 +2285,32 @@ def main(argv: Optional[List[str]] = None) -> int:
             header_comment=header_comment,
         )
         if not args.no_preview_scene:
-            written = write_preview_scene_qml(base_name, robot_dir, physics=args.physics, header_comment=header_comment)
-            if written or os.path.exists(preview_scene_path):
+            write_preview_scene_qml(base_name, robot_dir, physics=args.physics,
+                                    ros=args.ros_bridge, header_comment=header_comment)
+            if os.path.exists(preview_scene_path):
                 manifest["files"]["preview_scene_qml"] = os.path.abspath(preview_scene_path)
-            written = write_control_panel_qml(base_name, robot_dir, header_comment=header_comment)
-            if written or os.path.exists(control_panel_qml_path):
-                manifest["files"]["control_panel_qml"] = os.path.abspath(control_panel_qml_path)
+            if not args.ros_bridge:
+                write_control_panel_qml(base_name, robot_dir, header_comment=header_comment)
+                if os.path.exists(control_panel_qml_path):
+                    manifest["files"]["control_panel_qml"] = os.path.abspath(control_panel_qml_path)
         if not args.no_main_qml:
-            written = write_preview_qml(base_name, robot_dir, header_comment=header_comment)
+            written = write_preview_qml(base_name, robot_dir, ros=args.ros_bridge,
+                                        header_comment=header_comment)
             if written or os.path.exists(main_qml_path):
                 manifest["files"]["main_qml"] = os.path.abspath(main_qml_path)
             write_main_cpp(base_name, robot_dir, header_comment=header_comment)
             write_qmlproject(base_name, robot_dir, header_comment=header_comment)
 
         if args.ros_bridge:
-            ros_preview_scene_path = os.path.join(robot_dir, "RosPreviewScene.qml")
-            ros_main_qml_path = os.path.join(robot_dir, "RosMain.qml")
-            write_ros_preview_scene_qml(
+            ros_bridge_qml_path = os.path.join(robot_dir, "RosBridge.qml")
+            write_ros_bridge_qml(
                 base_name,
                 model,
                 robot_dir,
                 joint_states_topic=args.joint_states_topic,
                 header_comment=header_comment,
             )
-            write_ros_main_qml(base_name, robot_dir, header_comment=header_comment)
-            manifest["files"]["ros_preview_scene_qml"] = os.path.abspath(ros_preview_scene_path)
-            manifest["files"]["ros_main_qml"] = os.path.abspath(ros_main_qml_path)
+            manifest["files"]["ros_bridge_qml"] = os.path.abspath(ros_bridge_qml_path)
 
         # Physics bodies are integrated into the robot model QML directly.
 

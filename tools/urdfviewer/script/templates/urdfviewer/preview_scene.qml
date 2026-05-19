@@ -11,6 +11,18 @@ Item {
     implicitWidth: 1920
     implicitHeight: 1080
 
+{% if ros %}
+    {{ base_name }}Control {
+        id: robotControl
+    }
+
+    // Subscribes to /joint_states and drives robotControl from ROS 2.
+    RosBridge {
+        id: rosBridge
+        control: robotControl
+    }
+
+{% endif %}
     View3D {
         id: view3D
         anchors.fill: parent
@@ -47,7 +59,11 @@ Item {
 
         {{ base_name }} {
             id: robotRoot
+{% if ros %}
+            control: robotControl
+{% else %}
             control: {{ base_name }}Control {}
+{% endif %}
         }
     }
 {% if physics %}
@@ -57,6 +73,25 @@ Item {
         gravity: Qt.vector3d(0, 0, 0)
     }
 {% endif %}
+{% if ros %}
+
+    // Shown until the ROS 2 node has fully initialised.
+    Rectangle {
+        visible: !rosBridge.initialized
+        anchors.centerIn: parent
+        color: "#cc000000"
+        radius: 8
+        width: statusLabel.implicitWidth + 32
+        height: statusLabel.implicitHeight + 16
+
+        Label {
+            id: statusLabel
+            anchors.centerIn: parent
+            color: "white"
+            text: qsTr("Waiting for ROS\u00b2\u2026")
+        }
+    }
+{% else %}
 
     ControlPanel {
         id: panel
@@ -67,4 +102,5 @@ Item {
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         targetRobot: robotRoot
     }
+{% endif %}
 }

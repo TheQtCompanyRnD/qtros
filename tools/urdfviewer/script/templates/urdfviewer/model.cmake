@@ -23,8 +23,7 @@ qt_add_qml_module(Robot_{{ base_name }}
         "PreviewScene.qml"
 {% endif %}
 {% if ros_bridge %}
-        "RosPreviewScene.qml"
-        "RosMain.qml"
+        "RosBridge.qml"
 {% endif %}
     SOURCES
         "{{ base_name }}ControlBase.h"
