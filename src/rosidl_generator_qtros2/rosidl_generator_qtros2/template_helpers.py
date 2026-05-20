@@ -34,6 +34,71 @@ def get_qml_module_uri(package_name: str) -> str:
     return 'QtRos2.' + ''.join(w.capitalize() for w in package_name.split('_') if w)
 
 
+# Per-field doc overrides for built-in message types whose .msg comments are
+# missing or thin. Keys are "package/MessageName", values are dicts mapping
+# field_name -> list of doc lines. First line becomes \brief; remaining lines
+# form the property body. Use qdoc markup (\\l, \\c, \\sa, etc.); double the
+# backslashes since these are Python strings.
+_FIELD_DOC_OVERRIDES: Dict[str, Dict[str, List[str]]] = {
+    "geometry_msgs/Wrench": {
+        "force":  ["Linear force in newtons (N)."],
+        "torque": ["Torque about each axis in newton-metres (N·m)."],
+    },
+    "geometry_msgs/Twist": {
+        "linear":  ["Linear velocity in metres per second (m/s)."],
+        "angular": ["Angular velocity in radians per second (rad/s)."],
+    },
+    "geometry_msgs/Accel": {
+        "linear":  ["Linear acceleration in m/s²."],
+        "angular": ["Angular acceleration in rad/s²."],
+    },
+    "geometry_msgs/Inertia": {
+        "m":   ["Mass in kilograms (kg)."],
+        "com": ["Position of the center of mass in metres (m)."],
+        "ixx": ["Moment of inertia about the X axis in kg·m²."],
+        "ixy": ["Product of inertia between the X and Y axes in kg·m²."],
+        "ixz": ["Product of inertia between the X and Z axes in kg·m²."],
+        "iyy": ["Moment of inertia about the Y axis in kg·m²."],
+        "iyz": ["Product of inertia between the Y and Z axes in kg·m²."],
+        "izz": ["Moment of inertia about the Z axis in kg·m²."],
+    },
+    "geometry_msgs/TwistWithCovariance": {
+        "covariance": [
+            "Row-major 6×6 covariance matrix for the \\l twist.",
+            "Diagonal entries are variances of \\c {linear.x}, \\c {linear.y},",
+            "\\c {linear.z}, \\c {angular.x}, \\c {angular.y}, \\c {angular.z}",
+            "(in that order); off-diagonal entries are the corresponding",
+            "covariances. Set all 36 entries; unknown components are often",
+            "left at zero or filled with a small positive variance.",
+        ],
+    },
+    "geometry_msgs/PoseWithCovariance": {
+        "covariance": [
+            "Row-major 6×6 covariance matrix for the \\l pose.",
+            "Diagonal entries are variances of \\c {position.x}, \\c {position.y},",
+            "\\c {position.z} and the fixed-axis rotations about X, Y, Z",
+            "(in that order); off-diagonal entries are the corresponding",
+            "covariances.",
+        ],
+    },
+    "geometry_msgs/AccelWithCovariance": {
+        "covariance": [
+            "Row-major 6×6 covariance matrix for the \\l accel.",
+            "Diagonal entries are variances of \\c {linear.x}, \\c {linear.y},",
+            "\\c {linear.z}, \\c {angular.x}, \\c {angular.y}, \\c {angular.z}",
+            "(in that order); off-diagonal entries are the corresponding",
+            "covariances.",
+        ],
+    },
+}
+
+
+# Per-type brief override; replaces whatever rosidl_adapter mis-derives.
+_VALUE_TYPE_BRIEF_OVERRIDE: Dict[str, str] = {
+    "geometry_msgs/Inertia": "Rigid-body mass and inertia tensor about a center of mass.",
+}
+
+
 # Per-type qdoc paragraphs appended to the generated value-type description
 # (not the publisher / subscriber). Keys are "package/MessageName".
 # Each paragraph is a list of lines; consecutive paragraphs are joined with a
@@ -73,6 +138,12 @@ def value_type_extra_doc(package_name: str, message_spec) -> List[List[str]]:
     """
     msg_name = message_spec.structure.namespaced_type.name
     return _VALUE_TYPE_EXTRA_DOC.get(f"{package_name}/{msg_name}", [])
+
+
+def value_type_brief_override(package_name: str, message_spec) -> str:
+    """If a hand-written brief is configured for this message, return it; else ''."""
+    msg_name = message_spec.structure.namespaced_type.name
+    return _VALUE_TYPE_BRIEF_OVERRIDE.get(f"{package_name}/{msg_name}", "")
 
 NestedInclude = Tuple[str, str, bool]
 
@@ -722,33 +793,156 @@ def _strip_blank_edges(lines: List[str]) -> List[str]:
     return out
 
 
+_HTML_ANCHOR_RE = re.compile(r'<a\s+href="([^"]+)"\s*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+_HTML_TAG_RE = re.compile(r'<(/?)\s*(b|i|em|strong|tt|code|br)\s*/?>', re.IGNORECASE)
+
+
 def _sanitize_doc_line(line: str) -> str:
-    """Defensively neutralize sequences that would break a qdoc /*! ... */ block."""
-    return line.replace("*/", "* /")
+    """Defensively neutralize sequences that would break a qdoc /*! ... */ block,
+    and convert common HTML embedded in ROS .msg comments to qdoc markup."""
+    line = line.replace("*/", "* /")
+    line = _HTML_ANCHOR_RE.sub(lambda m: r'\l {' + m.group(1) + '}{' + m.group(2).strip() + '}', line)
+    # Strip stray inline HTML tags (b/i/code/br); content is preserved.
+    line = _HTML_TAG_RE.sub('', line)
+    return line
+
+
+def _parse_msg_comments(msg_path: 'Path') -> Tuple[List[str], Dict[str, List[str]]]:
+    """Re-parse a ROS .msg file to recover comment-to-field attribution.
+
+    rosidl_adapter splits multi-paragraph leading comments at blank lines and
+    misattributes the trailing paragraphs to the first field. We re-parse the
+    raw .msg here to apply a saner rule:
+
+    - Comments that immediately precede a field (no blank line between) belong
+      to that field.
+    - All other leading comments (everything above the first field, separated
+      from it by a blank line, possibly multi-paragraph) belong to the struct.
+    - Comments between fields, separated from the next field by a blank line,
+      are orphaned (rare; we drop them).
+
+    Returns (struct_comment_lines, {field_name: field_comment_lines}).
+    Paragraph breaks in struct_comment_lines are preserved as empty strings.
+    """
+    from pathlib import Path
+    raw = Path(msg_path).read_text(encoding='utf-8', errors='replace').splitlines()
+    struct_lines: List[str] = []
+    field_doc_map: Dict[str, List[str]] = {}
+    pending: List[str] = []
+    seen_field = False
+
+    def _strip_comment(line: str) -> str:
+        text = line.lstrip().lstrip('#')
+        return text[1:] if text.startswith(' ') else text
+
+    def _flush_struct():
+        if pending:
+            if struct_lines:
+                struct_lines.append('')
+            struct_lines.extend(pending)
+        del pending[:]
+
+    def _is_constant(stripped: str) -> bool:
+        # ROS constants: "<type> <UPPER_NAME> = <value>". Distinguished from
+        # fields with default values by the all-caps name.
+        if '=' not in stripped:
+            return False
+        tokens = stripped.split()
+        if len(tokens) < 2:
+            return False
+        name = tokens[1].split('=', 1)[0]
+        return bool(name) and name[0].isalpha() and name == name.upper()
+
+    for raw_line in raw:
+        line = raw_line.rstrip()
+        stripped = line.lstrip()
+        if not stripped:
+            if not seen_field:
+                _flush_struct()
+            else:
+                del pending[:]
+        elif stripped.startswith('#'):
+            pending.append(_strip_comment(line))
+        elif _is_constant(stripped):
+            # Constants aren't exposed as Q_PROPERTYs; any pending comments
+            # documented this constant and should not bleed into struct or
+            # subsequent field docs.
+            del pending[:]
+            seen_field = True
+        else:
+            # Real field. Leading comments above the first field are struct
+            # docs even without an intervening blank line (Point, Accel etc.)
+            if not seen_field:
+                _flush_struct()
+            tokens = stripped.split()
+            field_name = ''
+            if len(tokens) >= 2:
+                field_name = tokens[1].split('=', 1)[0]
+            if field_name:
+                if pending:
+                    field_doc_map.setdefault(field_name, []).extend(pending)
+                del pending[:]
+                seen_field = True
+            else:
+                del pending[:]
+
+    while struct_lines and not struct_lines[-1].strip():
+        struct_lines.pop()
+    return struct_lines, field_doc_map
+
+
+def _looks_like_list_item(stripped: str) -> bool:
+    """Heuristic: does this indented line look like a list item (vs. ASCII art)?
+
+    True for lines starting with a bullet glyph or `name:`-style entries; false
+    for lines that look like a row in an ASCII table or matrix (starting and
+    ending with the same delimiter, e.g. ``| ixx ixy ixz |``).
+    """
+    if not stripped:
+        return False
+    if stripped[0] in '-*+•':
+        return True
+    if stripped[0] == '|' and stripped[-1] == '|':
+        return False
+    # Treat "name [type]: description" / "name: description" as list items,
+    # but skip URLs whose ":" is part of "://".
+    head = stripped[:40]
+    if '://' in head:
+        return False
+    if ':' in head:
+        return True
+    return False
 
 
 def _format_list_items(lines: List[str]) -> List[str]:
-    """Convert runs of indented lines in ROS comment text to qdoc \\list / \\li markup.
+    """Convert runs of indented list-item-looking lines to qdoc \\list / \\li markup.
 
-    ROS .msg comments frequently use leading-whitespace indentation for lists of
-    named items (e.g. the image topic list in sensor_msgs/CameraInfo). qdoc
-    ignores extra whitespace, so without this conversion the items render as
-    undifferentiated paragraph text.  Any contiguous block of lines that start
-    with at least one space is wrapped in \\list ... \\endlist, with each line
-    emitted as a \\li item (with the leading whitespace stripped).
+    ROS .msg comments use leading-whitespace indentation for lists of named
+    items (e.g. the image topic list in sensor_msgs/CameraInfo) but also for
+    ASCII tables and matrix diagrams (e.g. Inertia's inertia tensor). qdoc
+    treats both the same — we only wrap if the indented lines actually look
+    like list items (see _looks_like_list_item).
     """
     result: List[str] = []
     in_list = False
     for line in lines:
         stripped = line.lstrip()
-        is_indented = len(line) > len(stripped) and bool(stripped)
-        if is_indented and not in_list:
+        is_list_item = (
+            len(line) > len(stripped) and bool(stripped) and _looks_like_list_item(stripped)
+        )
+        if is_list_item and not in_list:
             result.append(r'\list')
             in_list = True
-        elif not is_indented and in_list:
+        elif not is_list_item and in_list:
             result.append(r'\endlist')
             in_list = False
-        result.append((r'\li ' + stripped) if is_indented else line)
+        if is_list_item:
+            # Strip the bullet glyph; qdoc's \li supplies the bullet.
+            if stripped[0] in '-*+•':
+                stripped = stripped[1:].lstrip()
+            result.append(r'\li ' + stripped)
+        else:
+            result.append(line)
     if in_list:
         result.append(r'\endlist')
     return result
@@ -759,26 +953,49 @@ _DEPRECATED_VERSION_RE = re.compile(r'\b(?:as\s+of|since)\s+([\w]+)', re.IGNOREC
 _DEPRECATED_FAVOUR_RE = re.compile(r'\bin\s+favou?r\s+of\s+(.+?)\.?\s*$', re.IGNORECASE)
 
 
-def extract_doc_info(message_spec) -> Dict[str, Any]:
+def extract_doc_info(message_spec, *, interface_path: str | None = None) -> Dict[str, Any]:
     """
     Pull human-authored documentation out of a parsed ROS interface.
 
     The ROS .msg comments are preserved by rosidl_adapter as
     @verbatim(language="comment", ...) annotations on the struct and on
-    each member. rosidl_parser exposes them via Annotatable.get_comment_lines().
-    Both struct-level and per-member text flow through here so the qdoc
-    templates can emit a meaningful \\brief and per-property documentation.
+    each member. rosidl_parser exposes them via Annotatable.get_comment_lines(),
+    but the adapter sometimes misattributes leading multi-paragraph comments
+    to the first field. If ``interface_path`` points at an .idl that has a
+    sibling .msg, we re-parse that .msg directly to recover the original
+    attribution.
 
     Deprecation notices (lines containing the word "deprecated") are stripped
     from the main text and returned separately as ``deprecated`` /
     ``deprecated_since`` so templates can emit a qdoc \\deprecated tag.
     """
-    msg_lines: List[str] = []
-    try:
-        msg_lines = list(message_spec.structure.get_comment_lines() or [])
-    except (AttributeError, ValueError):
-        msg_lines = []
-    msg_lines = [_sanitize_doc_line(ln) for ln in _strip_blank_edges(msg_lines)]
+    from pathlib import Path
+    struct_lines_raw: List[str] = []
+    rosidl_field_docs: Dict[str, List[str]] = {}
+    members = []
+    if hasattr(message_spec, "structure") and hasattr(message_spec.structure, "members"):
+        members = message_spec.structure.members
+
+    msg_path: 'Path | None' = None
+    if interface_path:
+        candidate = Path(interface_path).with_suffix('.msg')
+        if candidate.exists():
+            msg_path = candidate
+
+    if msg_path is not None:
+        struct_lines_raw, rosidl_field_docs = _parse_msg_comments(msg_path)
+    else:
+        try:
+            struct_lines_raw = list(message_spec.structure.get_comment_lines() or [])
+        except (AttributeError, ValueError):
+            struct_lines_raw = []
+        for member in members:
+            try:
+                rosidl_field_docs[member.name] = list(member.get_comment_lines() or [])
+            except (AttributeError, ValueError):
+                rosidl_field_docs[member.name] = []
+
+    msg_lines = [_sanitize_doc_line(ln) for ln in _strip_blank_edges(struct_lines_raw)]
 
     # Detect and strip deprecation lines before building brief/details
     deprecated = False
@@ -810,16 +1027,28 @@ def extract_doc_info(message_spec) -> Dict[str, Any]:
     brief = brief_lines[0].strip() if brief_lines else ""
     brief_continuation = brief_lines[1:] if len(brief_lines) > 1 else []
 
+    # Per-field overrides for built-in messages whose comments are thin or absent.
+    msg_name = (
+        message_spec.structure.namespaced_type.name
+        if hasattr(message_spec, "structure") else ""
+    )
+    package_name_for_msg = (
+        message_spec.structure.namespaced_type.namespaces[0]
+        if hasattr(message_spec, "structure")
+        and getattr(message_spec.structure.namespaced_type, "namespaces", None)
+        else ""
+    )
+    field_overrides = _FIELD_DOC_OVERRIDES.get(
+        f"{package_name_for_msg}/{msg_name}", {}
+    )
+
     field_docs: Dict[str, List[str]] = {}
-    members = []
-    if hasattr(message_spec, "structure") and hasattr(message_spec.structure, "members"):
-        members = message_spec.structure.members
     for member in members:
-        try:
-            lines = list(member.get_comment_lines() or [])
-        except (AttributeError, ValueError):
-            lines = []
-        lines = _format_list_items([_sanitize_doc_line(ln) for ln in _strip_blank_edges(lines)])
+        if member.name in field_overrides:
+            raw = list(field_overrides[member.name])
+        else:
+            raw = rosidl_field_docs.get(member.name, [])
+        lines = _format_list_items([_sanitize_doc_line(ln) for ln in _strip_blank_edges(raw)])
         field_docs[member.name] = lines
 
     return {

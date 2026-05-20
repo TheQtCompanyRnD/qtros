@@ -28,7 +28,7 @@ ros_include = context['ros_include']
 header_file = context['header_file']
 sf = build_single_field_info(package_name, message)
 fps = build_field_props_for_pubsub(package_name, message)
-doc_info = extract_doc_info(message)
+doc_info = extract_doc_info(message, interface_path=interface_path)
 msg_brief = doc_info['brief']
 msg_brief_continuation = doc_info['brief_continuation']
 msg_details = doc_info['details']

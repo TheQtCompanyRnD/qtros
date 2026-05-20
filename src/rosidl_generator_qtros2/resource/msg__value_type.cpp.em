@@ -15,6 +15,7 @@ from rosidl_generator_qtros2.template_helpers import (
     build_message_context,
     build_value_type_descriptors,
     extract_doc_info,
+    value_type_brief_override,
     value_type_extra_doc,
 )
 
@@ -30,9 +31,10 @@ value_helpers = build_value_type_descriptors(package_name, message)
 field_infos = value_helpers['field_infos']
 post_init_lines = value_helpers['post_init_lines']
 qml_module_uri = 'QtRos2.' + ''.join(w.capitalize() for w in package_name.split('_'))
-doc_info = extract_doc_info(message)
-msg_brief = doc_info['brief']
-msg_brief_continuation = doc_info['brief_continuation']
+doc_info = extract_doc_info(message, interface_path=interface_path)
+_brief_override = value_type_brief_override(package_name, message)
+msg_brief = _brief_override or doc_info['brief']
+msg_brief_continuation = [] if _brief_override else doc_info['brief_continuation']
 msg_details = doc_info['details']
 field_docs = doc_info['field_docs']
 deprecated = doc_info['deprecated']
