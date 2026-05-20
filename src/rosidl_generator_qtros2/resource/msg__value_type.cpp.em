@@ -15,6 +15,7 @@ from rosidl_generator_qtros2.template_helpers import (
     build_message_context,
     build_value_type_descriptors,
     extract_doc_info,
+    value_type_extra_doc,
 )
 
 context = build_message_context(package_name, message)
@@ -37,6 +38,7 @@ field_docs = doc_info['field_docs']
 deprecated = doc_info['deprecated']
 deprecated_since = doc_info['deprecated_since']
 deprecated_tag = ('[' + deprecated_since + '] ') if deprecated_since else ''
+extra_type_doc = value_type_extra_doc(package_name, message)
 }@
 #include "@(header_file).hpp"
 @[for info in field_infos]@
@@ -71,24 +73,41 @@ deprecated_tag = ('[' + deprecated_since + '] ') if deprecated_since else ''
 @[end if]@
     @(qml_value_type_name) is a structured value type usable in QML.
     It maps directly to the \c @(ros_msg_type) ROS 2 message type.
+@[for paragraph in extra_type_doc]@
+
+@[  for line in paragraph]@
+    @(line)
+@[  end for]@
+@[end for]@
+
+    \sa @(qt_class_name)Publisher, @(qt_class_name)Subscriber
 */
 
 @[for info in field_infos]@
 @{
 _field_name = info.get('name')
-_field_doc_lines = field_docs.get(_field_name, []) if _field_name else []
+_explicit_brief = info.get('brief_doc')
+_explicit_body = info.get('doc_lines')
+if _explicit_brief or _explicit_body:
+    _field_brief = _explicit_brief
+    _field_body_lines = list(_explicit_body or [])
+else:
+    _ros_lines = field_docs.get(_field_name, []) if _field_name else []
+    _field_brief = _ros_lines[0] if _ros_lines else None
+    _field_body_lines = list(_ros_lines[1:]) if len(_ros_lines) > 1 else []
 _qt_prop = info.get('qt_prop_name') or _field_name
 _qt_type = info.get('qt_type') or 'var'
 _qml_doc_type = info.get('qml_doc_type') or _qt_type
+_emit_prop_doc = bool(_qt_prop) and ((not info.get('is_computed')) or info.get('property_spec'))
 }@
-@[  if _qt_prop]@
+@[  if _emit_prop_doc]@
 /*!
     \qmlproperty @(_qml_doc_type) @(qml_value_type_name)::@(_qt_prop)
-@[    if _field_doc_lines]@
-    \brief @(_field_doc_lines[0])
-@[      if len(_field_doc_lines) > 1]@
+@[    if _field_brief]@
+    \brief @(_field_brief)
+@[      if _field_body_lines]@
 
-@[        for line in _field_doc_lines[1:]]@
+@[        for line in _field_body_lines]@
     @(line)
 @[        end for]@
 @[      end if]@
@@ -96,6 +115,21 @@ _qml_doc_type = info.get('qml_doc_type') or _qt_type
 */
 
 @[  end if]@
+@[  for m in info.get('qml_methods') or []]@
+/*!
+    \qmlmethod @(m['signature'])
+@[    if m.get('brief')]@
+    \brief @(m['brief'])
+@[      if m.get('body')]@
+
+@[        for line in m['body']]@
+    @(line)
+@[        end for]@
+@[      end if]@
+@[    end if]@
+*/
+
+@[  end for]@
 @[end for]@
 
 @{_nc = [i for i in field_infos if not i.get('is_computed')]}@

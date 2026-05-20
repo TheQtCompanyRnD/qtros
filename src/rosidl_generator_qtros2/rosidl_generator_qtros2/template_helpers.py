@@ -33,6 +33,47 @@ def get_qml_module_uri(package_name: str) -> str:
     """Compute the QML module URI for a ROS package (e.g. QtRos2.BuiltinInterfaces)."""
     return 'QtRos2.' + ''.join(w.capitalize() for w in package_name.split('_') if w)
 
+
+# Per-type qdoc paragraphs appended to the generated value-type description
+# (not the publisher / subscriber). Keys are "package/MessageName".
+# Each paragraph is a list of lines; consecutive paragraphs are joined with a
+# blank line. Use \\l, \\c etc. for qdoc markup; double the backslashes.
+_VALUE_TYPE_EXTRA_DOC: Dict[str, List[List[str]]] = {
+    "geometry_msgs/Quaternion": [
+        [
+            "Similar to QtQuick's \\l {QtQuick::}{quaternion} value type but",
+            "stored as four \\c double components (\\c x, \\c y, \\c z, \\c w)",
+            "rather than \\c float, matching the ROS 2 wire format. Use",
+            "\\l toQuaternion() / \\l fromQuaternion() to bridge to",
+            "\\l QQuaternion when its math API (slerp, normalize, multiplication)",
+            "is needed.",
+        ],
+    ],
+    "geometry_msgs/Vector3": [
+        [
+            "Similar to QtQuick's \\l {QtQuick::}{vector3d} value type but",
+            "stored as three \\c double components, matching the ROS 2 wire",
+            "format. Use \\l toVector3D() / \\l fromVector3D() to bridge to",
+            "\\l QVector3D when its math API is needed.",
+        ],
+    ],
+    "geometry_msgs/Point": [
+        [
+            "Semantically a 3D point rather than a free vector, but stored",
+            "identically to \\l vector3 (three \\c double components). Use",
+            "\\l toVector3D() / \\l fromVector3D() to bridge to \\l QVector3D.",
+        ],
+    ],
+}
+
+
+def value_type_extra_doc(package_name: str, message_spec) -> List[List[str]]:
+    """Return per-type extra qdoc paragraphs to append to a value type's
+    description, as a list of paragraphs (each a list of lines).
+    """
+    msg_name = message_spec.structure.namespaced_type.name
+    return _VALUE_TYPE_EXTRA_DOC.get(f"{package_name}/{msg_name}", [])
+
 NestedInclude = Tuple[str, str, bool]
 
 # Computed (Qt-only) properties appended to field_infos for specific messages.
@@ -98,6 +139,253 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                 "}}\n"
             ),
         }
+    ],
+    "geometry_msgs/Quaternion": [
+        {
+            "is_computed": True,
+            "name": "eulerAngles",
+            "qt_type": "QVector3D",
+            "qt_prop_name": "eulerAngles",
+            "qml_doc_type": "vector3d",
+            "property_spec": "Q_PROPERTY(QVector3D eulerAngles READ eulerAngles WRITE setEulerAngles)",
+            "getter_decl": "QVector3D eulerAngles() const;",
+            "setter_decl": "void setEulerAngles(const QVector3D& eulerAngles);",
+            "extra_decls": [
+                "Q_INVOKABLE static {cls} fromEulerAngles(const QVector3D& eulerAngles);",
+            ],
+            "qml_methods": [
+                {
+                    "signature": "{vt} {vt}::fromEulerAngles(vector3d eulerAngles)",
+                    "brief": "Construct a quaternion from Euler angles in degrees.",
+                    "body": [
+                        "Components are (\\c x = roll about X, \\c y = pitch about Y,",
+                        "\\c z = yaw about Z), ROS axis convention.",
+                    ],
+                },
+            ],
+            "extra_includes": ["<QVector3D>"],
+            "extra_cpp_includes": ["<QQuaternion>"],
+            "brief_doc": "Orientation as Euler angles in degrees.",
+            "doc_lines": [
+                "Components are (\\c x = roll about X, \\c y = pitch about Y,",
+                "\\c z = yaw about Z) using the ROS Z-up axis convention.",
+                "Reading round-trips through \\l QQuaternion and may lose",
+                "precision near gimbal singularities (pitch = ±90°).",
+                "",
+                "See also \\l rpy for the same angles in radians.",
+            ],
+            "cpp_impl_tmpl": (
+                "QVector3D {ns}::{cls}::eulerAngles() const\n"
+                "{{\n"
+                "    const QQuaternion q(static_cast<float>(m_w),\n"
+                "                        static_cast<float>(m_x),\n"
+                "                        static_cast<float>(m_y),\n"
+                "                        static_cast<float>(m_z));\n"
+                "    const QVector3D pyr = q.toEulerAngles();\n"
+                "    return QVector3D(pyr.z(), pyr.x(), pyr.y());\n"
+                "}}\n"
+                "\n"
+                "void {ns}::{cls}::setEulerAngles(const QVector3D& rpy)\n"
+                "{{\n"
+                "    const QQuaternion q =\n"
+                "        QQuaternion::fromEulerAngles(rpy.y(), rpy.z(), rpy.x());\n"
+                "    m_x = q.x();\n"
+                "    m_y = q.y();\n"
+                "    m_z = q.z();\n"
+                "    m_w = q.scalar();\n"
+                "}}\n"
+                "\n"
+                "{ns}::{cls} {ns}::{cls}::fromEulerAngles(const QVector3D& eulerAngles)\n"
+                "{{\n"
+                "    {ns}::{cls} r;\n"
+                "    r.setEulerAngles(eulerAngles);\n"
+                "    return r;\n"
+                "}}\n"
+            ),
+        },
+        {
+            "is_computed": True,
+            "name": "rpy",
+            "qt_type": "QVector3D",
+            "qt_prop_name": "rpy",
+            "qml_doc_type": "vector3d",
+            "property_spec": "Q_PROPERTY(QVector3D rpy READ rpy WRITE setRpy)",
+            "getter_decl": "QVector3D rpy() const;",
+            "setter_decl": "void setRpy(const QVector3D& rpy);",
+            "extra_decls": [
+                "Q_INVOKABLE static {cls} fromRpy(const QVector3D& rpy);",
+            ],
+            "qml_methods": [
+                {
+                    "signature": "{vt} {vt}::fromRpy(vector3d rpy)",
+                    "brief": "Construct a quaternion from roll/pitch/yaw in radians.",
+                    "body": [
+                        "Equivalent to \\l fromEulerAngles but in radians.",
+                    ],
+                },
+            ],
+            "extra_includes": [],
+            "extra_cpp_includes": ["<QtMath>"],
+            "brief_doc": "Orientation as roll/pitch/yaw in radians (ROS convention).",
+            "doc_lines": [
+                "Components are (\\c x = roll, \\c y = pitch, \\c z = yaw).",
+                "Equivalent to \\l eulerAngles but in radians; the same",
+                "singularity caveats apply.",
+            ],
+            "cpp_impl_tmpl": (
+                "QVector3D {ns}::{cls}::rpy() const\n"
+                "{{\n"
+                "    const QVector3D deg = eulerAngles();\n"
+                "    return QVector3D(qDegreesToRadians(deg.x()),\n"
+                "                     qDegreesToRadians(deg.y()),\n"
+                "                     qDegreesToRadians(deg.z()));\n"
+                "}}\n"
+                "\n"
+                "void {ns}::{cls}::setRpy(const QVector3D& rpy)\n"
+                "{{\n"
+                "    setEulerAngles(QVector3D(qRadiansToDegrees(rpy.x()),\n"
+                "                             qRadiansToDegrees(rpy.y()),\n"
+                "                             qRadiansToDegrees(rpy.z())));\n"
+                "}}\n"
+                "\n"
+                "{ns}::{cls} {ns}::{cls}::fromRpy(const QVector3D& rpy)\n"
+                "{{\n"
+                "    {ns}::{cls} r;\n"
+                "    r.setRpy(rpy);\n"
+                "    return r;\n"
+                "}}\n"
+            ),
+        },
+        {
+            "is_computed": True,
+            "name": "qquaternionBridges",
+            "property_spec": None,
+            "getter_decl": None,
+            "setter_decl": None,
+            "extra_decls": [
+                "Q_INVOKABLE QQuaternion toQuaternion() const;",
+                "Q_INVOKABLE static {cls} fromQuaternion(const QQuaternion& q);",
+            ],
+            "qml_methods": [
+                {
+                    "signature": "QQuaternion {vt}::toQuaternion()",
+                    "brief": "Return a single-precision \\l QQuaternion with the same orientation.",
+                    "body": [
+                        "Useful for accessing \\l QQuaternion's math API",
+                        "(slerp, normalize, multiplication).",
+                    ],
+                },
+                {
+                    "signature": "{vt} {vt}::fromQuaternion(QQuaternion q)",
+                    "brief": "Construct a quaternion from a \\l QQuaternion.",
+                },
+            ],
+            "extra_includes": ["<QQuaternion>"],
+            "extra_cpp_includes": [],
+            "cpp_impl_tmpl": (
+                "QQuaternion {ns}::{cls}::toQuaternion() const\n"
+                "{{\n"
+                "    return QQuaternion(static_cast<float>(m_w),\n"
+                "                       static_cast<float>(m_x),\n"
+                "                       static_cast<float>(m_y),\n"
+                "                       static_cast<float>(m_z));\n"
+                "}}\n"
+                "\n"
+                "{ns}::{cls} {ns}::{cls}::fromQuaternion(const QQuaternion& q)\n"
+                "{{\n"
+                "    {ns}::{cls} r;\n"
+                "    r.m_x = q.x();\n"
+                "    r.m_y = q.y();\n"
+                "    r.m_z = q.z();\n"
+                "    r.m_w = q.scalar();\n"
+                "    return r;\n"
+                "}}\n"
+            ),
+        },
+    ],
+    "geometry_msgs/Vector3": [
+        {
+            "is_computed": True,
+            "name": "qvector3dBridges",
+            "property_spec": None,
+            "getter_decl": None,
+            "setter_decl": None,
+            "extra_decls": [
+                "Q_INVOKABLE QVector3D toVector3D() const;",
+                "Q_INVOKABLE static {cls} fromVector3D(const QVector3D& v);",
+            ],
+            "qml_methods": [
+                {
+                    "signature": "QVector3D {vt}::toVector3D()",
+                    "brief": "Return a single-precision \\l QVector3D with the same components.",
+                },
+                {
+                    "signature": "{vt} {vt}::fromVector3D(QVector3D v)",
+                    "brief": "Construct from a single-precision \\l QVector3D.",
+                },
+            ],
+            "extra_includes": ["<QVector3D>"],
+            "extra_cpp_includes": [],
+            "cpp_impl_tmpl": (
+                "QVector3D {ns}::{cls}::toVector3D() const\n"
+                "{{\n"
+                "    return QVector3D(static_cast<float>(m_x),\n"
+                "                     static_cast<float>(m_y),\n"
+                "                     static_cast<float>(m_z));\n"
+                "}}\n"
+                "\n"
+                "{ns}::{cls} {ns}::{cls}::fromVector3D(const QVector3D& v)\n"
+                "{{\n"
+                "    {ns}::{cls} r;\n"
+                "    r.m_x = v.x();\n"
+                "    r.m_y = v.y();\n"
+                "    r.m_z = v.z();\n"
+                "    return r;\n"
+                "}}\n"
+            ),
+        },
+    ],
+    "geometry_msgs/Point": [
+        {
+            "is_computed": True,
+            "name": "qvector3dBridges",
+            "property_spec": None,
+            "getter_decl": None,
+            "setter_decl": None,
+            "extra_decls": [
+                "Q_INVOKABLE QVector3D toVector3D() const;",
+                "Q_INVOKABLE static {cls} fromVector3D(const QVector3D& v);",
+            ],
+            "qml_methods": [
+                {
+                    "signature": "QVector3D {vt}::toVector3D()",
+                    "brief": "Return a single-precision \\l QVector3D with the same components.",
+                },
+                {
+                    "signature": "{vt} {vt}::fromVector3D(QVector3D v)",
+                    "brief": "Construct from a single-precision \\l QVector3D.",
+                },
+            ],
+            "extra_includes": ["<QVector3D>"],
+            "extra_cpp_includes": [],
+            "cpp_impl_tmpl": (
+                "QVector3D {ns}::{cls}::toVector3D() const\n"
+                "{{\n"
+                "    return QVector3D(static_cast<float>(m_x),\n"
+                "                     static_cast<float>(m_y),\n"
+                "                     static_cast<float>(m_z));\n"
+                "}}\n"
+                "\n"
+                "{ns}::{cls} {ns}::{cls}::fromVector3D(const QVector3D& v)\n"
+                "{{\n"
+                "    {ns}::{cls} r;\n"
+                "    r.m_x = v.x();\n"
+                "    r.m_y = v.y();\n"
+                "    r.m_z = v.z();\n"
+                "    return r;\n"
+                "}}\n"
+            ),
+        },
     ],
 }
 
@@ -404,10 +692,18 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
     pkg_msg_key = f"{package_name}/{msg_name}"
     qt_ns = get_qt_namespace(package_name)
     qt_cls = get_qt_class_name(package_name, msg_name)
+    vt = get_qml_value_type_name(package_name, msg_name)
     for tmpl in _COMPUTED_PROPERTIES.get(pkg_msg_key, []):
         entry: Dict[str, Any] = dict(tmpl)
         if "cpp_impl_tmpl" in entry:
             entry["cpp_impl"] = entry.pop("cpp_impl_tmpl").format(ns=qt_ns, cls=qt_cls)
+        if entry.get("extra_decls"):
+            entry["extra_decls"] = [d.format(ns=qt_ns, cls=qt_cls) for d in entry["extra_decls"]]
+        if entry.get("qml_methods"):
+            entry["qml_methods"] = [
+                {**m, "signature": m["signature"].format(vt=vt)}
+                for m in entry["qml_methods"]
+            ]
         field_infos.append(entry)
 
     return {

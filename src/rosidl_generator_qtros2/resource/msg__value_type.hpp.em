@@ -92,7 +92,9 @@ class @(qt_export_macro) @(qt_class_name)
 
 @[for info in field_infos]@
 @[  if info.get('is_computed')]@
+@[    if info.get('property_spec')]@
     @(info['property_spec'])
+@[    end if]@
 @[  else]@
     Q_PROPERTY(@(info['qt_type']) @(info['qt_prop_name']) MEMBER m_@(info['name']))
 @[  end if]@
@@ -144,10 +146,15 @@ setter_name = 'set' + qt_prop_name[0].upper() + qt_prop_name[1:]
 
     // Computed Qt properties (not part of the ROS message)
 @[  for info in _computed]@
+@[    if info.get('getter_decl')]@
     @(info['getter_decl'])
+@[    end if]@
 @[    if info.get('setter_decl')]@
     @(info['setter_decl'])
 @[    end if]@
+@[    for decl in info.get('extra_decls') or []]@
+    @(decl)
+@[    end for]@
 @[  end for]@
 @[end if]@
 

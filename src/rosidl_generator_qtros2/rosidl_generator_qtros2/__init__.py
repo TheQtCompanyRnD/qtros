@@ -440,8 +440,9 @@ def generate_cmake_vars(
     include_dirs.append('"$<INSTALL_INTERFACE:include>"')
     include_dirs_lines = "\n".join(f"    {d}" for d in include_dirs)
 
-    # Public libraries: Qt6::Ros2Core + Qt targets for each dependency
-    public_libs = ["Qt6::Ros2Core"]
+    # Public libraries: Qt6::Ros2Core + Qt6::Gui (generated headers reference
+    # QVector3D / QQuaternion / QImage) + Qt targets for each dependency
+    public_libs = ["Qt6::Ros2Core", "Qt6::Gui"]
     private_libs = ["Qt6::Ros2CorePrivate"]
     no_qt_fallbacks = []
     for dep in dependency_packages:
