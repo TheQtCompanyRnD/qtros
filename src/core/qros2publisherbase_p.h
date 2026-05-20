@@ -16,6 +16,7 @@
 //
 
 #include <QtRos2Core/qtros2coreexports.h>
+#include <QBasicTimer>
 #include "qros2entity_p.h"
 #include "qros2node_p.h"
 
@@ -26,19 +27,39 @@ class Q_ROS2CORE_EXPORT QRos2PublisherBase : public QRos2Entity
     QML_UNCREATABLE("Abstract")
 
     Q_PROPERTY(int subscriberCount READ subscriberCount NOTIFY subscriberCountChanged)
+    Q_PROPERTY(bool autoPublish READ autoPublish WRITE setAutoPublish NOTIFY autoPublishChanged)
+    Q_PROPERTY(int publishInterval READ publishInterval WRITE setPublishInterval NOTIFY publishIntervalChanged)
 
 public:
     explicit QRos2PublisherBase(QObject* parent = nullptr);
 
     int subscriberCount() const { return m_subscriberCount; }
 
+    bool autoPublish() const { return m_autoPublish; }
+    void setAutoPublish(bool autoPublish);
+
+    int publishInterval() const { return m_publishInterval; }
+    void setPublishInterval(int ms);
+
+    Q_INVOKABLE void publish();
+
 Q_SIGNALS:
     void subscriberCountChanged();
+    void autoPublishChanged();
+    void publishIntervalChanged();
 
 protected:
     void setSubscriberCount(int count);
+    void requestPublish();
+    virtual void publishStoredState();
+    void timerEvent(QTimerEvent* event) override;
 
+private:
+    QBasicTimer m_publishTimer;
     int m_subscriberCount = 0;
+    int m_publishInterval = 0;
+    bool m_autoPublish = true;
+    bool m_publishPending = false;
 };
 
 #endif // QROS2_PUBLISHERBASE_P_H

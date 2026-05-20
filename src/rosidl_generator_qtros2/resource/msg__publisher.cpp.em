@@ -97,8 +97,10 @@ namespace @(qt_namespace) {
 /*!
     \qmlproperty @(fp['qml_doc_type']) @(qt_class_name)Publisher::@(fp['prop_name'])
 
-    The \c @(fp['prop_name']) field value included in the next \l publish() call.
-    Setting this property emits \l @(fp['signal_name']).
+    The \c @(fp['prop_name']) field value included in the next publish.
+    Setting this property emits \l @(fp['signal_name']) and, when
+    \l {PublisherBase::autoPublish}{autoPublish} is \c true, requests a
+    publish at the end of the current event-loop iteration.
 */
 
 @[  end for]@
@@ -109,7 +111,7 @@ namespace @(qt_namespace) {
 }
 
 @[if fps]@
-void @(qt_class_name)Publisher::publish()
+void @(qt_class_name)Publisher::publishStoredState()
 {
     if (!m_publisher) {
         return;
@@ -127,6 +129,7 @@ void @(qt_class_name)Publisher::@(fp['setter_name'])(@(fp['param_decl']))
     }
     m_message.@(fp['setter_name'])(@(fp['prop_name']));
     emit @(fp['signal_name'])(@(fp['getter_expr']));
+    requestPublish();
 }
 
 @[  end for]@

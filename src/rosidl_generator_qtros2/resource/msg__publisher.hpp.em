@@ -81,7 +81,7 @@ public:
 @[  for fp in fps]@
     @(fp['qt_type']) @(fp['prop_name'])() const { return @(fp['getter_expr']); }
 @[  end for]@
-    Q_INVOKABLE void publish();
+    using QRos2PublisherBase::publish;
 @[end if]@
     /*!
      * @@brief Publish a message
@@ -111,6 +111,9 @@ protected:
     void setupConnection() override;
     void clearConnection() override;
     void checkHealth() override;
+@[if fps]@
+    void publishStoredState() override;
+@[end if]@
 
 private:
 @[if fps]@
