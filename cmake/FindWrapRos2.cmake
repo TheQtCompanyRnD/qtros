@@ -107,7 +107,6 @@ if(__ros2_found)
     unset(_ros2_python_site_packages)
 
     # Find the required ROS 2 packages now that the prefix path is set.
-    find_package(ament_cmake QUIET)
     find_package(rclcpp QUIET)
     find_package(rclcpp_action QUIET)
     find_package(rosidl_runtime_cpp QUIET)
