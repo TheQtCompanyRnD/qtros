@@ -827,16 +827,55 @@ def _strip_blank_edges(lines: List[str]) -> List[str]:
 
 _HTML_ANCHOR_RE = re.compile(r'<a\s+href="([^"]+)"\s*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
 _HTML_TAG_RE = re.compile(r'<(/?)\s*(b|i|em|strong|tt|code|br)\s*/?>', re.IGNORECASE)
+_BARE_URL_RE = re.compile(r'(?<![\w/{])(https?://[^\s<>"\']+?)(?=[.,;:)\]]?(?:\s|$))')
+_HASH_BANNER_RE = re.compile(r'^\s*#{3,}\s*$')
+_TRAILING_HASH_PAD_RE = re.compile(r'\s*#+\s*$')
+_NUMBERED_LIST_RE = re.compile(r'^(\d+)[.)]\s+')
+# Matches a list-item label: a bare word (identifier-like, possibly with .
+# or / separators) followed by " - " or ": " and then some content.
+_LIST_LABEL_RE = re.compile(r'^[\w./]+\s*[-:]\s+\S')
+# Matches a matrix/formula row like "[fx 0 cx]" or "K = [fx 0 cx]".
+_CODE_ROW_RE = re.compile(r'^[A-Za-z_]\w*\s*=\s*[\[|]')
 
 
 def _sanitize_doc_line(line: str) -> str:
     """Defensively neutralize sequences that would break a qdoc /*! ... */ block,
-    and convert common HTML embedded in ROS .msg comments to qdoc markup."""
+    and convert common HTML / markdown embedded in ROS .msg comments to qdoc markup."""
     line = line.replace("*/", "* /")
     line = _HTML_ANCHOR_RE.sub(lambda m: r'\l {' + m.group(1) + '}{' + m.group(2).strip() + '}', line)
-    # Strip stray inline HTML tags (b/i/code/br); content is preserved.
     line = _HTML_TAG_RE.sub('', line)
+    # Bare URLs → qdoc \l links. Use the URL as both target and label so the
+    # full address shows in the rendered docs.
+    line = _BARE_URL_RE.sub(lambda m: r'\l {' + m.group(1) + '}{' + m.group(1) + '}', line)
     return line
+
+
+def _strip_banner_and_padding(lines: List[str]) -> List[str]:
+    """Drop hash-banner lines ('######...'), strip trailing '#' padding
+    that some .msg authors use to box section title comments, and collapse
+    "banner / title / banner" trios into a qdoc \\section1 heading."""
+    out: List[str] = []
+    i = 0
+    while i < len(lines):
+        ln = lines[i]
+        if _HASH_BANNER_RE.match(ln):
+            # Banner trio "###... / title / ###..." → \section1 title
+            if i + 2 < len(lines) and _HASH_BANNER_RE.match(lines[i + 2]):
+                title = _TRAILING_HASH_PAD_RE.sub('', lines[i + 1]).strip()
+                if title:
+                    if out and out[-1].strip():
+                        out.append('')
+                    out.append(r'\section1 ' + title)
+                    out.append('')
+                    i += 3
+                    continue
+            # Lone banner line: drop.
+            i += 1
+            continue
+        stripped = _TRAILING_HASH_PAD_RE.sub('', ln).rstrip()
+        out.append(stripped)
+        i += 1
+    return out
 
 
 def _parse_msg_comments(msg_path: 'Path') -> Tuple[List[str], Dict[str, List[str]]]:
@@ -903,8 +942,11 @@ def _parse_msg_comments(msg_path: 'Path') -> Tuple[List[str], Dict[str, List[str
             seen_field = True
         else:
             # Real field. Leading comments above the first field are struct
-            # docs even without an intervening blank line (Point, Accel etc.)
-            if not seen_field:
+            # docs even without an intervening blank line (Point, Accel etc.) —
+            # but only if the struct has no prose yet; otherwise those comments
+            # are per-field intent (e.g. CameraInfo's "Time of image
+            # acquisition" comment immediately above `header`).
+            if not seen_field and not struct_lines:
                 _flush_struct()
             tokens = stripped.split()
             field_name = ''
@@ -926,24 +968,36 @@ def _parse_msg_comments(msg_path: 'Path') -> Tuple[List[str], Dict[str, List[str
 def _looks_like_list_item(stripped: str) -> bool:
     """Heuristic: does this indented line look like a list item (vs. ASCII art)?
 
-    True for lines starting with a bullet glyph or `name:`-style entries; false
-    for lines that look like a row in an ASCII table or matrix (starting and
-    ending with the same delimiter, e.g. ``| ixx ixy ixz |``).
+    True for lines starting with a bullet glyph, a numbered prefix ("1.", "2)"),
+    a "name - description" / "name: description" / "name [type]: description"
+    pattern. False for ASCII-art rows (lines fenced by ``|...|`` or starting
+    with ``[`` / ``=``-aligned formulas).
     """
     if not stripped:
         return False
     if stripped[0] in '-*+•':
         return True
-    if stripped[0] == '|' and stripped[-1] == '|':
-        return False
-    # Treat "name [type]: description" / "name: description" as list items,
-    # but skip URLs whose ":" is part of "://".
-    head = stripped[:40]
-    if '://' in head:
-        return False
-    if ':' in head:
+    if _NUMBERED_LIST_RE.match(stripped):
         return True
-    return False
+    # Matrix row or formula — not a list item.
+    if stripped[0] in '|[':
+        return False
+    if '://' in stripped[:60]:
+        return False
+    # "name - description" / "name: description" where name is a single token.
+    # Tight pattern avoids false positives on prose containing " - " or ":".
+    return bool(_LIST_LABEL_RE.match(stripped))
+
+
+def _list_item_text(stripped: str) -> str:
+    """Strip the leading bullet / numeric prefix so it doesn't show up after
+    qdoc's own bullet."""
+    if stripped[0] in '-*+•':
+        return stripped[1:].lstrip()
+    m = _NUMBERED_LIST_RE.match(stripped)
+    if m:
+        return stripped[m.end():].lstrip()
+    return stripped
 
 
 def _format_list_items(lines: List[str]) -> List[str]:
@@ -957,26 +1011,56 @@ def _format_list_items(lines: List[str]) -> List[str]:
     """
     result: List[str] = []
     in_list = False
+    in_code = False
+
+    def _looks_like_code_row(stripped: str) -> bool:
+        # Matrix rows or formula lines: starts with "[" or "|", or matches
+        # a "name = [..." style intro line.
+        if not stripped:
+            return False
+        if stripped[0] in '[|':
+            return True
+        if _CODE_ROW_RE.match(stripped):
+            return True
+        return False
+
     for line in lines:
         stripped = line.lstrip()
-        is_list_item = (
-            len(line) > len(stripped) and bool(stripped) and _looks_like_list_item(stripped)
-        )
-        if is_list_item and not in_list:
-            result.append(r'\list')
-            in_list = True
-        elif not is_list_item and in_list:
-            result.append(r'\endlist')
-            in_list = False
+        indented = len(line) > len(stripped) and bool(stripped)
+        is_list_item = indented and _looks_like_list_item(stripped)
+        # Code rows don't require indentation — matrix authors often write
+        # the middle row of a 3-row matrix flush-left ("K = [...]") between
+        # two indented bracket rows.
+        is_code_row = not is_list_item and stripped and _looks_like_code_row(stripped)
+
         if is_list_item:
-            # Strip the bullet glyph; qdoc's \li supplies the bullet.
-            if stripped[0] in '-*+•':
-                stripped = stripped[1:].lstrip()
-            result.append(r'\li ' + stripped)
+            if in_code:
+                result.append(r'\endcode')
+                in_code = False
+            if not in_list:
+                result.append(r'\list')
+                in_list = True
+            result.append(r'\li ' + _list_item_text(stripped))
+        elif is_code_row:
+            if in_list:
+                result.append(r'\endlist')
+                in_list = False
+            if not in_code:
+                result.append(r'\code')
+                in_code = True
+            result.append(line)
         else:
+            if in_list:
+                result.append(r'\endlist')
+                in_list = False
+            if in_code:
+                result.append(r'\endcode')
+                in_code = False
             result.append(line)
     if in_list:
         result.append(r'\endlist')
+    if in_code:
+        result.append(r'\endcode')
     return result
 
 
@@ -1027,7 +1111,10 @@ def extract_doc_info(message_spec, *, interface_path: str | None = None) -> Dict
             except (AttributeError, ValueError):
                 rosidl_field_docs[member.name] = []
 
-    msg_lines = [_sanitize_doc_line(ln) for ln in _strip_blank_edges(struct_lines_raw)]
+    msg_lines = [
+        _sanitize_doc_line(ln)
+        for ln in _strip_blank_edges(_strip_banner_and_padding(struct_lines_raw))
+    ]
 
     # Detect and strip deprecation lines before building brief/details
     deprecated = False
@@ -1080,7 +1167,10 @@ def extract_doc_info(message_spec, *, interface_path: str | None = None) -> Dict
             raw = list(field_overrides[member.name])
         else:
             raw = rosidl_field_docs.get(member.name, [])
-        lines = _format_list_items([_sanitize_doc_line(ln) for ln in _strip_blank_edges(raw)])
+        lines = _format_list_items([
+            _sanitize_doc_line(ln)
+            for ln in _strip_blank_edges(_strip_banner_and_padding(raw))
+        ])
         field_docs[member.name] = lines
 
     return {
