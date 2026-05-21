@@ -157,6 +157,8 @@ else:
         init_expr = f'm_{info["name"]}(QString::fromStdWString(ros.{info["name"]}))'
     elif info['is_string']:
         init_expr = f'm_{info["name"]}(QString::fromStdString(ros.{info["name"]}))'
+    elif info.get('nested_mapping'):
+        init_expr = f'm_{info["name"]}({info["nested_mapping"]["from_ros"]("ros." + info["name"])})'
     else:
         init_expr = f'm_{info["name"]}(ros.{info["name"]})'
 }@
@@ -189,6 +191,8 @@ else:
             ros.@(info['name'])[idx] = m_@(info['name'])[static_cast<int>(idx)].toStdString();
 @[    elif info['sequence_inner_is_wstring']]@
             ros.@(info['name'])[idx] = m_@(info['name'])[static_cast<int>(idx)].toStdWString();
+@[    elif info.get('sequence_inner_mapping')]@
+            ros.@(info['name'])[idx] = @(info['sequence_inner_mapping']['to_ros'](info['sequence_ros_value_type'], 'm_' + info['name'] + '[static_cast<int>(idx)]'));
 @[    else]@
             ros.@(info['name'])[idx] = static_cast<@(info['sequence_ros_value_type'])>(m_@(info['name'])[static_cast<int>(idx)]);
 @[    end if]@
@@ -212,11 +216,19 @@ else:
     ros.@(info['name']).clear();
     ros.@(info['name']).reserve(m_@(info['name']).size());
     for (const auto& value : m_@(info['name'])) {
+@[    if info.get('sequence_inner_mapping')]@
+        ros.@(info['name']).push_back(@(info['sequence_inner_mapping']['to_ros'](info['sequence_ros_value_type'], 'value')));
+@[    else]@
         ros.@(info['name']).push_back(static_cast<@(info['sequence_ros_value_type'])>(value));
+@[    end if]@
     }
 @[  end if]@
 @[elif info['is_nested']]@
+@[  if info.get('nested_mapping')]@
+    ros.@(info['name']) = @(info['nested_mapping']['to_ros'](info['nested_ros_type'], 'm_' + info['name']));
+@[  else]@
     ros.@(info['name']) = static_cast<@(info['nested_ros_type'])>(m_@(info['name']));
+@[  end if]@
 @[elif info['is_wstring']]@
     ros.@(info['name']) = m_@(info['name']).toStdWString();
 @[elif info['is_string']]@

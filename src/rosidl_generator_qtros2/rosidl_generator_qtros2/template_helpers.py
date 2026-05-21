@@ -17,6 +17,7 @@ from rosidl_parser.definition import (
 )
 
 from . import (
+    get_namespaced_type_mapping,
     get_qml_value_type_name,
     get_qt_class_name,
     get_qt_class_name_full,
@@ -698,10 +699,31 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
         info["is_wstring"] = isinstance(resolved_type, AbstractWString)
         info["is_string"] = isinstance(resolved_type, AbstractString)
 
-        if info["is_nested"]:
+        # If the nested type is mapped to a Qt-native type (e.g. Point32 →
+        # QVector3D), pre-compute the conversion expressions and route the
+        # include through extra_includes instead of nested_includes.
+        info["nested_mapping"] = get_namespaced_type_mapping(resolved_type) if info["is_nested"] else None
+        info["sequence_inner_mapping"] = (
+            get_namespaced_type_mapping(info["sequence_value_type"])
+            if info["sequence_inner_is_nested"] else None
+        )
+
+        if info["is_nested"] and not info["nested_mapping"]:
             add_nested_include(resolved_type)
-        if info["sequence_inner_is_nested"]:
+        if info["sequence_inner_is_nested"] and not info["sequence_inner_mapping"]:
             add_nested_include(info["sequence_value_type"])
+
+        extra_includes = list(info.get("extra_includes") or [])
+        if info["nested_mapping"]:
+            inc = info["nested_mapping"]["include"]
+            if inc not in extra_includes:
+                extra_includes.append(inc)
+        if info["sequence_inner_mapping"]:
+            inc = info["sequence_inner_mapping"]["include"]
+            if inc not in extra_includes:
+                extra_includes.append(inc)
+        if extra_includes:
+            info["extra_includes"] = extra_includes
 
         if info["is_qstring_list"]:
             if info["sequence_inner_is_wstring"]:
@@ -733,7 +755,11 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
                 f"        m_{member.name}.reserve(static_cast<int>(ros.{member.name}.size()));"
             )
             post_init_lines.append(f"        for (const auto& value : ros.{member.name}) {{")
-            post_init_lines.append(f"            m_{member.name}.append({info['sequence_inner_qt']}(value));")
+            if info["sequence_inner_mapping"]:
+                from_ros_expr = info["sequence_inner_mapping"]["from_ros"]("value")
+                post_init_lines.append(f"            m_{member.name}.append({from_ros_expr});")
+            else:
+                post_init_lines.append(f"            m_{member.name}.append({info['sequence_inner_qt']}(value));")
             post_init_lines.append("        }")
 
         # QML-friendly type name used in \qmlproperty docs so qdoc can auto-link.
@@ -744,16 +770,22 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
             elif info["is_qstring_list"] or info["sequence_inner_is_string"] or info["sequence_inner_is_wstring"]:
                 info["qml_doc_type"] = "list<string>"
             elif info["sequence_inner_is_nested"]:
-                inner = info["sequence_value_type"]
-                pkg = inner.namespaces[0] if inner.namespaces else package_name
-                info["qml_doc_type"] = f"list<{get_qml_value_type_name(pkg, inner.name)}>"
+                if info["sequence_inner_mapping"]:
+                    info["qml_doc_type"] = f"list<{info['sequence_inner_mapping']['qml_doc_type']}>"
+                else:
+                    inner = info["sequence_value_type"]
+                    pkg = inner.namespaces[0] if inner.namespaces else package_name
+                    info["qml_doc_type"] = f"list<{get_qml_value_type_name(pkg, inner.name)}>"
             else:
                 inner_qt = info["sequence_inner_qt"] or ""
                 info["qml_doc_type"] = f"list<{inner_qt}>"
         elif info["is_nested"]:
-            t = resolved_type
-            pkg = t.namespaces[0] if t.namespaces else package_name
-            info["qml_doc_type"] = get_qml_value_type_name(pkg, t.name)
+            if info["nested_mapping"]:
+                info["qml_doc_type"] = info["nested_mapping"]["qml_doc_type"]
+            else:
+                t = resolved_type
+                pkg = t.namespaces[0] if t.namespaces else package_name
+                info["qml_doc_type"] = get_qml_value_type_name(pkg, t.name)
         else:
             info["qml_doc_type"] = _QT_TO_QML.get(info["qt_type"], info["qt_type"])
 

@@ -117,6 +117,10 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
             return
 
         msg_name = message_spec.structure.namespaced_type.name
+        # Skip wrapper/publisher/subscriber generation for messages that map
+        # to a Qt-native type — nothing references them after substitution.
+        if f"{namespace_package}/{msg_name}" in NAMESPACED_TYPE_MAPPING:
+            return
         base_name = to_snake_case(msg_name)
         out_subdir = output_dir / 'include' / package_name / interface_type
         out_src_subdir = output_dir / 'src' / interface_type
@@ -494,6 +498,42 @@ def generate_cmake_vars(
     return str(out)
 
 
+# ROS messages that should map directly to a Qt-native type instead of
+# getting a generated Q_GADGET wrapper. Used for messages whose precision
+# matches a Qt type exactly (e.g. Point32's float32 fields match QVector3D).
+# Keys are "package/MessageName". Each entry provides:
+#   - qt_type:        Qt-native C++ type substituted everywhere the message appears
+#   - include:        header to add wherever the type would have been included
+#   - qml_doc_type:   QML type name for \qmlproperty docs
+#   - from_ros:       lambda(expr) -> C++ expression building the Qt value from a ROS value
+#   - to_ros:         lambda(ros_type, qt_expr) -> C++ expression building the ROS value
+#
+# When a message is mapped, its wrapper / publisher / subscriber are NOT
+# generated; nothing references them after substitution.
+NAMESPACED_TYPE_MAPPING = {
+    "geometry_msgs/Point32": {
+        "qt_type": "QVector3D",
+        "include": "<QVector3D>",
+        "qml_doc_type": "vector3d",
+        "from_ros": lambda e: f"QVector3D({e}.x, {e}.y, {e}.z)",
+        "to_ros": lambda r, e: (
+            f"[&]{{ {r} _v; _v.x = {e}.x(); _v.y = {e}.y(); _v.z = {e}.z(); return _v; }}()"
+        ),
+    },
+}
+
+
+def get_namespaced_type_mapping(type_):
+    """If the given NamespacedType is in NAMESPACED_TYPE_MAPPING, return its
+    mapping dict; else None."""
+    if not isinstance(type_, NamespacedType):
+        return None
+    parts = type_.namespaced_name()
+    if len(parts) >= 3 and parts[-2] == 'msg':
+        return NAMESPACED_TYPE_MAPPING.get(f"{parts[0]}/{parts[-1]}")
+    return None
+
+
 # Type mapping from ROS IDL types to Qt types
 MSG_TYPE_TO_QT = {
     'boolean': 'bool',
@@ -597,6 +637,9 @@ def msg_type_to_qt(type_):
     elif isinstance(type_, NamespacedType):
         parts = type_.namespaced_name()
         if len(parts) >= 3 and parts[-2] == 'msg':
+            mapping = NAMESPACED_TYPE_MAPPING.get(f"{parts[0]}/{parts[-1]}")
+            if mapping:
+                return mapping["qt_type"]
             package = parts[0]
             msg_name = parts[-1]
             namespace = get_qt_namespace(package)
