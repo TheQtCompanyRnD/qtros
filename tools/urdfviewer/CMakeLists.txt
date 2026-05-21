@@ -1,5 +1,5 @@
 # Copyright (C) 2026 The Qt Company Ltd.
-# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+# SPDX-License-Identifier: BSD-3-Clause
 
 if(NOT QT_FEATURE_ros2_urdfviewer)
     message(NOTICE "Skipping urdfviewer: Python 3 with packages 'urdf_parser_py' and 'jinja2' is required.")

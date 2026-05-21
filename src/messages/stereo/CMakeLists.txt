@@ -1,5 +1,5 @@
 # Copyright (C) 2026 The Qt Company Ltd.
-# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+# SPDX-License-Identifier: BSD-3-Clause
 
 qtros2_generate_from_package(
     TARGET QtRos2StereoMessages

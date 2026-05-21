@@ -1,5 +1,5 @@
 # Copyright (C) 2026 The Qt Company Ltd.
-# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+# SPDX-License-Identifier: BSD-3-Clause
 
 # Install the Python generator package and EmPy resource templates so the
 # deployed rosidl_generator_qtros2Config.cmake can reference them via
