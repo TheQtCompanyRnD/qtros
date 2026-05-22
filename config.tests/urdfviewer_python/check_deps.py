@@ -1,5 +1,5 @@
 # Copyright (C) 2026 The Qt Company Ltd.
-# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0
 #
 # Configure-time check: verify that the Python packages required by
 # urdf2quickexporter.py are importable.  Exit 0 on success, 1 on failure.
