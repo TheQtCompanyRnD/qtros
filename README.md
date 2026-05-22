@@ -25,6 +25,7 @@ QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated
 - [Code Generation Pipeline](#code-generation-pipeline)
 - [Key Benefits of Value Type Approach](#key-benefits-of-value-type-approach)
 - [Build System Integration](#build-system-integration)
+  - [Importing URDF Robot Descriptions](#importing-urdf-robot-descriptions)
 
 **Additional Information:**
 - [Future Work](#future-work)
@@ -1046,6 +1047,93 @@ target_link_libraries(my_app PRIVATE turtlesim_qtcpp)
 - Applications get lightweight, local-only wrappers by default
 
 The macro creates a `_qtcpp` target containing the generated plugin and exports the associated QML import directory, so Qt Creator automatically picks up the module.
+
+### Importing URDF Robot Descriptions
+
+`qt_ros2_import_urdf()` converts a URDF file into a Qt Quick 3D QML module at CMake configure time and links it into your target automatically. Internally it invokes the `urdf2quickexporter.py` script (from `tools/urdfviewer/`) and registers the generated C++ and QML files as a new QML module.
+
+**Signature:**
+
+```cmake
+qt_ros2_import_urdf(<target> <urdf_file>
+    [DEST_DIR <dir>]
+    [QML_MODULE_URI <uri>]
+    [QML_MODULE_VERSION <ver>]
+    [PHYSICS]
+    [ROS_BRIDGE]
+    [SCENE_UNITS_PER_METER <n>]
+    [INSTANCE_SCALE <n>]
+)
+```
+
+**Parameters:**
+
+| Parameter | Description |
+|---|---|
+| `<target>` | The existing CMake target (e.g. created with `qt_add_executable`) to link the generated module into. |
+| `<urdf_file>` | Path to the `.urdf` file. Relative paths are resolved against `CMAKE_CURRENT_SOURCE_DIR`. |
+| `DEST_DIR <dir>` | Output directory for generated files. Defaults to `${CMAKE_CURRENT_BINARY_DIR}/urdf_generated`. |
+| `QML_MODULE_URI <uri>` | QML module URI. Defaults to the PascalCase robot name (e.g. `SimpleArm`). |
+| `QML_MODULE_VERSION <ver>` | QML module version. Defaults to `1.0`. |
+| `PHYSICS` | Links `Qt6::Quick3DPhysics` and passes `--physics` to the exporter. |
+| `ROS_BRIDGE` | Passes `--ros-bridge` to the exporter, generating an additional ROS bridge QML file. |
+| `SCENE_UNITS_PER_METER <n>` | Scale factor for scene units. |
+| `INSTANCE_SCALE <n>` | Scale factor applied to the robot instance. |
+
+**What gets generated:**
+
+- `<RobotName>ControlBase.h/.cpp` — Generated C++ base class for joint control
+- `<RobotName>Control.h/.cpp` — Customizable derived control class
+- `<RobotName>.qml` — Root QML component for the robot's 3D model
+- `<RobotName>Control.qml` — QML control panel component
+- `<RobotName>ControlPanel.qml` — (if applicable) expanded control panel
+- `joints.json` — Joint definitions used at runtime
+
+Note that the application is expected to provide its own scene and entry point.
+
+**Prerequisites:**
+
+The exporter requires Python 3 with `urdf_parser_py` and `jinja2`:
+
+```bash
+pip3 install urdf_parser_py jinja2
+```
+
+**Example:**
+
+```cmake
+find_package(Qt6 REQUIRED COMPONENTS Quick Quick3D)
+
+qt_add_executable(my_robot_app main.cpp)
+
+qt_ros2_import_urdf(my_robot_app
+    robots/simple_arm.urdf
+    QML_MODULE_URI SimpleArm
+    PHYSICS
+)
+```
+
+Then, in QML, import the module by its URI and use the generated component:
+
+```qml
+import QtQuick
+import QtQuick3D
+import SimpleArm
+
+View3D {
+    environment: SceneEnvironment { backgroundMode: SceneEnvironment.Color }
+
+    SimpleArm {
+        id: robot
+    }
+
+    SimpleArmControl {
+        robot: robot
+    }
+}
+```
+
+The function re-runs the exporter automatically whenever the URDF file changes, so a `cmake --build` is sufficient to pick up URDF edits.
 
 ## Future Work
 
