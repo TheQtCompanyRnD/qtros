@@ -6,6 +6,7 @@ ScrollView {
     id: root
 
     required property var targetRobot
+    property var physicsWorld: null
     property var joints: targetRobot && targetRobot.control ? targetRobot.control.jointInfos : []
     clip: true
 
@@ -46,6 +47,42 @@ ScrollView {
                         }
                     }
                     Text { text: Number(s.value).toFixed(1); width: 50; horizontalAlignment: Text.AlignRight }
+                }
+            }
+        }
+
+        Pane {
+            Layout.fillWidth: true
+            padding: 8
+            visible: root.physicsWorld !== null
+
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 4
+
+                Label {
+                    text: qsTr("Physics")
+                    font.bold: true
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Label { text: qsTr("Running"); Layout.fillWidth: true }
+                    Switch {
+                        checked: root.physicsWorld ? root.physicsWorld.running : false
+                        onToggled: root.physicsWorld.running = checked
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Label { text: qsTr("Debug Draw"); Layout.fillWidth: true }
+                    Switch {
+                        checked: root.physicsWorld ? root.physicsWorld.forceDebugDraw : false
+                        onToggled: root.physicsWorld.forceDebugDraw = checked
+                    }
                 }
             }
         }

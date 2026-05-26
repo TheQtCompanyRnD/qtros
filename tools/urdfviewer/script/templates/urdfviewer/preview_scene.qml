@@ -69,6 +69,7 @@ Item {
 {% if physics %}
 
     PhysicsWorld {
+        id: physicsWorld
         scene: view3D.scene
         gravity: Qt.vector3d(0, 0, 0)
     }
@@ -101,6 +102,9 @@ Item {
         anchors.margins: 12
         width: Math.min(420, Math.max(280, parent.width * 0.28))
         targetRobot: robotRoot
+{% if physics %}
+        physicsWorld: physicsWorld
+{% endif %}
     }
 {% endif %}
 }
