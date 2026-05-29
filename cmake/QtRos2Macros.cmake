@@ -286,6 +286,8 @@ endfunction()
 #     [ROS_BRIDGE]
 #     [SCENE_UNITS_PER_METER <n>]
 #     [INSTANCE_SCALE <n>]
+#     [BALSAM_BIN <path>]
+#     [NO_GENERATE_ASSETS]
 # )
 #
 # Runs urdf2quickexporter.py at configure time, then registers the generated
@@ -295,10 +297,16 @@ endfunction()
 # ${CMAKE_CURRENT_BINARY_DIR}/urdf_generated). The robot's QML module URI
 # defaults to the PascalCase robot name (e.g. "SimpleArm"); override with
 # QML_MODULE_URI.
+#
+# When the URDF references mesh files, balsam is invoked automatically to
+# convert them to QtQuick3D's native mesh format. BALSAM_BIN overrides the
+# auto-detected balsam executable (useful when balsam lives outside the Qt
+# prefix). NO_GENERATE_ASSETS skips balsam entirely (e.g. when mesh assets
+# are already pre-generated).
 function(qt_ros2_import_urdf _qt_ros2_urdf_target _qt_ros2_urdf_file)
   cmake_parse_arguments(_URDF
-    "PHYSICS;ROS_BRIDGE"
-    "DEST_DIR;QML_MODULE_URI;QML_MODULE_VERSION;SCENE_UNITS_PER_METER;INSTANCE_SCALE"
+    "PHYSICS;ROS_BRIDGE;NO_GENERATE_ASSETS"
+    "DEST_DIR;QML_MODULE_URI;QML_MODULE_VERSION;SCENE_UNITS_PER_METER;INSTANCE_SCALE;BALSAM_BIN"
     ""
     ${ARGN}
   )
@@ -343,6 +351,12 @@ function(qt_ros2_import_urdf _qt_ros2_urdf_target _qt_ros2_urdf_file)
   endif()
   if(_URDF_INSTANCE_SCALE)
     list(APPEND _urdf_cmd "--instance-scale" "${_URDF_INSTANCE_SCALE}")
+  endif()
+  if(_URDF_BALSAM_BIN)
+    list(APPEND _urdf_cmd "--balsam-bin" "${_URDF_BALSAM_BIN}")
+  endif()
+  if(_URDF_NO_GENERATE_ASSETS)
+    list(APPEND _urdf_cmd "--no-generate-assets")
   endif()
   # When importing URDFs there's no main entry point created in QML or C++, as it's
   # expected that the user provides those.
