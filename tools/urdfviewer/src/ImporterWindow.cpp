@@ -130,9 +130,9 @@ void ImporterWindow::buildUi()
     m_axisTransformCheck = new QCheckBox(QStringLiteral("Enable Axis Transform (Z-up -> Y-up)"), settingsGroup);
     m_axisTransformCheck->setChecked(true);
     m_useJointsJsonCheck = new QCheckBox(QStringLiteral("Use joints JSON at runtime"), settingsGroup);
-    m_generateAssetsCheck = new QCheckBox(QStringLiteral("Generate assets with balsam"), settingsGroup);
 
-    m_balsamBinEdit = new QLineEdit(QStringLiteral("balsam"), settingsGroup);
+    m_balsamBinEdit = new QLineEdit(settingsGroup);
+    m_balsamBinEdit->setPlaceholderText(QStringLiteral("Auto-detect from Qt install"));
     m_balsamTimeoutSpin = new QSpinBox(settingsGroup);
     m_balsamTimeoutSpin->setRange(1, 36000);
     m_balsamTimeoutSpin->setValue(300);
@@ -154,8 +154,7 @@ void ImporterWindow::buildUi()
     form->addRow(QStringLiteral("Mesh Rotation"), meshRotationRow);
     form->addRow(QString(), m_axisTransformCheck);
     form->addRow(QString(), m_useJointsJsonCheck);
-    form->addRow(QString(), m_generateAssetsCheck);
-    form->addRow(QStringLiteral("Balsam Binary"), m_balsamBinEdit);
+    form->addRow(QStringLiteral("Balsam Binary Override"), m_balsamBinEdit);
     form->addRow(QStringLiteral("Balsam Timeout (sec)"), m_balsamTimeoutSpin);
     settingsLayout->addLayout(form);
 
@@ -345,11 +344,6 @@ void ImporterWindow::setUrdfPath(const QString &path)
 void ImporterWindow::setOutputPath(const QString &path)
 {
     m_outputDirEdit->setText(QDir::toNativeSeparators(path));
-}
-
-void ImporterWindow::setExportAssets(bool v)
-{
-    m_generateAssetsCheck->setChecked(v);
 }
 
 void ImporterWindow::setRosBridge(bool v)
@@ -547,9 +541,6 @@ QStringList ImporterWindow::buildExporterArguments(
     if (m_useJointsJsonCheck->isChecked()) {
         args << QStringLiteral("--use-joints-json");
     }
-    if (m_generateAssetsCheck->isChecked()) {
-        args << QStringLiteral("--generate-assets");
-    }
 
     const QString balsamBin = m_balsamBinEdit->text().trimmed();
     if (!balsamBin.isEmpty()) {
@@ -736,7 +727,7 @@ void ImporterWindow::handleManifestResult(const QJsonObject &manifest, RunMode m
         const QString warningText = value.toString();
         appendLog(QStringLiteral("[warning] %1").arg(warningText));
         if (warningText.contains(QStringLiteral("mesh visuals"), Qt::CaseInsensitive)
-            && warningText.contains(QStringLiteral("--generate-assets"), Qt::CaseInsensitive)) {
+            || warningText.contains(QStringLiteral("balsam not found"), Qt::CaseInsensitive)) {
             meshAssetsMissing = true;
         }
     }
@@ -752,8 +743,10 @@ void ImporterWindow::handleManifestResult(const QJsonObject &manifest, RunMode m
     if (mode == RunMode::Preview) {
         if (meshAssetsMissing) {
             const QString message =
-                QStringLiteral("Mesh visuals were detected, but preview assets were not generated in the temporary preview output.\n\n"
-                               "Enable 'Generate assets with balsam' in Settings and run Preview again.");
+                QStringLiteral("Mesh visuals were detected, but Balsam could not be found or "
+                               "did not generate assets for the preview.\n\n"
+                               "Install Balsam or provide its path via the "
+                               "'Balsam Binary Override' field in Settings, then run Preview again.");
             appendLog(QStringLiteral("[preview] %1").arg(message));
             QMessageBox::warning(this, QStringLiteral("Preview Assets Missing"), message);
             return;

@@ -21,9 +21,6 @@ int main(int argc, char *argv[])
         "Import a URDF file, preview and export a Qt Quick 3D scene"));
     parser.addHelpOption();
     parser.addVersionOption();
-    QCommandLineOption assetsOption(QStringList() << "a" << "assets",
-            QCoreApplication::translate("main", "Export assets (invoke Balsam)."));
-    parser.addOption(assetsOption);
     QCommandLineOption bridgeOption(QStringList() << "b" << "bridge",
             QCoreApplication::translate("main", "Preview with live ROS bridge."));
     parser.addOption(bridgeOption);
@@ -40,7 +37,6 @@ int main(int argc, char *argv[])
     parser.process(app);
 
     ImporterWindow window;
-    window.setExportAssets(parser.isSet(assetsOption));
     window.setRosBridge(parser.isSet(bridgeOption));
     if (parser.isSet(upmOption)){
         auto s = parser.value(upmOption);

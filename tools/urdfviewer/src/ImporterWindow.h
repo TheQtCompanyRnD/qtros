@@ -25,7 +25,6 @@ public:
     explicit ImporterWindow(QWidget *parent = nullptr);
     void setUrdfPath(const QString &path);
     void setOutputPath(const QString &path);
-    void setExportAssets(bool v);
     void setRosBridge(bool v);
     void setUnitsPerMeter(double v);
     void setTopicPrefix(const QString &pfx);
@@ -72,7 +71,6 @@ private:
     QDoubleSpinBox *m_meshYawSpin = nullptr;
     QCheckBox *m_axisTransformCheck = nullptr;
     QCheckBox *m_useJointsJsonCheck = nullptr;
-    QCheckBox *m_generateAssetsCheck = nullptr;
     QLineEdit *m_balsamBinEdit = nullptr;
     QSpinBox *m_balsamTimeoutSpin = nullptr;
     QPlainTextEdit *m_packageMapEdit = nullptr;

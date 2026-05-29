@@ -1021,6 +1021,36 @@ def _resolve_executable_path(executable: str) -> Optional[str]:
     return shutil.which(executable)
 
 
+def _find_balsam_from_qt_install() -> Optional[str]:
+    """Locate balsam relative to this script's Qt installation directory.
+
+    The script is deployed to Qt's libexec directory, so balsam can be found
+    in the same directory (Windows / non-prefix builds) or in the sibling
+    bin/ directory (Linux/macOS prefix installs).  Falls back to a PATH
+    lookup when neither location yields a result.
+
+    Prints a trace line for each directory searched so callers can diagnose
+    lookup failures.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    bin_dir = os.path.normpath(os.path.join(script_dir, "..", "bin"))
+
+    for candidate_dir in (script_dir, bin_dir):
+        print(f"[urdf2quick3d] balsam lookup: searching '{candidate_dir}'")
+        found = shutil.which("balsam", path=candidate_dir)
+        if found:
+            print(f"[urdf2quick3d] balsam lookup: found '{found}'")
+            return found
+
+    print("[urdf2quick3d] balsam lookup: falling back to PATH")
+    found = shutil.which("balsam")
+    if found:
+        print(f"[urdf2quick3d] balsam lookup: found on PATH '{found}'")
+    else:
+        print("[urdf2quick3d] balsam lookup: not found on PATH")
+    return found
+
+
 def _default_repo_license_source() -> Optional[str]:
     """Return the repository LICENSE file path when available."""
     module_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1241,7 +1271,7 @@ def generate_mesh_assets_with_balsam(
     urdf_path: str,
     robot_dir: str,
     package_map: Dict[str, str],
-    balsam_bin: str = "balsam",
+    balsam_bin: Optional[str] = None,
     balsam_options: Optional[List[str]] = None,
     balsam_timeout: int = 300,
 ) -> List[str]:
@@ -1250,11 +1280,22 @@ def generate_mesh_assets_with_balsam(
     if not assets:
         return []
 
-    balsam_exe = _resolve_executable_path(balsam_bin)
-    if not balsam_exe:
-        raise RuntimeError(
-            f"Balsam executable '{balsam_bin}' was not found or is not executable."
-        )
+    if balsam_bin is not None:
+        balsam_exe = _resolve_executable_path(balsam_bin)
+        if not balsam_exe:
+            raise RuntimeError(
+                f"Balsam executable '{balsam_bin}' was not found or is not executable."
+            )
+    else:
+        balsam_exe = _find_balsam_from_qt_install()
+        if not balsam_exe:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            bin_dir = os.path.normpath(os.path.join(script_dir, "..", "bin"))
+            raise RuntimeError(
+                "balsam not found. Searched: "
+                f"'{script_dir}', '{bin_dir}', and PATH. "
+                "Install balsam or provide its location via --balsam-bin."
+            )
 
     generated_dir = os.path.join(robot_dir, "Generated")
     qtquick3d_dir = os.path.join(generated_dir, "QtQuick3D")
@@ -1933,13 +1974,24 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         "--generate-assets",
         dest="generate_assets",
         action="store_true",
-        help="Generate mesh assets into Generated/QtQuick3D using Balsam importer.",
+        default=None,
+        help=argparse.SUPPRESS,  # Deprecated: balsam now runs automatically when meshes exist.
+    )
+    parser.add_argument(
+        "--no-generate-assets",
+        dest="no_generate_assets",
+        action="store_true",
+        default=False,
+        help="Skip automatic Balsam asset generation even when mesh visuals are present.",
     )
     parser.add_argument(
         "--balsam-bin",
         dest="balsam_bin",
-        default="balsam",
-        help="Path to Balsam executable (default: balsam from PATH).",
+        default=None,
+        help=(
+            "Path to Balsam executable "
+            "(default: auto-detect from the Qt installation that contains this script)."
+        ),
     )
     parser.add_argument(
         "--balsam-option",
@@ -2070,7 +2122,7 @@ def _manifest_invocation(args: argparse.Namespace) -> Dict[str, Any]:
         "use_joints_json": bool(args.use_joints_json),
         "mesh_rotation_deg": [float(v) for v in args.mesh_rotation],
         "xacro_args": list(args.xacro_args or []),
-        "generate_assets": bool(args.generate_assets),
+        "generate_assets": not bool(args.no_generate_assets),
         "balsam_bin": args.balsam_bin,
         "balsam_options": [str(v) for v in (args.balsam_options or [])],
         "balsam_timeout": int(args.balsam_timeout),
@@ -2221,29 +2273,33 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
 
         has_mesh_visuals = _mesh_visuals_exist(model)
-        if args.generate_assets:
-            generated_modules.extend(
-                generate_mesh_assets_with_balsam(
-                    model,
-                    urdf_path=args.urdf,
-                    robot_dir=robot_dir,
-                    package_map=package_map,
-                    balsam_bin=args.balsam_bin,
-                    balsam_options=args.balsam_options,
-                    balsam_timeout=args.balsam_timeout,
+        if has_mesh_visuals and not args.no_generate_assets:
+            try:
+                generated_modules.extend(
+                    generate_mesh_assets_with_balsam(
+                        model,
+                        urdf_path=args.urdf,
+                        robot_dir=robot_dir,
+                        package_map=package_map,
+                        balsam_bin=args.balsam_bin,
+                        balsam_options=args.balsam_options,
+                        balsam_timeout=args.balsam_timeout,
+                    )
                 )
-            )
-            print(
-                "[urdf2quick3d] Generated QtQuick3D asset modules: "
-                + (", ".join(generated_modules) if generated_modules else "(none)")
-            )
-        elif has_mesh_visuals:
-            warning = (
-                "[urdf2quick3d] Warning: model contains mesh visuals but --generate-assets "
-                "is not enabled; Generated assets must be prepared manually."
-            )
-            warnings.append(warning)
-            print(warning)
+                print(
+                    "[urdf2quick3d] Generated QtQuick3D asset modules: "
+                    + (", ".join(generated_modules) if generated_modules else "(none)")
+                )
+            except RuntimeError as exc:
+                if args.balsam_bin is not None:
+                    # User explicitly provided a path — treat failure as a hard error.
+                    raise
+                warning = (
+                    f"[urdf2quick3d] Warning: {exc} "
+                    "Generated assets must be prepared manually."
+                )
+                warnings.append(warning)
+                print(warning)
 
         write_qml(
             model,
