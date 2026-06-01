@@ -452,6 +452,31 @@ function(qt_ros2_import_urdf _qt_ros2_urdf_target _qt_ros2_urdf_file)
     PROPERTIES QT_RESOURCE_ALIAS "${_urdf_joints_alias}"
   )
 
+  # Collect .mesh files from Generated/QtQuick3D modules so ConvexMeshShape can
+  # find them via the resource path "Generated/QtQuick3D/<Module>/…" relative to
+  # the robot QML file (e.g. ":/qt/qml/SimpleArm/Generated/QtQuick3D/…").
+  set(_urdf_mesh_resources "")
+  string(JSON _urdf_gen_mod_count ERROR_VARIABLE _urdf_gen_mod_err
+    LENGTH "${_urdf_manifest_json}" generated_modules)
+  if(NOT _urdf_gen_mod_err AND _urdf_gen_mod_count GREATER 0)
+    math(EXPR _urdf_gen_mod_last "${_urdf_gen_mod_count} - 1")
+    foreach(_mod_idx RANGE 0 ${_urdf_gen_mod_last})
+      string(JSON _mod_name GET "${_urdf_manifest_json}" generated_modules ${_mod_idx})
+      set(_mod_dir "${_urdf_robot_dir}/Generated/QtQuick3D/${_mod_name}")
+      file(GLOB_RECURSE _mod_mesh_files
+        CONFIGURE_DEPENDS
+        "${_mod_dir}/*.mesh"
+      )
+      foreach(_mesh_file IN LISTS _mod_mesh_files)
+        file(RELATIVE_PATH _mesh_rel "${_mod_dir}" "${_mesh_file}")
+        set_source_files_properties("${_mesh_file}"
+          PROPERTIES QT_RESOURCE_ALIAS "Generated/QtQuick3D/${_mod_name}/${_mesh_rel}"
+        )
+        list(APPEND _urdf_mesh_resources "${_mesh_file}")
+      endforeach()
+    endforeach()
+  endif()
+
   # Create the robot QML module target
   string(REPLACE "." "/" _urdf_target_path "${_urdf_uri}")
   set(_urdf_module_target "${_qt_ros2_urdf_target}_${_urdf_base_name}")
@@ -464,7 +489,7 @@ function(qt_ros2_import_urdf _qt_ros2_urdf_target _qt_ros2_urdf_file)
     OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${_urdf_target_path}"
     QML_FILES ${_urdf_qml_files}
     SOURCES   ${_urdf_cpp_sources}
-    RESOURCES "${_urdf_joints}"
+    RESOURCES "${_urdf_joints}" ${_urdf_mesh_resources}
     NO_CACHEGEN
   )
 

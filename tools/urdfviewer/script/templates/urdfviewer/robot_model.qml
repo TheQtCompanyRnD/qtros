@@ -27,6 +27,16 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 {{ indent * (d+1) }}rotation: {{ quat(s.origin_rpy) }}
 {% endif %}
 {{ indent * d }}}
+{% elif s.shape_type == 'ConvexMeshShape' %}ConvexMeshShape {
+{{ indent * (d+1) }}source: "{{ s.mesh_source }}"
+{{ indent * (d+1) }}scale: {{ v3(s.mesh_node_scale[0]|round(6), s.mesh_node_scale[1]|round(6), s.mesh_node_scale[2]|round(6)) }}
+{% if s.origin_xyz != [0.0, 0.0, 0.0] %}
+{{ indent * (d+1) }}position: {{ v3(s.origin_xyz[0]|round(6), s.origin_xyz[1]|round(6), s.origin_xyz[2]|round(6)) }}
+{% endif %}
+{% if s.origin_rpy != [0.0, 0.0, 0.0] %}
+{{ indent * (d+1) }}rotation: {{ quat(s.origin_rpy) }}
+{% endif %}
+{{ indent * d }}}
 {% else %}CapsuleShape {
 {{ indent * (d+1) }}diameter: {{ s.diameter|round(6) }}
 {{ indent * (d+1) }}height: {{ s.height|round(6) }}

@@ -250,6 +250,7 @@ class MeshAsset:
     module_name: str
     mesh_uri: str
     source_path: str
+    mesh_filename: str = ""
 
 
 def _is_movable(j: Joint) -> bool:
@@ -313,10 +314,11 @@ def _mapped_package_dir(package_name: str, mapped_path: str) -> Optional[str]:
     return None
 
 
-def _mesh_visuals_exist(model: RobotModel) -> bool:
+def _mesh_assets_exist(model: RobotModel) -> bool:
+    """Return True when any visual or collision element references a mesh file."""
     for link in model.links:
-        for visual in link.visuals:
-            if visual.geom.type == "mesh" and visual.geom.mesh_file:
+        for item in (*link.visuals, *link.collisions):
+            if item.geom.type == "mesh" and item.geom.mesh_file:
                 return True
     return False
 
@@ -560,35 +562,37 @@ def collect_mesh_assets(
     urdf_path: str,
     package_map: Dict[str, str],
 ) -> List[MeshAsset]:
-    """Collect mesh assets referenced by URDF visuals and resolve source file paths."""
+    """Collect mesh assets referenced by URDF visuals and collisions and resolve source paths."""
     assets_by_module: Dict[str, MeshAsset] = {}
-    for link in model.links:
-        for visual in link.visuals:
-            geom = visual.geom
-            if geom.type != "mesh" or not geom.mesh_file:
-                continue
 
-            module_name = mesh_component_name(geom.mesh_file, link.name)
-            source_path = resolve_mesh_uri(
-                geom.mesh_file,
-                urdf_path=urdf_path,
-                package_map=package_map,
+    def _add_geom(geom: Geometry, link_name: str) -> None:
+        if geom.type != "mesh" or not geom.mesh_file:
+            return
+        module_name = mesh_component_name(geom.mesh_file, link_name)
+        source_path = resolve_mesh_uri(
+            geom.mesh_file,
+            urdf_path=urdf_path,
+            package_map=package_map,
+        )
+        existing = assets_by_module.get(module_name)
+        if existing is None:
+            assets_by_module[module_name] = MeshAsset(
+                module_name=module_name,
+                mesh_uri=geom.mesh_file,
+                source_path=source_path,
+            )
+            return
+        if os.path.normcase(existing.source_path) != os.path.normcase(source_path):
+            raise RuntimeError(
+                f"Module name collision for '{module_name}': '{existing.source_path}' and "
+                f"'{source_path}' are different files. Rename one mesh basename."
             )
 
-            existing = assets_by_module.get(module_name)
-            if existing is None:
-                assets_by_module[module_name] = MeshAsset(
-                    module_name=module_name,
-                    mesh_uri=geom.mesh_file,
-                    source_path=source_path,
-                )
-                continue
-
-            if os.path.normcase(existing.source_path) != os.path.normcase(source_path):
-                raise RuntimeError(
-                    f"Module name collision for '{module_name}': '{existing.source_path}' and "
-                    f"'{source_path}' are different files. Rename one mesh basename."
-                )
+    for link in model.links:
+        for visual in link.visuals:
+            _add_geom(visual.geom, link.name)
+        for coll in link.collisions:
+            _add_geom(coll.geom, link.name)
 
     return list(assets_by_module.values())
 
@@ -1110,15 +1114,20 @@ def _collision_shape_params(
     coll: "VisualOrCollision",
     *,
     scene_units_per_meter: float = 100.0,
+    mesh_source_by_uri: Optional[Dict[str, str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Return a dict describing the QtQuick3DPhysics shape for a collision element,
-    or None if the geometry is a mesh (shapes must be added manually by the user).
+    or None if the geometry cannot be represented (mesh with no converted asset).
 
     Keys returned:
       shape_type    – QML type name, e.g. "BoxShape"
       extents       – [x, y, z] in scene units; only set for BoxShape
       diameter      – float in scene units; set for SphereShape / CapsuleShape
       height        – float in scene units; set for CapsuleShape (None for SphereShape)
+      mesh_source   – relative URL string; only set for ConvexMeshShape
+      mesh_scale    – [x, y, z] scale from URDF; only set for ConvexMeshShape
+      mesh_node_scale – [x, y, z] node scale (scene_units_per_meter * mesh_unit *
+                      URDF scale) that maps the mesh into scene units; ConvexMeshShape
       origin_xyz    – [x, y, z] offset in scene units
       origin_rpy    – [roll, pitch, yaw] radians (already adjusted for cylinder Y-up)
     """
@@ -1133,6 +1142,8 @@ def _collision_shape_params(
             "extents": [g.size[0] * spm, g.size[1] * spm, g.size[2] * spm],
             "diameter": None,
             "height": None,
+            "mesh_source": None,
+            "mesh_scale": None,
             "origin_xyz": origin_xyz,
             "origin_rpy": origin_rpy,
         }
@@ -1142,6 +1153,8 @@ def _collision_shape_params(
             "extents": None,
             "diameter": g.size[0] * 2.0 * spm,
             "height": None,
+            "mesh_source": None,
+            "mesh_scale": None,
             "origin_xyz": origin_xyz,
             "origin_rpy": origin_rpy,
         }
@@ -1152,14 +1165,49 @@ def _collision_shape_params(
             "extents": None,
             "diameter": g.size[0] * 2.0 * spm,
             "height": g.size[1] * spm,
+            "mesh_source": None,
+            "mesh_scale": None,
             "origin_xyz": origin_xyz,
             "origin_rpy": origin_rpy,
         }
-    # Mesh geometry: collision shape must be added manually in a visual editor.
+    if g.type == "mesh" and g.mesh_file:
+        source = (mesh_source_by_uri or {}).get(g.mesh_file, "")
+        if not source:
+            # Balsam hasn't converted this mesh yet; skip the shape.
+            return None
+        mesh_node_scale = [
+            spm * g.mesh_unit_to_meter * g.mesh_scale[0],
+            spm * g.mesh_unit_to_meter * g.mesh_scale[1],
+            spm * g.mesh_unit_to_meter * g.mesh_scale[2],
+        ]
+        # QtQuick3DPhysics applies a shape node sceneScale to BOTH its mesh geometry
+        # AND its position (localPosition * sceneScale). Since mesh_node_scale already
+        # converts meters into scene units, express the origin in the shape pre-scale
+        # frame by dividing out the scale physics re-applies
+        # (the raw URDF origin in meters for the common case), unlike primitive shapes.
+        mesh_origin = [
+            origin_xyz[0] / mesh_node_scale[0] if mesh_node_scale[0] else 0.0,
+            origin_xyz[1] / mesh_node_scale[1] if mesh_node_scale[1] else 0.0,
+            origin_xyz[2] / mesh_node_scale[2] if mesh_node_scale[2] else 0.0,
+        ]
+        return {
+            "shape_type": "ConvexMeshShape",
+            "extents": None,
+            "diameter": None,
+            "height": None,
+            "mesh_source": source,
+            "mesh_scale": list(g.mesh_scale),
+            "mesh_node_scale": mesh_node_scale,
+            "origin_xyz": mesh_origin,
+            "origin_rpy": origin_rpy,
+        }
     return None
 
 
-def _make_env(**kwargs) -> Environment:
+def _make_env(
+    mesh_source_by_uri: Optional[Dict[str, str]] = None,
+    **kwargs,
+) -> Environment:
     """Return a Jinja2 Environment backed by the co-located *templates/urdfviewer/* directory."""
     templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "urdfviewer")
     env = Environment(
@@ -1179,13 +1227,19 @@ def _make_env(**kwargs) -> Environment:
     env.filters["qt_rgba"] = format_rgba
     env.filters["qml_id"] = qml_id
 
+    _mesh_source_by_uri = mesh_source_by_uri or {}
+
     def _collision_shapes_filter(
         link: "Link",
         scene_units_per_meter: float = 100.0,
     ) -> List[Dict[str, Any]]:
         return [
             s for s in (
-                _collision_shape_params(c, scene_units_per_meter=scene_units_per_meter)
+                _collision_shape_params(
+                    c,
+                    scene_units_per_meter=scene_units_per_meter,
+                    mesh_source_by_uri=_mesh_source_by_uri,
+                )
                 for c in link.collisions
             )
             if s is not None
@@ -1274,8 +1328,8 @@ def generate_mesh_assets_with_balsam(
     balsam_bin: Optional[str] = None,
     balsam_options: Optional[List[str]] = None,
     balsam_timeout: int = 300,
-) -> List[str]:
-    """Generate Generated/QtQuick3D modules for mesh visuals using Balsam."""
+) -> List[MeshAsset]:
+    """Generate Generated/QtQuick3D modules for mesh visuals and collisions using Balsam."""
     assets = collect_mesh_assets(model, urdf_path=urdf_path, package_map=package_map)
     if not assets:
         return []
@@ -1338,11 +1392,58 @@ def generate_mesh_assets_with_balsam(
                     f"Balsam generated multiple QML files for '{asset.source_path}': "
                     f"{', '.join(sorted(qml_candidates))}"
                 )
+        # Record the first .mesh file found (recursing into subdirs) so
+        # ConvexMeshShape can reference it via a relative URL from module_dir.
+        mesh_candidates = sorted(
+            os.path.relpath(os.path.join(dirpath, fname), module_dir).replace(os.sep, "/")
+            for dirpath, _, filenames in os.walk(module_dir)
+            for fname in filenames
+            if fname.lower().endswith(".mesh")
+        )
+        asset.mesh_filename = mesh_candidates[0] if mesh_candidates else ""
         write_generated_module_qmldir(module_dir, asset.module_name)
 
     modules = _list_generated_qtquick3d_modules(qtquick3d_dir)
     write_generated_scaffolding(generated_dir, modules)
-    return modules
+    return assets
+
+
+def discover_existing_mesh_assets(
+    model: RobotModel,
+    *,
+    urdf_path: str,
+    robot_dir: str,
+    package_map: Dict[str, str],
+) -> List["MeshAsset"]:
+    """Scan the Generated/QtQuick3D output directory for already-converted mesh assets.
+
+    Used as a fallback when balsam is not run (e.g. --no-generate-assets) so that
+    ConvexMeshShape references can still be emitted for previously-converted meshes.
+    """
+    generated_dir = os.path.join(robot_dir, "Generated")
+    qtquick3d_dir = os.path.join(generated_dir, "QtQuick3D")
+
+    candidates = collect_mesh_assets(model, urdf_path=urdf_path, package_map=package_map)
+    found: List[MeshAsset] = []
+    for asset in candidates:
+        module_dir = os.path.join(qtquick3d_dir, asset.module_name)
+        if not os.path.isdir(module_dir):
+            continue
+        mesh_files = sorted(
+            os.path.relpath(os.path.join(dp, fn), module_dir).replace(os.sep, "/")
+            for dp, _, fnames in os.walk(module_dir)
+            for fn in fnames
+            if fn.lower().endswith(".mesh")
+        )
+        if not mesh_files:
+            continue
+        found.append(MeshAsset(
+            module_name=asset.module_name,
+            mesh_uri=asset.mesh_uri,
+            source_path=asset.source_path,
+            mesh_filename=mesh_files[0],
+        ))
+    return found
 
 
 def generate_qml(
@@ -1354,6 +1455,7 @@ def generate_qml(
     axis_transform: bool = True,
     mesh_rotation: Optional[List[float]] = None,
     physics: bool = False,
+    mesh_assets: Optional[List[MeshAsset]] = None,
 ) -> str:
     root = build_tree(model)
     if not root:
@@ -1377,7 +1479,13 @@ def generate_qml(
     aliases: List[str] = []
     collect_aliases(root, aliases)
 
-    env = _make_env()
+    mesh_source_by_uri: Dict[str, str] = {
+        a.mesh_uri: f"Generated/QtQuick3D/{a.module_name}/{a.mesh_filename}"
+        for a in (mesh_assets or [])
+        if a.mesh_filename
+    }
+
+    env = _make_env(mesh_source_by_uri=mesh_source_by_uri)
     template = env.get_template("robot_model.qml")
 
     return template.render(
@@ -2056,8 +2164,9 @@ def _create_argument_parser() -> argparse.ArgumentParser:
             "Integrate QtQuick3DPhysics rigid bodies into the robot model. "
             "Each link is wrapped in a DynamicRigidBody (or StaticRigidBody for "
             "the root), with collision shapes generated from URDF <collision> "
-            "primitive geometry. Mesh collision geometry is skipped and must be "
-            "added manually. Requires Qt6::Quick3DPhysics at build/runtime."
+            "primitive geometry (box, sphere, cylinder). Mesh collision geometry "
+            "(STL/OBJ) is converted to ConvexMeshShape via Balsam when available. "
+            "Requires Qt6::Quick3DPhysics at build/runtime."
         ),
     )
     parser.add_argument(
@@ -2272,20 +2381,20 @@ def main(argv: Optional[List[str]] = None) -> int:
                 f"[urdf2quick3d] Copied license source '{args.license_source}' into '{robot_dir}'"
             )
 
-        has_mesh_visuals = _mesh_visuals_exist(model)
-        if has_mesh_visuals and not args.no_generate_assets:
+        has_mesh_assets = _mesh_assets_exist(model)
+        run_mesh_assets: List[MeshAsset] = []
+        if has_mesh_assets and not args.no_generate_assets:
             try:
-                generated_modules.extend(
-                    generate_mesh_assets_with_balsam(
-                        model,
-                        urdf_path=args.urdf,
-                        robot_dir=robot_dir,
-                        package_map=package_map,
-                        balsam_bin=args.balsam_bin,
-                        balsam_options=args.balsam_options,
-                        balsam_timeout=args.balsam_timeout,
-                    )
+                run_mesh_assets = generate_mesh_assets_with_balsam(
+                    model,
+                    urdf_path=args.urdf,
+                    robot_dir=robot_dir,
+                    package_map=package_map,
+                    balsam_bin=args.balsam_bin,
+                    balsam_options=args.balsam_options,
+                    balsam_timeout=args.balsam_timeout,
                 )
+                generated_modules.extend(a.module_name for a in run_mesh_assets)
                 print(
                     "[urdf2quick3d] Generated QtQuick3D asset modules: "
                     + (", ".join(generated_modules) if generated_modules else "(none)")
@@ -2301,6 +2410,22 @@ def main(argv: Optional[List[str]] = None) -> int:
                 warnings.append(warning)
                 print(warning)
 
+        # If balsam didn't run (--no-generate-assets or balsam unavailable), fall back to
+        # discovering any already-converted mesh assets on disk so that ConvexMeshShape
+        # references are still emitted for pre-existing assets.
+        if has_mesh_assets and not run_mesh_assets:
+            run_mesh_assets = discover_existing_mesh_assets(
+                model,
+                urdf_path=args.urdf,
+                robot_dir=robot_dir,
+                package_map=package_map,
+            )
+            if run_mesh_assets:
+                print(
+                    "[urdf2quick3d] Using pre-existing QtQuick3D asset modules: "
+                    + ", ".join(a.module_name for a in run_mesh_assets)
+                )
+
         write_qml(
             model,
             qml_path,
@@ -2310,6 +2435,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             mesh_rotation=mesh_rotation,
             header_comment=header_comment,
             physics=args.physics,
+            mesh_assets=run_mesh_assets,
         )
         write_control_files(
             model,

@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Window
 
 import QtQuick3D
+import QtQuick3D.Physics
 
 import SimpleArm
 
@@ -13,11 +14,18 @@ Window {
     visible: true
     title: qsTr("URDF Robot Arm Test")
 
+    PhysicsWorld {
+	running: true
+	forceDebugDraw: true
+	scene: view.scene
+    }
+
     SimpleArmControl {
         id: armControl
     }
 
     View3D {
+        id: view
         anchors.fill: parent
         camera: PerspectiveCamera {
             position: Qt.vector3d(0, 0, 300)
