@@ -65,6 +65,31 @@ Item {
             control: {{ base_name }}Control {}
 {% endif %}
         }
+{% if physics %}
+
+        // Default static ground plane. Gives the robot a surface to stand on
+        // and serves as the collider that robots/objects rest against.
+        StaticRigidBody {
+            collisionShapes: [
+                BoxShape {
+                    extents: Qt.vector3d(10000, 1, 10000)
+                    position: Qt.vector3d(0, -0.5, 0)
+                }
+            ]
+
+            Model {
+                source: "#Rectangle"
+                eulerRotation.x: -90
+                scale: Qt.vector3d(100, 100, 100)
+                materials: [
+                    PrincipledMaterial {
+                        baseColor: "#4caf50"
+                        roughness: 1.0
+                    }
+                ]
+            }
+        }
+{% endif %}
     }
 {% if physics %}
 

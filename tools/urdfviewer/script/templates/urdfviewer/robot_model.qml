@@ -49,20 +49,26 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 {% else %}
 {% set d = depth + (1 if node.joint else 0) %}
 {% endif %}
-{# When physics is on, every link gets a body (root → StaticRigidBody, others → DynamicRigidBody). #}
+{# When physics is on, every link (including root) gets a kinematic DynamicRigidBody. #}
 {% set use_body = physics %}
-{# Content depth: inside the physics body for non-root, otherwise same as d #}
-{% set content_d = d + (1 if (use_body and not is_root) else 0) %}
-{# === Outer container: joint-offset Node (non-root) or StaticRigidBody/Node (root) === #}
-{{ indent * depth }}{% if is_root and use_body %}StaticRigidBody{% else %}Node{% endif %} {
+{# body_d: indent level of the DynamicRigidBody.
+   For root there is no joint Node, so we add 1 relative to depth.
+   For non-root d already accounts for the joint-offset Node. #}
+{% set body_d = (depth + 1) if (is_root and use_body) else d %}
+{# content_d: indent level of visual/child content (one inside body_d when use_body). #}
+{% set content_d = body_d + (1 if use_body else 0) %}
+{# === Outer container: plain Node === #}
+{{ indent * depth }}Node {
 {% if is_root and use_body %}
-{{ indent * (depth+1) }}id: {{ node.link.name | qml_id }}Physics
+{{ indent * body_d }}DynamicRigidBody {
+{{ indent * (body_d+1) }}id: {{ node.link.name | qml_id }}Physics
+{{ indent * (body_d+1) }}isKinematic: true
 {% if shapes %}
-{{ indent * (depth+1) }}collisionShapes: [
+{{ indent * (body_d+1) }}collisionShapes: [
 {% for s in shapes %}
-{{ shape_block(s, depth + 2) }}{% if not loop.last %},{% endif %}
+{{ shape_block(s, body_d + 2) }}{% if not loop.last %},{% endif %}
 {% endfor %}
-{{ indent * (depth+1) }}]
+{{ indent * (body_d+1) }}]
 {% endif %}
 {% endif %}
 {% if node.joint %}
@@ -83,25 +89,25 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 {{ indent * (depth + 2) }}rotation: Quaternion.fromAxisAndAngle(axis, rootNode.toEulerAngle(rootNode.control.{{ node.joint | joint_prop_name }}))
 {% endif %}
 {% endif %}
-{# === DynamicRigidBody wrapper for non-root links === #}
+{# === DynamicRigidBody wrapper for non-root links (root's is above) === #}
 {% if use_body and not is_root %}
-{{ indent * d }}DynamicRigidBody {
-{{ indent * (d+1) }}id: {{ node.link.name | qml_id }}Physics
-{{ indent * (d+1) }}isKinematic: true
+{{ indent * body_d }}DynamicRigidBody {
+{{ indent * (body_d+1) }}id: {{ node.link.name | qml_id }}Physics
+{{ indent * (body_d+1) }}isKinematic: true
 {% if node.link.inertial %}
-{{ indent * (d+1) }}mass: {{ node.link.inertial.mass }}
+{{ indent * (body_d+1) }}mass: {{ node.link.inertial.mass }}
 {% if node.link.inertial.ixx or node.link.inertial.iyy or node.link.inertial.izz %}
-{{ indent * (d+1) }}massMode: DynamicRigidBody.MassAndInertiaMatrix
-{{ indent * (d+1) }}// inertia matrix: [ixx, ixy, ixz, iyx, iyy, iyz, izx, izy, izz]
-{{ indent * (d+1) }}inertiaMatrix: [{{ node.link.inertial.ixx }}, {{ node.link.inertial.ixy }}, {{ node.link.inertial.ixz }}, {{ node.link.inertial.ixy }}, {{ node.link.inertial.iyy }}, {{ node.link.inertial.iyz }}, {{ node.link.inertial.ixz }}, {{ node.link.inertial.iyz }}, {{ node.link.inertial.izz }}]
+{{ indent * (body_d+1) }}massMode: DynamicRigidBody.MassAndInertiaMatrix
+{{ indent * (body_d+1) }}// inertia matrix: [ixx, ixy, ixz, iyx, iyy, iyz, izx, izy, izz]
+{{ indent * (body_d+1) }}inertiaMatrix: [{{ node.link.inertial.ixx }}, {{ node.link.inertial.ixy }}, {{ node.link.inertial.ixz }}, {{ node.link.inertial.ixy }}, {{ node.link.inertial.iyy }}, {{ node.link.inertial.iyz }}, {{ node.link.inertial.ixz }}, {{ node.link.inertial.iyz }}, {{ node.link.inertial.izz }}]
 {% endif %}
 {% endif %}
 {% if shapes %}
-{{ indent * (d+1) }}collisionShapes: [
+{{ indent * (body_d+1) }}collisionShapes: [
 {% for s in shapes %}
-{{ shape_block(s, d + 2) }}{% if not loop.last %},{% endif %}
+{{ shape_block(s, body_d + 2) }}{% if not loop.last %},{% endif %}
 {% endfor %}
-{{ indent * (d+1) }}]
+{{ indent * (body_d+1) }}]
 {% endif %}
 {% endif %}
 {# === Visual mesh components (inside physics body when use_body, at content_d) === #}
@@ -146,8 +152,8 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 {{ render(c, content_d, false) }}
 {% endfor %}
 {# === Closings (innermost first) === #}
-{% if use_body and not is_root %}
-{{ indent * d }}}
+{% if use_body %}
+{{ indent * body_d }}}
 {% endif %}
 {% if movable %}
 {{ indent * (depth + 1) }}}
