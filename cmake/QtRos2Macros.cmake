@@ -457,6 +457,7 @@ function(qt_ros2_import_urdf _qt_ros2_urdf_target _qt_ros2_urdf_file)
   set(_urdf_module_target "${_qt_ros2_urdf_target}_${_urdf_base_name}")
   qt_add_library("${_urdf_module_target}" STATIC)
   set_target_properties("${_urdf_module_target}" PROPERTIES AUTOMOC ON)
+  qt_policy(SET QTP0001 NEW)
   qt_add_qml_module("${_urdf_module_target}"
     URI "${_urdf_uri}"
     VERSION "${_urdf_ver}"
