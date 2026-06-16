@@ -72,7 +72,7 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 {% if is_root and use_body %}
 {{ indent * body_d }}DynamicRigidBody {
 {{ indent * (body_d+1) }}id: {{ node.link.name | qml_id }}Physics
-{{ indent * (body_d+1) }}isKinematic: true
+{{ indent * (body_d+1) }}isKinematic: rootNode.control ? rootNode.control.isKinematic : true
 {% if shapes %}
 {{ indent * (body_d+1) }}collisionShapes: [
 {% for s in shapes %}
@@ -103,7 +103,7 @@ Qt.vector3d({{ x }}, {{ y }}, {{ z }})
 {% if use_body and not is_root %}
 {{ indent * body_d }}DynamicRigidBody {
 {{ indent * (body_d+1) }}id: {{ node.link.name | qml_id }}Physics
-{{ indent * (body_d+1) }}isKinematic: true
+{{ indent * (body_d+1) }}isKinematic: rootNode.control ? rootNode.control.isKinematic : true
 {% if node.link.inertial %}
 {{ indent * (body_d+1) }}mass: {{ node.link.inertial.mass }}
 {% if node.link.inertial.ixx or node.link.inertial.iyy or node.link.inertial.izz %}

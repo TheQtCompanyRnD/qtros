@@ -19,10 +19,17 @@ class {{ cls }}ControlBase : public QObject
 
     Q_PROPERTY(QVariantList jointInfos READ jointInfos CONSTANT)
 
+    // Toggles DynamicRigidBody.isKinematic on every generated link; default true
+    // (links follow their joint transforms). Set false to let the PhysicsWorld simulate.
+    Q_PROPERTY(bool isKinematic READ isKinematic WRITE setIsKinematic NOTIFY isKinematicChanged)
+
 public:
     explicit {{ cls }}ControlBase(QObject *parent = nullptr);
 
     QVariantList jointInfos() const;
+
+    bool isKinematic() const;
+    void setIsKinematic(bool v);
 
 {% for j in joints_enumerated %}
     double {{ j[2] }}() const;
@@ -30,6 +37,7 @@ public:
 {% endfor %}
 
 signals:
+    void isKinematicChanged();
 {% for j in joints_enumerated %}
     void {{ j[2] }}Changed();
 {% endfor %}
@@ -37,6 +45,7 @@ signals:
 private:
     QVector<double> m_values;
     QVariantList m_jointInfos;
+    bool m_isKinematic = true;
 };
 
 #endif // {{ guard }}

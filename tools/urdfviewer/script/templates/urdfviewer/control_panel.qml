@@ -84,6 +84,16 @@ ScrollView {
                         onToggled: root.physicsWorld.forceDebugDraw = checked
                     }
                 }
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Label { text: qsTr("Kinematic"); Layout.fillWidth: true }
+                    Switch {
+                        checked: root.targetRobot && root.targetRobot.control ? root.targetRobot.control.isKinematic : true
+                        onToggled: root.targetRobot.control.isKinematic = checked
+                    }
+                }
             }
         }
     }

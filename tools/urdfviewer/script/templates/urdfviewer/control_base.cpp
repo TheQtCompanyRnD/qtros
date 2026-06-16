@@ -56,3 +56,16 @@ QVariantList {{ cls }}ControlBase::jointInfos() const
 {
     return m_jointInfos;
 }
+
+bool {{ cls }}ControlBase::isKinematic() const
+{
+    return m_isKinematic;
+}
+
+void {{ cls }}ControlBase::setIsKinematic(bool v)
+{
+    if (m_isKinematic == v)
+        return;
+    m_isKinematic = v;
+    emit isKinematicChanged();
+}

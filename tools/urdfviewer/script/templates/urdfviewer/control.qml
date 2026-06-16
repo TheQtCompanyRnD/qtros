@@ -1,6 +1,9 @@
 import QtQuick
 
 QtObject {
+    // Toggles the generated DynamicRigidBody.isKinematic; bound from the model.
+    // true: links are driven by joint transforms; false: simulated by the PhysicsWorld.
+    property bool isKinematic: true
 {% for prop in props %}
     property real {{ prop }}: 0
 {% endfor %}
