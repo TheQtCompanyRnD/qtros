@@ -96,7 +96,7 @@ Item {
     PhysicsWorld {
         id: physicsWorld
         scene: view3D.scene
-        gravity: Qt.vector3d(0, 0, 0)
+        running: false
     }
 {% endif %}
 {% if ros %}
