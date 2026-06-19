@@ -23,6 +23,10 @@ class {{ cls }}ControlBase : public QObject
     // (links follow their joint transforms). Set false to let the PhysicsWorld simulate.
     Q_PROPERTY(bool isKinematic READ isKinematic WRITE setIsKinematic NOTIFY isKinematicChanged)
 
+    // When true, each link DynamicRigidBody sends trigger reports so a TriggerBody
+    // can detect the robot overlapping it. Default false.
+    Q_PROPERTY(bool sendTriggerReports READ sendTriggerReports WRITE setSendTriggerReports NOTIFY sendTriggerReportsChanged)
+
 public:
     explicit {{ cls }}ControlBase(QObject *parent = nullptr);
 
@@ -31,6 +35,9 @@ public:
     bool isKinematic() const;
     void setIsKinematic(bool v);
 
+    bool sendTriggerReports() const;
+    void setSendTriggerReports(bool v);
+
 {% for j in joints_enumerated %}
     double {{ j[2] }}() const;
     void set{{ j[2]|capitalize_first }}(double v);
@@ -38,6 +45,7 @@ public:
 
 signals:
     void isKinematicChanged();
+    void sendTriggerReportsChanged();
 {% for j in joints_enumerated %}
     void {{ j[2] }}Changed();
 {% endfor %}
@@ -46,6 +54,7 @@ private:
     QVector<double> m_values;
     QVariantList m_jointInfos;
     bool m_isKinematic = true;
+    bool m_sendTriggerReports = false;
 };
 
 #endif // {{ guard }}

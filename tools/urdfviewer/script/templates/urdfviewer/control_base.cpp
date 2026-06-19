@@ -69,3 +69,16 @@ void {{ cls }}ControlBase::setIsKinematic(bool v)
     m_isKinematic = v;
     emit isKinematicChanged();
 }
+
+bool {{ cls }}ControlBase::sendTriggerReports() const
+{
+    return m_sendTriggerReports;
+}
+
+void {{ cls }}ControlBase::setSendTriggerReports(bool v)
+{
+    if (m_sendTriggerReports == v)
+        return;
+    m_sendTriggerReports = v;
+    emit sendTriggerReportsChanged();
+}

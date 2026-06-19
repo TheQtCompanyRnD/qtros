@@ -4,6 +4,9 @@ QtObject {
     // Toggles the generated DynamicRigidBody.isKinematic; bound from the model.
     // true: links are driven by joint transforms; false: simulated by the PhysicsWorld.
     property bool isKinematic: true
+    // When true, each generated DynamicRigidBody emits trigger reports so a
+    // TriggerBody can detect the robot overlapping it. Default false (off).
+    property bool sendTriggerReports: false
 {% for prop in props %}
     property real {{ prop }}: 0
 {% endfor %}
