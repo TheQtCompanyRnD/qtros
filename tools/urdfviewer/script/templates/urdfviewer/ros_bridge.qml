@@ -14,6 +14,9 @@ QtObject {
     // The control object whose joint properties will be driven from ROS.
     required property var control
 
+    // Disabling/enabling processing of the messages.
+    property bool processMessages: true
+
     // Topic to subscribe to. Override for namespaced robots, e.g.:
     //   jointStateTopic: "/my_robot/joint_states"
     property string jointStateTopic: "{{ joint_states_topic }}"
@@ -32,13 +35,15 @@ QtObject {
         SensorMsgs.JointStateSubscriber {
             topic: root.jointStateTopic
             onMessageReceived: (msg) => {
-                const names = msg.name
-                const positions = msg.position
-                for (let i = 0; i < names.length; ++i) {
-                    const prop = root._jointRosNameMap[names[i]]
-                    if (prop !== undefined)
-                        root.control[prop] = positions[i]
-                }
+	        if (root.processMessages) {
+                    const names = msg.name
+                    const positions = msg.position
+                    for (let i = 0; i < names.length; ++i) {
+                        const prop = root._jointRosNameMap[names[i]]
+                        if (prop !== undefined)
+                            root.control[prop] = positions[i]
+                    }
+		}
             }
         }
     }
