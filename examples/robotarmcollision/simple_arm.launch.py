@@ -3,7 +3,7 @@ simple_arm.launch.py
 Launch joint_state_publisher_gui and robot_state_publisher for simple_arm.urdf.
 
 Usage (source ROS 2 first):
-    ros2 launch samples/urdf/test/simple_arm.launch.py
+    ros2 launch examples/robotarmcollision/simple_arm.launch.py
 
 No colcon build or ROS package install required — the URDF is loaded
 directly from the path relative to this launch file.
