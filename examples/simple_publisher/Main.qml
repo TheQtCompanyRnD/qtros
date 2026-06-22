@@ -10,10 +10,10 @@ Window {
     width: 480
     height: 600
     visible: true
-    title: qsTr("QtROS2 Pose Publisher")
+    title: `Publisher to Pose ${posePublisher.topic}`
 
     property int publishCount: 0
-    property string lastPayload: "Press the button to publish a PoseStamped message."
+    property string lastPayload: qsTr("Press the button to publish a PoseStamped message.")
 
     Node {
         id: rosNode
@@ -21,29 +21,52 @@ Window {
 
         PoseStampedPublisher {
             id: posePublisher
-            topic: "/simple_publisher_pose"
+            topic: topicField.text
         }
     }
 
-    ColumnLayout {
+    GridLayout {
+        columns: 2
+        columnSpacing: 10
         anchors.fill: parent
-        anchors.margins: 24
+        anchors.margins: 12
 
         Label {
-            text: rosNode.initialized ? "ROS 2 Node Ready" : "Initializing ROS 2 Node..."
+            text: rosNode.initialized ? qsTr("ROS 2 Node Ready") : qsTr("Initializing ROS 2 Node...")
+            font.bold: true
+            Layout.columnSpan: 2
+        }
+
+        Label {
+            Layout.row: 2
+            text: qsTr("Subscribers count")
+        }
+        Label {
+            text: posePublisher.subscriberCount
+        }
+
+        Label {
+            text: qsTr("Topic")
             font.bold: true
         }
-
-        Label {
-            text: `Subscribers count: ${posePublisher.subscriberCount}`
+        TextField {
+            id: topicField
+            Layout.fillWidth: true
+            text: "/simple_publisher_pose"
         }
 
         Label {
-            text: "observe with: <b>ros2 topic echo /simple_publisher_pose<b>"
+            text: qsTr("Observe with")
+            font.bold: true
+        }
+        TextField {
+            Layout.fillWidth: true
+            readOnly: true
+            text: `ros2 topic echo ${posePublisher.topic}`
         }
 
         Button {
-            text: rosNode.initialized ? "Publish Random Pose" : "Waiting for ROS..."
+            text: rosNode.initialized ? qsTr("Publish Random Pose") : qsTr("Waiting for ROS...")
             enabled: rosNode.initialized
 
             onClicked: {
@@ -73,6 +96,8 @@ Window {
         }
 
         TextArea {
+            Layout.row: 6
+            Layout.columnSpan: 2
             Layout.fillWidth: true
             Layout.fillHeight: true
             readOnly: true

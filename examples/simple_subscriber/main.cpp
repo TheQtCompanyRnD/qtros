@@ -7,7 +7,6 @@
 
 int main(int argc, char *argv[])
 {
-    QRos2Context::init(argc, argv);
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine engine;
