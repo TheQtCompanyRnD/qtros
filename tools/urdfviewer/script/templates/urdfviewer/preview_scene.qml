@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import QtQuick3D
 import QtQuick3D.Helpers
 {% if physics %}
@@ -72,8 +73,12 @@ Item {
         StaticRigidBody {
             collisionShapes: [
                 BoxShape {
-                    extents: Qt.vector3d(10000, 1, 10000)
-                    position: Qt.vector3d(0, -0.5, 0)
+                    // Thick collider so fast-falling dynamic bodies cannot tunnel
+                    // through it; its top surface sits at y = 0 to match the visual
+                    // ground Model below.
+                    readonly property real groundThickness: 1000
+                    extents: Qt.vector3d(10000, groundThickness / 2, 10000)
+                    position: Qt.vector3d(0, -50, 0)
                 }
             ]
 
@@ -90,6 +95,24 @@ Item {
             }
         }
 {% endif %}
+    }
+
+    // Move the whole model up/down along the vertical (scene Y) axis.
+    Pane {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: 12
+
+        RowLayout {
+            Label { text: qsTr("Height") }
+            TextField {
+                implicitWidth: 90
+                text: robotRoot.y.toFixed(1)
+                validator: DoubleValidator {}
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                onEditingFinished: robotRoot.y = parseFloat(text)
+            }
+        }
     }
 {% if physics %}
 
