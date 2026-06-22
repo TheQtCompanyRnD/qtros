@@ -118,19 +118,21 @@ _emit_prop_doc = bool(_qt_prop) and ((not info.get('is_computed')) or info.get('
 
 @[  end if]@
 @[  for m in info.get('qml_methods') or []]@
+@[    if not m.get('static_factory')]@
 /*!
     \qmlmethod @(m['signature'])
-@[    if m.get('brief')]@
+@[      if m.get('brief')]@
     \brief @(m['brief'])
-@[      if m.get('body')]@
+@[        if m.get('body')]@
 
-@[        for line in m['body']]@
+@[          for line in m['body']]@
     @(line)
-@[        end for]@
+@[          end for]@
+@[        end if]@
 @[      end if]@
-@[    end if]@
 */
 
+@[    end if]@
 @[  end for]@
 @[end for]@
 

@@ -165,14 +165,20 @@ private:
 qt_type = info['qt_type']
 default_val = ''
 if not info['is_sequence']:
-    field_type_inner = info['field'].type
+    field = info['field']
+    field_type_inner = field.type
     if isinstance(field_type_inner, BasicType):
+        # Honor the ROS IDL @default(value=...) annotation when present so that
+        # e.g. geometry_msgs/Quaternion.w defaults to 1.0 (identity) rather than
+        # 0.0. Fall back to the zero/false default when no annotation is given.
+        idl_default = (field.get_annotation_value('default')['value']
+                       if field.has_annotation('default') else None)
         if field_type_inner.typename == 'boolean':
-            default_val = ' = false'
+            default_val = ' = false' if idl_default is None else (' = true' if idl_default else ' = false')
         elif field_type_inner.typename in ['float', 'double', 'long double']:
-            default_val = ' = 0.0'
+            default_val = ' = ' + (repr(float(idl_default)) if idl_default is not None else '0.0')
         elif 'int' in field_type_inner.typename:
-            default_val = ' = 0'
+            default_val = ' = ' + (str(int(idl_default)) if idl_default is not None else '0')
 }@
     @(qt_type) m_@(info['name'])@(default_val);
 @[  end if]@

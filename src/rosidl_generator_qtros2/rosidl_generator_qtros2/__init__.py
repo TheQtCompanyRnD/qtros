@@ -162,6 +162,14 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
                 ('msg__value_type.hpp.em', out_subdir / f"{base_name}.hpp"),
                 ('msg__value_type.cpp.em', out_src_subdir / f"{base_name}.cpp"),
             ])
+            # Value types with Q_INVOKABLE static factory methods (e.g.
+            # Quaternion::fromEulerAngles) also get a QML singleton helper, since
+            # static methods are not callable on a QML value type directly.
+            from .template_helpers import value_type_has_static_factories
+            if value_type_has_static_factories(namespace_package, message_spec):
+                templates.append(
+                    ('msg__factory_singleton.hpp.em', out_subdir / f"{base_name}_utils.hpp")
+                )
 
         if emit_pub_sub:
             templates.extend([

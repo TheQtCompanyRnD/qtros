@@ -227,11 +227,14 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
             ],
             "qml_methods": [
                 {
-                    "signature": "{vt} {vt}::fromEulerAngles(vector3d eulerAngles)",
+                    "static_factory": True,
+                    "signature": "{vt} {se}::fromEulerAngles(vector3d eulerAngles)",
                     "brief": "Construct a quaternion from Euler angles in degrees.",
                     "body": [
                         "Components are (\\c x = roll about X, \\c y = pitch about Y,",
-                        "\\c z = yaw about Z), ROS axis convention.",
+                        "\\c z = yaw about Z), ROS axis convention. An overload",
+                        "taking three \\c real arguments (\\c x, \\c y, \\c z) is also",
+                        "available.",
                     ],
                 },
             ],
@@ -289,7 +292,8 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
             ],
             "qml_methods": [
                 {
-                    "signature": "{vt} {vt}::fromRpy(vector3d rpy)",
+                    "static_factory": True,
+                    "signature": "{vt} {se}::fromRpy(vector3d rpy)",
                     "brief": "Construct a quaternion from roll/pitch/yaw in radians.",
                     "body": [
                         "Equivalent to \\l fromEulerAngles but in radians.",
@@ -348,7 +352,8 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     ],
                 },
                 {
-                    "signature": "{vt} {vt}::fromQuaternion(QQuaternion q)",
+                    "static_factory": True,
+                    "signature": "{vt} {se}::fromQuaternion(QQuaternion q)",
                     "brief": "Construct a quaternion from a \\l QQuaternion.",
                 },
             ],
@@ -374,6 +379,58 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                 "}}\n"
             ),
         },
+        {
+            # QML-invokable constructor from Qt's QQuaternion. QtQuick3D's
+            # Quaternion.fromEulerAngles() (and QtQuick's quaternion type) produce
+            # a QQuaternion whose real component is `scalar`, not `w`. When such a
+            # value is assigned to a ROS quaternion property, QML looks for a
+            # matching constructor; without this it finds none and rejects the
+            # assignment. Providing it makes the (common) mix-up "just work",
+            # mapping scalar -> w.
+            "is_computed": True,
+            "name": "qquaternionCtor",
+            "property_spec": None,
+            "getter_decl": None,
+            "setter_decl": None,
+            "extra_decls": [
+                "Q_INVOKABLE {cls}(const QQuaternion& q);",
+            ],
+            "extra_includes": [],
+            "extra_cpp_includes": [],
+            "cpp_impl_tmpl": (
+                "{ns}::{cls}::{cls}(const QQuaternion& q)\n"
+                "    :\n"
+                "      m_x(q.x()),\n"
+                "      m_y(q.y()),\n"
+                "      m_z(q.z()),\n"
+                "      m_w(q.scalar())\n"
+                "{{}}\n"
+            ),
+        },
+        {
+            # Alias of `w` matching QtQuick's quaternion value type (whose real
+            # component is named "scalar", not "w"). When QtQuick is imported,
+            # QQuaternion is a structured value type and QML converts it to this
+            # type by property NAME — without a "scalar" property the real
+            # component is dropped and w falls back to its default. This (the
+            # name-population path) and the Q_INVOKABLE QQuaternion constructor
+            # above (the constructor path, used when QtQuick is not imported) are
+            # complementary; both are needed to robustly map scalar -> w. Reuses
+            # the generated w()/setW(); not a stored member, not on the ROS wire.
+            "is_computed": True,
+            "name": "scalar",
+            "qt_type": "double",
+            "qt_prop_name": "scalar",
+            "qml_doc_type": "double",
+            "property_spec": "Q_PROPERTY(double scalar READ w WRITE setW)",
+            "getter_decl": None,
+            "setter_decl": None,
+            "brief_doc": "The scalar (real) component; an alias of \\l w.",
+            "doc_lines": [
+                "Lets a QtQuick \\l {QtQuick::}{quaternion} assigned to this type",
+                "map its \\c scalar onto \\c w (QML converts value types by name).",
+            ],
+        },
     ],
     "geometry_msgs/Vector3": [
         {
@@ -392,7 +449,8 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     "brief": "Return a single-precision \\l QVector3D with the same components.",
                 },
                 {
-                    "signature": "{vt} {vt}::fromVector3D(QVector3D v)",
+                    "static_factory": True,
+                    "signature": "{vt} {se}::fromVector3D(QVector3D v)",
                     "brief": "Construct from a single-precision \\l QVector3D.",
                 },
             ],
@@ -434,7 +492,8 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     "brief": "Return a single-precision \\l QVector3D with the same components.",
                 },
                 {
-                    "signature": "{vt} {vt}::fromVector3D(QVector3D v)",
+                    "static_factory": True,
+                    "signature": "{vt} {se}::fromVector3D(QVector3D v)",
                     "brief": "Construct from a single-precision \\l QVector3D.",
                 },
             ],
@@ -804,7 +863,7 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
             entry["extra_decls"] = [d.format(ns=qt_ns, cls=qt_cls) for d in entry["extra_decls"]]
         if entry.get("qml_methods"):
             entry["qml_methods"] = [
-                {**m, "signature": m["signature"].format(vt=vt)}
+                {**m, "signature": m["signature"].format(vt=vt, se=qt_cls)}
                 for m in entry["qml_methods"]
             ]
         field_infos.append(entry)
@@ -814,6 +873,85 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
         "field_infos": field_infos,
         "post_init_lines": post_init_lines,
     }
+
+
+# Matches a generated "Q_INVOKABLE static <ret> <name>(<params>)" declaration.
+_STATIC_FACTORY_RE = re.compile(
+    r'Q_INVOKABLE\s+static\s+(?P<ret>[\w:]+)\s+(?P<name>\w+)\s*\((?P<params>[^)]*)\)'
+)
+
+
+def _split_cpp_params(param_str: str) -> List[Dict[str, str]]:
+    """Split a C++ parameter list into {decl, name, base_type} descriptors."""
+    params: List[Dict[str, str]] = []
+    for raw in (p.strip() for p in param_str.split(',')):
+        if not raw:
+            continue
+        name_match = re.search(r'(\w+)\s*$', raw)
+        name = name_match.group(1) if name_match else ''
+        type_str = raw[:raw.rfind(name)].strip() if name else raw
+        base = re.sub(r'^const\s+', '', type_str).rstrip(' &').strip()
+        params.append({"decl": raw, "name": name, "base_type": base})
+    return params
+
+
+def build_factory_singleton(package_name: str, message_spec) -> Dict[str, Any]:
+    """Descriptors for a QML singleton (QRos2<Name>Utils) that re-exposes a value
+    type's `Q_INVOKABLE static` factory methods.
+
+    Static methods on a QML_VALUE_TYPE gadget are not callable from QML, so the
+    factories (e.g. quaternion::fromEulerAngles) are unreachable without a
+    companion QObject singleton — mirroring QtQuick3D's `Quaternion` helper.
+    Returns has_factories=False when the type has no static factories.
+    """
+    msg_name = message_spec.structure.namespaced_type.name
+    qt_ns = get_qt_namespace(package_name)
+    qt_cls = get_qt_class_name(package_name, msg_name)
+    qualified = f"{qt_ns}::{qt_cls}"
+
+    vt = build_value_type_descriptors(package_name, message_spec)
+    methods: List[Dict[str, Any]] = []
+    qml_method_docs: List[Dict[str, Any]] = []
+    for info in vt["field_infos"]:
+        if not info.get("is_computed"):
+            continue
+        for decl in info.get("extra_decls") or []:
+            m = _STATIC_FACTORY_RE.search(decl)
+            if not m:
+                continue
+            params = _split_cpp_params(m.group("params"))
+            methods.append({
+                "ret": qualified,
+                "name": m.group("name"),
+                "param_decls": ", ".join(p["decl"] for p in params),
+                "arg_names": ", ".join(p["name"] for p in params),
+                # QtQuick3D-style convenience: a 3-scalar overload for the common
+                # single-QVector3D factories (fromEulerAngles/fromRpy/fromVector3D).
+                "vector3_overload": len(params) == 1 and params[0]["base_type"] == "QVector3D",
+            })
+        for qm in info.get("qml_methods") or []:
+            if qm.get("static_factory"):
+                qml_method_docs.append(qm)
+
+    return {
+        "has_factories": bool(methods),
+        "methods": methods,
+        "qml_method_docs": qml_method_docs,
+        "qt_namespace": qt_ns,
+        "gadget_class": qt_cls,
+        "qualified_gadget": qualified,
+        "singleton_class": f"QRos2{qt_cls}Utils",
+        "qml_element": qt_cls,
+        "qml_value_type_name": get_qml_value_type_name(package_name, msg_name),
+        "qml_module_uri": get_qml_module_uri(package_name),
+        "value_type_include": f"{to_snake_case(msg_name)}.hpp",
+    }
+
+
+def value_type_has_static_factories(package_name: str, message_spec) -> bool:
+    """True if the value type has `Q_INVOKABLE static` factory methods that need a
+    companion QML singleton (see build_factory_singleton)."""
+    return build_factory_singleton(package_name, message_spec)["has_factories"]
 
 
 def _strip_blank_edges(lines: List[str]) -> List[str]:
