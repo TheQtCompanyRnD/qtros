@@ -4,6 +4,8 @@
 #include <QtTest/QtTest>
 #include <QtGui/QQuaternion>
 #include <QtGui/QVector3D>
+#include <QtMath>
+#include <cmath>
 
 #include <QtRos2GeometryMessages/msg/quaternion.hpp>
 #include <QtRos2GeometryMessages/msg/vector3.hpp>
@@ -29,6 +31,7 @@ private slots:
     void quaternion_roundtrip();
     void quaternion_default_w_is_one();
     void quaternion_from_qquaternion();
+    void quaternion_euler_double_precision();
     void vector3_roundtrip();
     void point_roundtrip();
     void pose_roundtrip();
@@ -73,6 +76,22 @@ void tst_geometry::quaternion_from_qquaternion()
     QVERIFY(qFuzzyCompare(float(q.y()), 0.7071f));
     QVERIFY(qFuzzyIsNull(float(q.x())));
     QVERIFY(qFuzzyIsNull(float(q.z())));
+}
+
+void tst_geometry::quaternion_euler_double_precision()
+{
+    // 30 deg pitch about Y (ROS euler: y component).
+    const Quaternion q = Quaternion::fromEulerAngles(QVector3D(0.0f, 30.0f, 0.0f));
+
+    const Vector3 deg = q.rpyDegrees(); // ROS vector3, degrees, double
+    const Vector3 rad = q.rpy();        // ROS vector3, radians, double
+
+    QVERIFY(std::abs(deg.y() - 30.0) < 1e-4);
+    QVERIFY(std::abs(rad.y() - qDegreesToRadians(30.0)) < 1e-6);
+    // rad and deg are the same value in different units (true double round-trip).
+    QVERIFY(std::abs(rad.y() - qDegreesToRadians(deg.y())) < 1e-12);
+    // eulerAngles is the float (QVector3D) view of rpyDegrees.
+    QCOMPARE(q.eulerAngles().y(), float(deg.y()));
 }
 
 void tst_geometry::vector3_roundtrip()

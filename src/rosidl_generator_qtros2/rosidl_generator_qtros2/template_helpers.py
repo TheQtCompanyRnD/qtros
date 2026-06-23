@@ -223,6 +223,9 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
     ],
     "geometry_msgs/Quaternion": [
         {
+            # Degrees, as a QVector3D (Qt convention + Qt type) so it binds
+            # directly to QtQuick3D's Node.eulerRotation. Derived from the
+            # double-precision rpy() core below (single source of truth).
             "is_computed": True,
             "name": "eulerAngles",
             "qt_type": "QVector3D",
@@ -247,32 +250,31 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     ],
                 },
             ],
-            "extra_includes": ["<QVector3D>"],
+            "extra_includes": ["<QVector3D>", "\"vector3.hpp\""],
             "extra_cpp_includes": ["<QQuaternion>"],
-            "brief_doc": "Orientation as Euler angles in degrees.",
+            "brief_doc": "Orientation as Euler angles in degrees, as a \\l vector3d.",
             "doc_lines": [
                 "Components are (\\c x = roll about X, \\c y = pitch about Y,",
-                "\\c z = yaw about Z) using the ROS Z-up axis convention.",
-                "Reading round-trips through \\l QQuaternion and may lose",
-                "precision near gimbal singularities (pitch = ±90°).",
+                "\\c z = yaw about Z) using the ROS Z-up axis convention. Single",
+                "precision (\\l QVector3D), for direct binding to Qt Quick 3D's",
+                "\\c eulerRotation.",
                 "",
-                "See also \\l rpy for the same angles in radians.",
+                "See \\l rpy for radians and \\l rpyDegrees for degrees as a",
+                "double-precision \\l vector3 (usable without Qt Quick).",
             ],
             "cpp_impl_tmpl": (
                 "QVector3D {ns}::{cls}::eulerAngles() const\n"
                 "{{\n"
-                "    const QQuaternion q(static_cast<float>(m_w),\n"
-                "                        static_cast<float>(m_x),\n"
-                "                        static_cast<float>(m_y),\n"
-                "                        static_cast<float>(m_z));\n"
-                "    const QVector3D pyr = q.toEulerAngles();\n"
-                "    return QVector3D(pyr.z(), pyr.x(), pyr.y());\n"
+                "    const {ns}::Vector3 deg = rpyDegrees();\n"
+                "    return QVector3D(static_cast<float>(deg.x()),\n"
+                "                     static_cast<float>(deg.y()),\n"
+                "                     static_cast<float>(deg.z()));\n"
                 "}}\n"
                 "\n"
-                "void {ns}::{cls}::setEulerAngles(const QVector3D& rpy)\n"
+                "void {ns}::{cls}::setEulerAngles(const QVector3D& eulerAngles)\n"
                 "{{\n"
                 "    const QQuaternion q =\n"
-                "        QQuaternion::fromEulerAngles(rpy.y(), rpy.z(), rpy.x());\n"
+                "        QQuaternion::fromEulerAngles(eulerAngles.y(), eulerAngles.z(), eulerAngles.x());\n"
                 "    m_x = q.x();\n"
                 "    m_y = q.y();\n"
                 "    m_z = q.z();\n"
@@ -288,21 +290,26 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
             ),
         },
         {
+            # Radians, as a ROS vector3 (ROS convention + ROS type): double
+            # precision, and usable from a QCoreApplication (no Qt Quick needed,
+            # unlike QVector3D's vector3d value type). This is the double-precision
+            # source of truth for the Euler decomposition; eulerAngles/rpyDegrees
+            # derive from it.
             "is_computed": True,
             "name": "rpy",
-            "qt_type": "QVector3D",
+            "qt_type": "Qtros2GeometryMsgs::Vector3",
             "qt_prop_name": "rpy",
-            "qml_doc_type": "vector3d",
-            "property_spec": "Q_PROPERTY(QVector3D rpy READ rpy WRITE setRpy)",
-            "getter_decl": "QVector3D rpy() const;",
-            "setter_decl": "void setRpy(const QVector3D& rpy);",
+            "qml_doc_type": "vector3",
+            "property_spec": "Q_PROPERTY(Qtros2GeometryMsgs::Vector3 rpy READ rpy WRITE setRpy)",
+            "getter_decl": "Qtros2GeometryMsgs::Vector3 rpy() const;",
+            "setter_decl": "void setRpy(const Qtros2GeometryMsgs::Vector3& rpy);",
             "extra_decls": [
-                "Q_INVOKABLE static {cls} fromRpy(const QVector3D& rpy);",
+                "Q_INVOKABLE static {cls} fromRpy(const Qtros2GeometryMsgs::Vector3& rpy);",
             ],
             "qml_methods": [
                 {
                     "static_factory": True,
-                    "signature": "{vt} {se}::fromRpy(vector3d rpy)",
+                    "signature": "{vt} {se}::fromRpy(vector3 rpy)",
                     "brief": "Construct a quaternion from roll/pitch/yaw in radians.",
                     "body": [
                         "Equivalent to \\l fromEulerAngles but in radians.",
@@ -310,33 +317,95 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                 },
             ],
             "extra_includes": [],
-            "extra_cpp_includes": ["<QtMath>"],
+            "extra_cpp_includes": ["<QtMath>", "<cmath>"],
             "brief_doc": "Orientation as roll/pitch/yaw in radians (ROS convention).",
             "doc_lines": [
-                "Components are (\\c x = roll, \\c y = pitch, \\c z = yaw).",
-                "Equivalent to \\l eulerAngles but in radians; the same",
-                "singularity caveats apply.",
+                "Components are (\\c x = roll, \\c y = pitch, \\c z = yaw) in radians,",
+                "as a double-precision \\l vector3. This is the ROS-native form and,",
+                "unlike \\l eulerAngles, is usable from a \\c QCoreApplication (it does",
+                "not need the Qt Quick \\c vector3d value type).",
+                "",
+                "Precision may still degrade near gimbal singularities (pitch = ±90°).",
             ],
             "cpp_impl_tmpl": (
-                "QVector3D {ns}::{cls}::rpy() const\n"
+                "{ns}::Vector3 {ns}::{cls}::rpy() const\n"
                 "{{\n"
-                "    const QVector3D deg = eulerAngles();\n"
-                "    return QVector3D(qDegreesToRadians(deg.x()),\n"
-                "                     qDegreesToRadians(deg.y()),\n"
-                "                     qDegreesToRadians(deg.z()));\n"
+                "    // Double-precision quaternion -> (roll, pitch, yaw) in radians,\n"
+                "    // matching QQuaternion::toEulerAngles()'s convention (ROS axes:\n"
+                "    // x = roll about X, y = pitch about Y, z = yaw about Z).\n"
+                "    const double len = std::sqrt(m_x * m_x + m_y * m_y + m_z * m_z + m_w * m_w);\n"
+                "    const bool rescale = !qFuzzyIsNull(len);\n"
+                "    const double x = rescale ? m_x / len : m_x;\n"
+                "    const double y = rescale ? m_y / len : m_y;\n"
+                "    const double z = rescale ? m_z / len : m_z;\n"
+                "    const double w = rescale ? m_w / len : m_w;\n"
+                "    const double xx = x * x, xy = x * y, xz = x * z, xw = x * w;\n"
+                "    const double yy = y * y, yz = y * z, yw = y * w;\n"
+                "    const double zz = z * z, zw = z * w;\n"
+                "    constexpr double epsilon = 1e-12;\n"
+                "    double roll, pitch, yaw;\n"
+                "    const double sinp = -2.0 * (yz - xw);\n"
+                "    if (std::abs(sinp) < 1.0 - epsilon) {{\n"
+                "        pitch = std::asin(sinp);\n"
+                "        yaw = std::atan2(2.0 * (xz + yw), 1.0 - 2.0 * (xx + yy));\n"
+                "        roll = std::atan2(2.0 * (xy + zw), 1.0 - 2.0 * (xx + zz));\n"
+                "    }} else {{\n"
+                "        // Gimbal lock: no unique solution; use XY rotation.\n"
+                "        pitch = std::copysign(M_PI / 2.0, sinp);\n"
+                "        yaw = 2.0 * std::atan2(y, w);\n"
+                "        roll = 0.0;\n"
+                "    }}\n"
+                "    {ns}::Vector3 r;\n"
+                "    r.setX(roll);\n"
+                "    r.setY(pitch);\n"
+                "    r.setZ(yaw);\n"
+                "    return r;\n"
                 "}}\n"
                 "\n"
-                "void {ns}::{cls}::setRpy(const QVector3D& rpy)\n"
+                "void {ns}::{cls}::setRpy(const {ns}::Vector3& rpy)\n"
                 "{{\n"
-                "    setEulerAngles(QVector3D(qRadiansToDegrees(rpy.x()),\n"
-                "                             qRadiansToDegrees(rpy.y()),\n"
-                "                             qRadiansToDegrees(rpy.z())));\n"
+                "    setEulerAngles(QVector3D(static_cast<float>(qRadiansToDegrees(rpy.x())),\n"
+                "                             static_cast<float>(qRadiansToDegrees(rpy.y())),\n"
+                "                             static_cast<float>(qRadiansToDegrees(rpy.z()))));\n"
                 "}}\n"
                 "\n"
-                "{ns}::{cls} {ns}::{cls}::fromRpy(const QVector3D& rpy)\n"
+                "{ns}::{cls} {ns}::{cls}::fromRpy(const {ns}::Vector3& rpy)\n"
                 "{{\n"
                 "    {ns}::{cls} r;\n"
                 "    r.setRpy(rpy);\n"
+                "    return r;\n"
+                "}}\n"
+            ),
+        },
+        {
+            # Degrees, as a ROS vector3: double precision and usable without Qt
+            # Quick (e.g. a headless QCoreApplication daemon whose motor controller
+            # works in degrees). Read-only; construct via fromEulerAngles.
+            "is_computed": True,
+            "name": "rpyDegrees",
+            "qt_type": "Qtros2GeometryMsgs::Vector3",
+            "qt_prop_name": "rpyDegrees",
+            "qml_doc_type": "vector3",
+            "property_spec": "Q_PROPERTY(Qtros2GeometryMsgs::Vector3 rpyDegrees READ rpyDegrees)",
+            "getter_decl": "Qtros2GeometryMsgs::Vector3 rpyDegrees() const;",
+            "setter_decl": None,
+            "extra_includes": [],
+            "extra_cpp_includes": ["<QtMath>"],
+            "brief_doc": "Orientation as roll/pitch/yaw in degrees, as a \\l vector3.",
+            "doc_lines": [
+                "Components are (\\c x = roll, \\c y = pitch, \\c z = yaw) in degrees,",
+                "as a double-precision \\l vector3. Like \\l rpy (and unlike",
+                "\\l eulerAngles) it is usable without Qt Quick — convenient for a",
+                "headless \\c QCoreApplication consumer that works in degrees.",
+            ],
+            "cpp_impl_tmpl": (
+                "{ns}::Vector3 {ns}::{cls}::rpyDegrees() const\n"
+                "{{\n"
+                "    const {ns}::Vector3 rad = rpy();\n"
+                "    {ns}::Vector3 r;\n"
+                "    r.setX(qRadiansToDegrees(rad.x()));\n"
+                "    r.setY(qRadiansToDegrees(rad.y()));\n"
+                "    r.setZ(qRadiansToDegrees(rad.z()));\n"
                 "    return r;\n"
                 "}}\n"
             ),

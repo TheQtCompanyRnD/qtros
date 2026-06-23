@@ -72,6 +72,17 @@ TestCase {
         fuzzyCompare(q.rpy.y, 0.5, 1e-4)
     }
 
+    // rpy is a ROS vector3 (radians), rpyDegrees a ROS vector3 (degrees) — both
+    // double precision and readable without QtQuick; eulerAngles (QVector3D,
+    // degrees) must agree with rpyDegrees, and rpy must be rpyDegrees in radians.
+    function test_rpy_rpyDegrees_eulerAngles_agree() {
+        let q = Ros.Quaternion.fromEulerAngles(Qt.vector3d(0, 30, 0))
+        fuzzyCompare(q.rpyDegrees.y, 30, 1e-3)
+        fuzzyCompare(q.rpyDegrees.y, q.eulerAngles.y, 1e-3)
+        fuzzyCompare(q.rpy.y, 30 * Math.PI / 180, 1e-4)
+        fuzzyCompare(q.rpy.y, q.rpyDegrees.y * Math.PI / 180, 1e-9)
+    }
+
     // toQuaternion() yields a QtQuick quaternion whose scalar == w.
     function test_toQuaternion_scalar_is_w() {
         let q = Ros.Quaternion.fromEulerAngles(Qt.vector3d(0, 90, 0))
