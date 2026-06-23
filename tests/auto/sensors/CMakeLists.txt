@@ -23,10 +23,13 @@ qt_internal_extend_target(tst_sensors_qml CONDITION NOT ANDROID AND NOT IOS
 
 # C++ QTest for the QImage conversions (Image -> QImage, CompressedImage <-> QImage),
 # which can't be built/compared from QML. Qt::Gui provides QImage.
-qt_internal_add_test(tst_sensors
-    SOURCES
-        tst_sensors.cpp
-    LIBRARIES
-        Qt::Gui
-        QtRos2SensorMessages
-)
+# In-tree builds only — see tests/auto/geometry.
+if(QT_BUILDING_QT)
+    qt_internal_add_test(tst_sensors
+        SOURCES
+            tst_sensors.cpp
+        LIBRARIES
+            Qt::Gui
+            QtRos2SensorMessages
+    )
+endif()

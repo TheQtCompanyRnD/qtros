@@ -22,9 +22,12 @@ qt_internal_extend_target(tst_standard_qml CONDITION NOT ANDROID AND NOT IOS
         QT_QMLTEST_DATADIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
 )
 
-qt_internal_add_test(tst_standard
-    SOURCES
-        tst_standard.cpp
-    LIBRARIES
-        QtRos2StandardMessages
-)
+# C++ QTest (gadget <-> ROS struct). In-tree builds only — see tests/auto/geometry.
+if(QT_BUILDING_QT)
+    qt_internal_add_test(tst_standard
+        SOURCES
+            tst_standard.cpp
+        LIBRARIES
+            QtRos2StandardMessages
+    )
+endif()

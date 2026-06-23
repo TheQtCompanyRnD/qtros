@@ -34,10 +34,16 @@ qt_internal_extend_target(tst_geometry_qml CONDITION NOT ANDROID AND NOT IOS
 )
 
 # C++ QTest: gadget <-> ROS C++ message struct round-trips (not reachable from QML).
-qt_internal_add_test(tst_geometry
-    SOURCES
-        tst_geometry.cpp
-    LIBRARIES
-        Qt::Gui
-        QtRos2GeometryMessages
-)
+# In-tree (developer) builds only: it links the message module as a C++ library,
+# which standalone consumers (qt-cmake-standalone-test) can't yet resolve because
+# the exported module config doesn't find_package its ROS / sibling deps. The QML
+# tests above cover the QML API and build standalone.
+if(QT_BUILDING_QT)
+    qt_internal_add_test(tst_geometry
+        SOURCES
+            tst_geometry.cpp
+        LIBRARIES
+            Qt::Gui
+            QtRos2GeometryMessages
+    )
+endif()
