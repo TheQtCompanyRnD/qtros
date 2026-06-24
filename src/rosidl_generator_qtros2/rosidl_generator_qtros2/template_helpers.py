@@ -114,6 +114,15 @@ _VALUE_TYPE_EXTRA_DOC: Dict[str, List[List[str]]] = {
             "\\l QQuaternion when its math API (slerp, normalize, multiplication)",
             "is needed.",
         ],
+        [
+            "A literal value is a JavaScript object such as",
+            "\\c {({ x: 0, y: 0, z: 0, w: 1 })} (\\c w defaults to \\c 1). The",
+            "\\l {QtRos2.GeometryMsgs::}{Quaternion} helper's",
+            "\\l {QtRos2.GeometryMsgs::Quaternion::}{fromEulerAngles} takes ROS",
+            "roll/pitch/yaw (about X/Y/Z, Z-up) in degrees; do not use QtQuick3D's",
+            "\\c Quaternion, whose argument order is pitch/yaw/roll in a Y-up frame,",
+            "or the axes come out wrong when published to ROS.",
+        ],
     ],
     "geometry_msgs/Vector3": [
         [

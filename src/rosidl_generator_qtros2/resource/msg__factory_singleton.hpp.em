@@ -34,33 +34,10 @@ qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 #include <QObject>
 #include <QtQml/qqmlregistration.h>
 
+@# Note: the \qmltype / \qmlmethod documentation lives in the generated
+@# _utils.cpp (a qdoc sourcedir), not here -- qdoc does not emit a QML type page
+@# for a type documented only in a header.
 @[if fs['has_factories']]@
-/*!
-    \qmltype @(fs['qml_element'])
-    \inqmlmodule @(fs['qml_module_uri'])
-    \brief Factory functions for constructing \l @(fs['qml_value_type_name']) values.
-
-    A singleton helper (mirroring QtQuick3D's \c Quaternion type) that exposes
-    the \l @(fs['qml_value_type_name']) factory functions to QML — static methods
-    on a QML value type are not otherwise callable. For example:
-    \c {@(fs['qml_element']).fromEulerAngles(0, 90, 0)}.
-*/
-
-@[for m in fs['qml_method_docs']]@
-/*!
-    \qmlmethod @(m['signature'])
-@[  if m.get('brief')]@
-    \brief @(m['brief'])
-@[    if m.get('body')]@
-
-@[      for line in m['body']]@
-    @(line)
-@[      end for]@
-@[    end if]@
-@[  end if]@
-*/
-
-@[end for]@
 class @(qt_export_macro) @(fs['singleton_class']) : public QObject
 {
     Q_OBJECT

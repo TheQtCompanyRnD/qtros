@@ -17,6 +17,7 @@ from rosidl_generator_qtros2.template_helpers import (
     extract_doc_info,
     value_type_brief_override,
     value_type_extra_doc,
+    value_type_has_static_factories,
 )
 
 context = build_message_context(package_name, message)
@@ -41,6 +42,7 @@ deprecated = doc_info['deprecated']
 deprecated_since = doc_info['deprecated_since']
 deprecated_tag = ('[' + deprecated_since + '] ') if deprecated_since else ''
 extra_type_doc = value_type_extra_doc(package_name, message)
+has_factories = value_type_has_static_factories(package_name, message)
 }@
 #include "@(header_file).hpp"
 @[for info in field_infos]@
@@ -82,7 +84,20 @@ extra_type_doc = value_type_extra_doc(package_name, message)
 @[  end for]@
 @[end for]@
 
+@[if has_factories]@
+    Construct a @(qml_value_type_name) in QML by assigning a JavaScript object
+    whose keys are its component properties, by setting those properties
+    individually, or by composing it with a factory function of the
+    \l {@(qml_module_uri)::}{@(qt_class_name)} helper type.
+
+    \sa {@(qml_module_uri)::}{@(qt_class_name)}, @(qt_class_name)Publisher, @(qt_class_name)Subscriber
+@[else]@
+    Construct a @(qml_value_type_name) in QML by assigning a JavaScript object
+    whose keys are its component properties, or by setting those properties
+    individually.
+
     \sa @(qt_class_name)Publisher, @(qt_class_name)Subscriber
+@[end if]@
 */
 
 @[for info in field_infos]@

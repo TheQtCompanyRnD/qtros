@@ -167,9 +167,13 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
             # static methods are not callable on a QML value type directly.
             from .template_helpers import value_type_has_static_factories
             if value_type_has_static_factories(namespace_package, message_spec):
-                templates.append(
-                    ('msg__factory_singleton.hpp.em', out_subdir / f"{base_name}_utils.hpp")
-                )
+                templates.extend([
+                    ('msg__factory_singleton.hpp.em', out_subdir / f"{base_name}_utils.hpp"),
+                    # The singleton's \qmltype/\qmlmethod docs go in a .cpp (a qdoc
+                    # sourcedir) so its QML type page is generated; qdoc does not emit
+                    # a page for a \qmltype documented only in a header.
+                    ('msg__factory_singleton.cpp.em', out_src_subdir / f"{base_name}_utils.cpp"),
+                ])
 
         if emit_pub_sub:
             templates.extend([
