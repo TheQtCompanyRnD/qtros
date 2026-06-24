@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 add_subdirectory(geometry)
+add_subdirectory(nodelifecycle)
 add_subdirectory(sensors)
 add_subdirectory(shutdown)
 add_subdirectory(standard)

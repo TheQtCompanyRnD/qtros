@@ -251,6 +251,14 @@ void QRos2Node::registerEntity(QRos2Entity* entity)
 
 void QRos2Node::unregisterEntity(QRos2Entity* entity)
 {
+    // When this node is deleting its children (the ~QObject phase), our member
+    // m_entities has already been destroyed; a child entity's destructor calling
+    // back here must not touch the freed list. QObjectData::isDeletingChildren
+    // marks exactly that window. Normal unregistration (node still alive) is
+    // unaffected, as the flag is false then.
+    if (d_ptr->isDeletingChildren)
+        return;
+
     qCInfo(lcNode) << "removing" << entity;
     m_entities.removeOne(entity);
 
