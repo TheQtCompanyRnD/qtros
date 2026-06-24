@@ -7,6 +7,7 @@
 #include <rclcpp/executors/single_threaded_executor.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include <QtCore/qcoreapplication.h>
 #include <QtCore/qdebug.h>
 #include <QtCore/qlist.h>
 
@@ -92,6 +93,18 @@ void QRos2Context::initialize(int argc, char **argv, bool useMultithreadedExecut
     qCInfo(lcCtx) << "init context with args" << args << "threads?" << useMultithreadedExecutor << threadCount;
 
     rclcpp::init(argc, argv);
+
+    // rclcpp's signal handler calls rclcpp::shutdown() on SIGINT/SIGTERM but does not stop
+    // the Qt event loop, so the process would otherwise stay alive and have to be killed
+    // (SIGKILL skips destructors, leaving the DDS participant's FastDDS shared-memory port
+    // mutex locked and deadlocking the next process to start). Quitting the event loop lets
+    // main() return normally so nodes and ~QRos2Context tear down the participant cleanly.
+    // rclcpp dispatches on_shutdown from its own thread, so post the quit via a queued
+    // connection. Guarding on instance() also covers headless QCoreApplication daemons.
+    rclcpp::on_shutdown([] {
+        if (auto *app = QCoreApplication::instance())
+            QMetaObject::invokeMethod(app, &QCoreApplication::quit, Qt::QueuedConnection);
+    });
 
     if (useMultithreadedExecutor) {
         rclcpp::ExecutorOptions options;

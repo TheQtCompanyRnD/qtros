@@ -3,6 +3,7 @@
 
 add_subdirectory(geometry)
 add_subdirectory(sensors)
+add_subdirectory(shutdown)
 add_subdirectory(standard)
 add_subdirectory(urdfimport)
 add_subdirectory(urdfimportros)
