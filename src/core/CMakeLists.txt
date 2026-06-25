@@ -17,6 +17,7 @@ qt_internal_add_module(Ros2Core
         qros2node_p.h qros2node.cpp
         qros2entity_p.h qros2entity.cpp
         qros2publisherbase_p.h qros2publisherbase.cpp
+        qros2stampedpublisherbase_p.h qros2stampedpublisherbase.cpp
         qros2subscriberbase_p.h qros2subscriberbase.cpp
         qros2serviceclientbase_p.h qros2serviceclientbase.cpp
         qros2actionclientbase_p.h qros2actionclientbase.cpp

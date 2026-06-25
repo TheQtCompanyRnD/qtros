@@ -21,6 +21,7 @@ Window {
 
         PoseStampedPublisher {
             id: posePublisher
+            autoStamp: autoStampSwitch.checked
             topic: topicField.text
         }
     }
@@ -56,6 +57,16 @@ Window {
         }
 
         Label {
+            text: qsTr("Frame")
+            font.bold: true
+        }
+        TextField {
+            id: frameField
+            Layout.fillWidth: true
+            text: "map"
+        }
+
+        Label {
             text: qsTr("Observe with")
             font.bold: true
         }
@@ -70,14 +81,11 @@ Window {
             enabled: rosNode.initialized
 
             onClicked: {
-                const now = Date.now()
+                // header.stamp intentionally left blank: the publisher fills it from the
+                // ROS node clock (not Qt time) at publish time when autoStamp is true (the default).
                 const msg = {
                     "header": {
-                        "frameId": "map",
-                        "stamp": {
-                            "sec": Math.floor(now / 1000),
-                            "nanosec": Math.floor((now % 1000) * 1e6)
-                        }
+                        "frameId": frameField.text
                     },
                     "pose": {
                         "position": {
@@ -94,9 +102,13 @@ Window {
                             msg, null, 2)}`
             }
         }
+        Switch {
+            id: autoStampSwitch
+            text: qsTr("Automatic time stamp")
+            checked: true
+        }
 
         TextArea {
-            Layout.row: 6
             Layout.columnSpan: 2
             Layout.fillWidth: true
             Layout.fillHeight: true

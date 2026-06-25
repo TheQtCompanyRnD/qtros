@@ -599,6 +599,28 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
 }
 
 
+def message_has_header(message_spec) -> bool:
+    """True if the message is "stamped": its first field is a std_msgs/Header
+    named ``header`` (the ROS convention for messages carrying a timestamp and
+    frame_id, e.g. PoseStamped, LaserScan, JointState).
+
+    Publishers for such messages derive from QRos2StampedPublisherBase and can
+    auto-fill header.stamp from the node clock at publish time.
+    """
+    members = message_spec.structure.members
+    if not members:
+        return False
+    first = members[0]
+    field_type = first.type
+    # rosidl namespaces include the "msg" segment, e.g. std_msgs::msg::Header.
+    return (
+        first.name == "header"
+        and isinstance(field_type, NamespacedType)
+        and list(field_type.namespaces) == ["std_msgs", "msg"]
+        and field_type.name == "Header"
+    )
+
+
 def build_message_context(package_name: str, message_spec, *, ros_include_override: str | None = None) -> Dict[str, Any]:
     """Prepare commonly used identifiers for message templates."""
     ns_list = message_spec.structure.namespaced_type.namespaces
@@ -607,6 +629,7 @@ def build_message_context(package_name: str, message_spec, *, ros_include_overri
     ros_include_parts = ns_list + [header_file]
     ros_include = ros_include_override or "/".join(ros_include_parts) + ".hpp"
 
+    has_header = message_has_header(message_spec)
     return {
         "qt_namespace": get_qt_namespace(package_name),
         "qt_class_name": get_qt_class_name(package_name, msg_name),
@@ -617,6 +640,9 @@ def build_message_context(package_name: str, message_spec, *, ros_include_overri
         "ros_include": ros_include,
         "header_file": header_file,
         "value_type_include": f"{header_file}.hpp",
+        "message_has_header": has_header,
+        # Stamped messages get the extra autoStamp machinery via this base.
+        "publisher_base": "QRos2StampedPublisherBase" if has_header else "QRos2PublisherBase",
     }
 
 

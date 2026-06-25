@@ -26,6 +26,8 @@ qml_module_uri = context['qml_module_uri']
 ros_msg_type = context['ros_msg_type']
 ros_include = context['ros_include']
 header_file = context['header_file']
+message_has_header = context['message_has_header']
+publisher_base = context['publisher_base']
 sf = build_single_field_info(package_name, message)
 fps = build_field_props_for_pubsub(package_name, message)
 doc_info = extract_doc_info(message, interface_path=interface_path)
@@ -106,7 +108,7 @@ namespace @(qt_namespace) {
 @[  end for]@
 @[end if]@
 @(qt_class_name)Publisher::@(qt_class_name)Publisher(QObject* parent)
-    : QRos2PublisherBase(parent)
+    : @(publisher_base)(parent)
 {
 }
 
@@ -118,6 +120,9 @@ void @(qt_class_name)Publisher::publishStoredState()
     }
 
     auto ros_msg = static_cast<@(ros_msg_type)>(m_message);
+@[if message_has_header]@
+    applyAutoStamp(ros_msg.header.stamp);
+@[end if]@
     m_publisher->publish(ros_msg);
 }
 
@@ -153,6 +158,9 @@ void @(qt_class_name)Publisher::publish(const @(qt_class_name_full)& msg)
     }
 
     auto ros_msg = static_cast<@(ros_msg_type)>(msg);
+@[if message_has_header]@
+    applyAutoStamp(ros_msg.header.stamp);
+@[end if]@
     m_publisher->publish(ros_msg);
 }
 @[end if]@

@@ -24,6 +24,8 @@ qt_class_name_full = context['qt_class_name_full']
 ros_msg_type = context['ros_msg_type']
 ros_include = context['ros_include']
 value_type_include = context['value_type_include']
+message_has_header = context['message_has_header']
+publisher_base = context['publisher_base']
 header_guard = build_include_guard(package_name, 'msg', context['header_file'] + '_publisher')
 qt_export_macro = f'Q_{qt_module_name.upper()}_EXPORT'
 qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
@@ -41,6 +43,9 @@ fps = build_field_props_for_pubsub(package_name, message)
 #endif
 
 #include <QtRos2Core/private/qros2publisherbase_p.h>
+@[if message_has_header]@
+#include <QtRos2Core/private/qros2stampedpublisherbase_p.h>
+@[end if]@
 @[if sf]@
 @[  if sf['extra_inc'] and not sf['extra_inc'].endswith('.hpp')]@
 #include @(sf['extra_inc'])
@@ -63,7 +68,7 @@ namespace @(qt_namespace) {
  * Publishes @(qt_class_name) messages to a ROS 2 topic.
  * Can be used directly in QML.
  */
-class @(qt_export_macro) @(qt_class_name)Publisher : public QRos2PublisherBase
+class @(qt_export_macro) @(qt_class_name)Publisher : public @(publisher_base)
 {
     Q_OBJECT
     QML_ELEMENT
