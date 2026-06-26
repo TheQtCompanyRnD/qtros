@@ -62,6 +62,7 @@ Item {
             id: robotRoot
 {% if ros %}
             control: robotControl
+            baseOrientation: rosBridge.baseOrientation
 {% else %}
             control: {{ base_name }}Control {}
 {% endif %}

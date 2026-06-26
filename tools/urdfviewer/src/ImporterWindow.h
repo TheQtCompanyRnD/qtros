@@ -83,6 +83,7 @@ private:
     // ROS Bridge
     QCheckBox *m_rosBridgeCheck = nullptr;
     QLineEdit *m_jointStatesTopicEdit = nullptr;
+    QLineEdit *m_bodyPoseTopicEdit = nullptr;
 
     // Physics
     QCheckBox *m_physicsCheck = nullptr;

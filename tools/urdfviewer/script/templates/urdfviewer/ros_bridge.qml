@@ -1,8 +1,10 @@
 import QtQuick
 import QtRos2.Core as Ros2
 import QtRos2.SensorMsgs as SensorMsgs
+import QtRos2.GeometryMsgs as GeometryMsgs
 
-// Subscribes to a ROS 2 /joint_states topic and drives a {{ base_name }}Control object.
+// Subscribes to a ROS 2 /joint_states topic (driving a {{ base_name }}Control object)
+// and a body-pose topic (driving baseOrientation, e.g. from an IMU).
 // Embed this component alongside your 3D scene; it has no visual appearance.
 //
 // Usage:
@@ -20,6 +22,12 @@ QtObject {
     // Topic to subscribe to. Override for namespaced robots, e.g.:
     //   jointStateTopic: "/my_robot/joint_states"
     property string jointStateTopic: "{{ joint_states_topic }}"
+
+    // Orientation of the floating base, driven from a PoseStamped (body-pose) topic
+    // such as an IMU/odometry source. Bind a model's baseOrientation to this; the
+    // model applies it in scene space, so toQuaternion() is used as-is.
+    property quaternion baseOrientation: Qt.quaternion(1, 0, 0, 0)
+    property string bodyPoseTopic: "{{ body_pose_topic }}"
 
     // Maps ROS joint names to QML property names on {{ base_name }}Control.
     // Generated from URDF at export time; update when joint names change.
@@ -44,6 +52,14 @@ QtObject {
                             root.control[prop] = positions[i]
                     }
 		}
+            }
+        }
+
+        GeometryMsgs.PoseStampedSubscriber {
+            topic: root.bodyPoseTopic
+            onMessageReceived: (msg) => {
+                if (root.processMessages)
+                    root.baseOrientation = msg.pose.orientation.toQuaternion()
             }
         }
     }

@@ -48,15 +48,17 @@ add_subdirectory(Generated)
 # --- ROS Bridge dependencies (requires Qt ROS2 bridge installed) ---
 find_package(Qt6 REQUIRED COMPONENTS Ros2Core)
 find_package(qtros2_sensor_msgs REQUIRED)
+find_package(qtros2_geometry_msgs REQUIRED)
 
 qt_ros2_configure_target(Robot_{{ base_name }}
     CAPABILITIES SUBSCRIBER
-    MODULES QtRos2SensorMessages
+    MODULES QtRos2SensorMessages QtRos2GeometryMessages
 )
 
 target_link_libraries(Robot_{{ base_name }} PUBLIC
     Qt6::Ros2Core
     qtros2_sensor_msgs::qtros2_sensor_msgs_qtcpp
+    qtros2_geometry_msgs::qtros2_geometry_msgs_qtcpp
 )
 {% endif %}
 {% if physics %}

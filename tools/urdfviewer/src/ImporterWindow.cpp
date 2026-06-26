@@ -177,8 +177,11 @@ void ImporterWindow::buildUi()
         QStringLiteral("Enable ROS Bridge preview"), rosGroup);
     m_jointStatesTopicEdit = new QLineEdit(QStringLiteral("/joint_states"), rosGroup);
     m_jointStatesTopicEdit->setEnabled(false);
+    m_bodyPoseTopicEdit = new QLineEdit(QStringLiteral("/body_pose/state"), rosGroup);
+    m_bodyPoseTopicEdit->setEnabled(false);
     rosLayout->addRow(QString(), m_rosBridgeCheck);
     rosLayout->addRow(QStringLiteral("Joint States Topic"), m_jointStatesTopicEdit);
+    rosLayout->addRow(QStringLiteral("Body Pose Topic"), m_bodyPoseTopicEdit);
 
     // Physics group
     auto *physicsGroup = new QGroupBox(QStringLiteral("Physics"), leftPanel);
@@ -224,6 +227,7 @@ void ImporterWindow::buildUi()
     });
     connect(m_rosBridgeCheck, &QCheckBox::toggled, this, [this](bool checked) {
         m_jointStatesTopicEdit->setEnabled(checked);
+        m_bodyPoseTopicEdit->setEnabled(checked);
     });
 
 }
@@ -358,8 +362,9 @@ void ImporterWindow::setUnitsPerMeter(double v)
 
 void ImporterWindow::setTopicPrefix(const QString &pfx)
 {
-    m_jointStatesTopicEdit->setText((pfx.startsWith('/') ? pfx : '/' + pfx) +
-                                    m_jointStatesTopicEdit->text());
+    const QString prefix = pfx.startsWith('/') ? pfx : '/' + pfx;
+    m_jointStatesTopicEdit->setText(prefix + m_jointStatesTopicEdit->text());
+    m_bodyPoseTopicEdit->setText(prefix + m_bodyPoseTopicEdit->text());
 }
 
 void ImporterWindow::runPreview()
@@ -578,6 +583,10 @@ QStringList ImporterWindow::buildExporterArguments(
         const QString topic = m_jointStatesTopicEdit->text().trimmed();
         if (!topic.isEmpty()) {
             args << QStringLiteral("--joint-states-topic") << topic;
+        }
+        const QString poseTopic = m_bodyPoseTopicEdit->text().trimmed();
+        if (!poseTopic.isEmpty()) {
+            args << QStringLiteral("--body-pose-topic") << poseTopic;
         }
     }
 

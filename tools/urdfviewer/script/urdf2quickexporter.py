@@ -1625,8 +1625,10 @@ def generate_ros_bridge_qml(
     base_name: str,
     model: "RobotModel",
     joint_states_topic: str = "/joint_states",
+    body_pose_topic: str = "/body_pose",
 ) -> str:
-    """Return a standalone ROS-bridge component that drives a {base_name}Control from /joint_states."""
+    """Return a standalone ROS-bridge component that drives a {base_name}Control from
+    /joint_states and the model's baseOrientation from a body-pose topic."""
     joint_map = [
         {"ros_name": j.name, "qml_prop": joint_prop_name(j)}
         for j in _movable_joints(model)
@@ -1634,6 +1636,7 @@ def generate_ros_bridge_qml(
     return _make_env().get_template("ros_bridge.qml").render(
         base_name=base_name,
         joint_states_topic=joint_states_topic,
+        body_pose_topic=body_pose_topic,
         joint_map=joint_map,
     )
 
@@ -1644,11 +1647,12 @@ def write_ros_bridge_qml(
     out_dir: str,
     *,
     joint_states_topic: str = "/joint_states",
+    body_pose_topic: str = "/body_pose",
     header_comment: Optional[str] = None,
 ) -> None:
     """Write RosBridge.qml — a reusable ROS 2 subscriber component."""
     qml_path = os.path.join(out_dir, "RosBridge.qml")
-    qml = generate_ros_bridge_qml(base_name, model, joint_states_topic)
+    qml = generate_ros_bridge_qml(base_name, model, joint_states_topic, body_pose_topic)
     if header_comment:
         qml = f"// {header_comment}\n" + qml
     with open(qml_path, "w", encoding="utf-8") as f:
@@ -2156,6 +2160,13 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help="ROS2 topic to subscribe to for joint states when --ros-bridge is used (default: /joint_states).",
     )
     parser.add_argument(
+        "--body-pose-topic",
+        dest="body_pose_topic",
+        default="/body_pose",
+        help="ROS2 PoseStamped topic driving the model's base orientation (e.g. IMU/body pose) "
+             "when --ros-bridge is used (default: /body_pose).",
+    )
+    parser.add_argument(
         "--physics",
         dest="physics",
         action="store_true",
@@ -2240,6 +2251,7 @@ def _manifest_invocation(args: argparse.Namespace) -> Dict[str, Any]:
         "license_source": os.path.abspath(args.license_source) if args.license_source else None,
         "ros_bridge": bool(args.ros_bridge),
         "joint_states_topic": args.joint_states_topic,
+        "body_pose_topic": args.body_pose_topic,
         "physics": bool(args.physics),
         "no_main_qml": bool(args.no_main_qml),
         "no_preview_scene": bool(args.no_preview_scene),
@@ -2490,6 +2502,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 model,
                 robot_dir,
                 joint_states_topic=args.joint_states_topic,
+                body_pose_topic=args.body_pose_topic,
                 header_comment=header_comment,
             )
             manifest["files"]["ros_bridge_qml"] = os.path.abspath(ros_bridge_qml_path)
