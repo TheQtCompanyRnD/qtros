@@ -193,14 +193,25 @@ Node {
 
 {{ indent }}function toEulerAngle(radians) { return radians * (180 / Math.PI) }
 
+{{ indent }}// Orientation of the floating base (the root link), applied in *scene* space.
+{{ indent }}// Bind to a body-pose / odometry source via the bridge, e.g.
+{{ indent }}// poseSubscriber.pose.orientation.toQuaternion() (a QtQuick3D-frame quaternion).
+{{ indent }}// Identity by default, so a fixed-base robot (arm on a bench, mill) can ignore
+{{ indent }}// it. Articulation is driven separately by joint_states; this is the one
+{{ indent }}// transform a joint can't provide.
+{{ indent }}property quaternion baseOrientation: Qt.quaternion(1, 0, 0, 0)
 
 {% for a in aliases %}
 {{ indent }}{{ a }}
 {% endfor %}
 
 {% if axis_transform %}
-{{ indent }}// Convert to Y-up
-{{ indent }}rotation: {{ quat([-pi/2, -pi/2, 0]) }}
+{{ indent }}// baseOrientation (scene space) ∘ Convert-to-Y-up (R_conv): apply the body
+{{ indent }}// orientation outside the Z-up→Y-up geometry conversion, so a pitch reads as
+{{ indent }}// a pitch (R_conv ∘ baseOrientation would act in Z-up and pitch-as-roll).
+{{ indent }}rotation: baseOrientation.times({{ quat([-pi/2, -pi/2, 0]) }})
+{% else %}
+{{ indent }}rotation: baseOrientation
 {% endif %}
 
 {{ render(root, 1, true) }}
