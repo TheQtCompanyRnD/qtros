@@ -127,7 +127,7 @@ function(qt_ros2_configure_target _qt_ros2_app_target)
     rcl_interfaces composition_interfaces type_description_interfaces
     diagnostic_msgs lifecycle_msgs rosgraph_msgs shape_msgs
     sensor_msgs statistics_msgs nav_msgs trajectory_msgs
-    stereo_msgs visualization_msgs)
+    stereo_msgs visualization_msgs tf2_msgs)
     if(NOT ${_ros2_pkg}_FOUND)
       find_package(${_ros2_pkg} QUIET)
     endif()
@@ -169,6 +169,7 @@ function(qt_ros2_configure_target _qt_ros2_app_target)
     QtRos2ShapeMessages            # → GeometryMessages
     QtRos2TrajectoryMessages       # → GeometryMessages, StandardMessages
     QtRos2VisualizationMessages    # → GeometryMessages, SensorMessages, StandardMessages
+    QtRos2Tf2Messages              # → GeometryMessages, ActionMessages, ServiceMessages
     # Level 5 – depend on Level 4
     QtRos2StereoMessages           # → SensorMessages, StandardMessages
   )

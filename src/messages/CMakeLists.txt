@@ -9,6 +9,7 @@
 #   diagnostics, sensors, shapes, stereo, trajectory, navigation
 #     → geometry (and/or standard, sensor_msgs)
 #   visualization → geometry + sensors + standard
+#   tf2          → geometry, action, service (LookupTransform.action, FrameGraph.srv)
 
 add_subdirectory(standard)
 add_subdirectory(service)
@@ -25,3 +26,4 @@ add_subdirectory(stereo)
 add_subdirectory(trajectory)
 add_subdirectory(navigation)
 add_subdirectory(visualization)
+add_subdirectory(tf2)
