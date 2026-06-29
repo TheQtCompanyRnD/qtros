@@ -104,9 +104,21 @@
 */
 
 /*!
+    \qmlmodule QtRos2.Tf2Msgs
+    \title Qt ROS2 tf2_msgs QML Types
+    \brief QML types for \c tf2_msgs ROS 2 messages.
+*/
+
+/*!
     \qmlmodule QtRos2.TrajectoryMsgs
     \title Qt ROS2 trajectory_msgs QML Types
     \brief QML types for \c trajectory_msgs ROS 2 messages.
+*/
+
+/*!
+    \qmlmodule QtRos2.Transforms
+    \title Qt ROS2 Transforms QML Types
+    \brief QML types for broadcasting, listening and using transforms in the TF tree.
 */
 
 /*!
@@ -299,12 +311,25 @@
     \generatelist qmltypesbymodule QtRos2.StereoMsgs
     \generatelist qmlvaluetypesbymodule QtRos2.StereoMsgs
 
+    \section1 QtRos2.Tf2Msgs
+
+    The following QML types are available when you import \c{QtRos2.Tf2Msgs}:
+
+    \generatelist qmltypesbymodule QtRos2.Tf2Msgs
+    \generatelist qmlvaluetypesbymodule QtRos2.Tf2Msgs
+
     \section1 QtRos2.TrajectoryMsgs
 
     The following QML types are available when you import \c{QtRos2.TrajectoryMsgs}:
 
     \generatelist qmltypesbymodule QtRos2.TrajectoryMsgs
     \generatelist qmlvaluetypesbymodule QtRos2.TrajectoryMsgs
+
+    \section1 QtRos2.Transforms
+
+    The following QML types are available when you import \c{QtRos2.Transforms}:
+
+    \generatelist qmltypesbymodule QtRos2.Transforms
 
     \section1 QtRos2.UniqueIdentifierMsgs
 

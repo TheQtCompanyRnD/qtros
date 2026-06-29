@@ -70,3 +70,6 @@ add_subdirectory(messages)
 add_subdirectory(interfaces/composition)      # depends on interfaces/rcl
 add_subdirectory(interfaces/type_description) # depends on messages/service
 
+# Phase 3: Hand-written runtime modules that depend on message packages
+add_subdirectory(transforms)                  # depends on core + messages/geometry; wraps tf2_ros
+
