@@ -63,10 +63,6 @@ qt_add_qml_module(appRobotMonitor
 
 # Collect optional IMPORT_PACKAGES — only include those present in the ROS distro
 set(_optional_import_packages "")
-find_package(tf2_msgs QUIET)
-if(tf2_msgs_FOUND)
-    list(APPEND _optional_import_packages tf2_msgs)
-endif()
 find_package(geographic_msgs QUIET)
 find_package(nav2_msgs QUIET)
 if(geographic_msgs_FOUND AND nav2_msgs_FOUND)

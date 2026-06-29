@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
 import QtRos2.NavMsgs
-import QtRos2.Imported.Tf2Msgs
+import QtRos2.Transforms
 import QtRos2.SensorMsgs
 import QtQuick3D
 
@@ -88,6 +88,7 @@ QtObject {
 
         readonly property TFManager tfManager: TFManager {
             id: tfManager
+            frameTransformer: tfXform
         }
 
         readonly property Component instanceListEntryComponent: Component {
@@ -152,21 +153,10 @@ QtObject {
                 }
             }
 
-            TFMessageSubscriber {
-                id: tfSubscriber
-                topic: "tf"
-                onMessageReceived: {
-                    tfManager.updateTransforms(message)
-                }
-            }
-
-            TFMessageSubscriber {
-                id: tfStaticSubscriber
-                topic: "tf_static"
-                qos.durability: TFMessageSubscriber.DurabilityTransientLocal
-                onMessageReceived: {
-                    tfManager.updateTransforms(message)
-                }
+            // Maintains the TF tree from /tf and /tf_static; TFManager reads
+            // per-edge transforms from it via lookupTransform().
+            FrameTransformer {
+                id: tfXform
             }
 
             PolygonStampedSubscriber {
