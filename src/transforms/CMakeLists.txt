@@ -7,6 +7,7 @@
 # geometry value types (TransformStamped).
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 qt_internal_add_module(Ros2Transforms
     EXCEPTIONS
@@ -42,4 +43,5 @@ target_link_libraries(Ros2Transforms PUBLIC
     rclcpp::rclcpp
     tf2::tf2
     tf2_ros::tf2_ros
+    tf2_geometry_msgs::tf2_geometry_msgs
 )

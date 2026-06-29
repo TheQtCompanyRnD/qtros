@@ -8,11 +8,30 @@
 #ifndef Q_QDOC
 #include <tf2/time.hpp>
 #include <tf2/exceptions.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>  // doTransform specializations
 #endif
 
 QT_BEGIN_NAMESPACE
 
 Q_LOGGING_CATEGORY(lcFrameTransformer, "qt.robotics.transforms")
+
+namespace {
+// Convert the QML value type to its ROS message, run tf2's typed transform
+// (which reads header.stamp/frame_id and applies doTransform), and wrap back.
+template<class QtType, class RosType>
+QtType transformStamped(const std::shared_ptr<tf2_ros::Buffer>& buffer,
+                        const QtType& in, const QString& targetFrame)
+{
+    if (!buffer)
+        return {};
+    try {
+        return QtType(buffer->transform(static_cast<RosType>(in), targetFrame.toStdString()));
+    } catch (const tf2::TransformException& ex) {
+        qCWarning(lcFrameTransformer) << "transform to" << targetFrame << "failed:" << ex.what();
+        return {};
+    }
+}
+} // namespace
 
 /*!
     \qmltype FrameTransformer
@@ -128,6 +147,45 @@ bool QRos2FrameTransformer::canTransform(
         return false;
     return m_buffer->canTransform(targetFrame.toStdString(), sourceFrame.toStdString(),
                                   tf2::TimePointZero);
+}
+
+/*!
+    \qmlmethod pointStamped FrameTransformer::transform(pointStamped in, string targetFrame)
+
+    Re-expresses the stamped point \a in into \a targetFrame, using the transform
+    valid at \c{in.header.stamp}.
+*/
+Qtros2GeometryMsgs::PointStamped QRos2FrameTransformer::transform(
+    const Qtros2GeometryMsgs::PointStamped& in, const QString& targetFrame) const
+{
+    return transformStamped<Qtros2GeometryMsgs::PointStamped,
+                            geometry_msgs::msg::PointStamped>(m_buffer, in, targetFrame);
+}
+
+/*!
+    \qmlmethod poseStamped FrameTransformer::transform(poseStamped in, string targetFrame)
+
+    Re-expresses the stamped pose \a in into \a targetFrame, using the transform
+    valid at \c{in.header.stamp}.
+*/
+Qtros2GeometryMsgs::PoseStamped QRos2FrameTransformer::transform(
+    const Qtros2GeometryMsgs::PoseStamped& in, const QString& targetFrame) const
+{
+    return transformStamped<Qtros2GeometryMsgs::PoseStamped,
+                            geometry_msgs::msg::PoseStamped>(m_buffer, in, targetFrame);
+}
+
+/*!
+    \qmlmethod vector3Stamped FrameTransformer::transform(vector3Stamped in, string targetFrame)
+
+    Re-expresses the stamped vector \a in into \a targetFrame, using the transform
+    valid at \c{in.header.stamp}.
+*/
+Qtros2GeometryMsgs::Vector3Stamped QRos2FrameTransformer::transform(
+    const Qtros2GeometryMsgs::Vector3Stamped& in, const QString& targetFrame) const
+{
+    return transformStamped<Qtros2GeometryMsgs::Vector3Stamped,
+                            geometry_msgs::msg::Vector3Stamped>(m_buffer, in, targetFrame);
 }
 
 QT_END_NAMESPACE

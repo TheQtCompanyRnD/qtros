@@ -18,6 +18,9 @@
 #include <QtRos2Transforms/qtros2transformsexports.h>
 #include <QtRos2Core/private/qros2entity_p.h>
 #include <QtRos2GeometryMessages/msg/transform_stamped.hpp>
+#include <QtRos2GeometryMessages/msg/point_stamped.hpp>
+#include <QtRos2GeometryMessages/msg/pose_stamped.hpp>
+#include <QtRos2GeometryMessages/msg/vector3_stamped.hpp>
 #ifndef Q_QDOC
 #include <tf2_ros/buffer.hpp>
 #include <tf2_msgs/msg/tf_message.hpp>
@@ -54,6 +57,17 @@ public:
 
     // True if the latest sourceFrame->targetFrame transform is currently available.
     Q_INVOKABLE bool canTransform(const QString& targetFrame, const QString& sourceFrame) const;
+
+    // Re-express stamped data in targetFrame, using the transform valid at the
+    // data's own header.stamp. This is the everyday operation: the (source) frame
+    // and time both come from the input. Returns a default-constructed value on
+    // failure (and logs a warning).
+    Q_INVOKABLE Qtros2GeometryMsgs::PointStamped transform(
+        const Qtros2GeometryMsgs::PointStamped& in, const QString& targetFrame) const;
+    Q_INVOKABLE Qtros2GeometryMsgs::PoseStamped transform(
+        const Qtros2GeometryMsgs::PoseStamped& in, const QString& targetFrame) const;
+    Q_INVOKABLE Qtros2GeometryMsgs::Vector3Stamped transform(
+        const Qtros2GeometryMsgs::Vector3Stamped& in, const QString& targetFrame) const;
 
 Q_SIGNALS:
     // Emitted (in this object's thread) whenever /tf or /tf_static delivers an
