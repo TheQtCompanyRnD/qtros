@@ -3,13 +3,17 @@
 import QtQuick
 import QtQml
 
-// TFBufferManager caches transforms for the robot kinematic chain
+// Exposes the r6bot kinematic-chain transforms the 3D model binds to, sourced
+// from a FrameTransformer (QtRos2.Transforms) instead of a hand-rolled /tf cache.
+// Set `frameTransformer`; the edge properties refresh on its transformsChanged.
+// The property defaults are the URDF rest pose, shown until /tf arrives.
 QtObject {
     id: root
 
-    readonly property bool transformsReady: _d.awaitedTransforms.length === 0
+    property var frameTransformer: null
 
-    property var cachedTransforms: new Map()
+    // True once every edge in the chain is resolvable from the TF tree.
+    property bool transformsReady: false
 
     // ft_frame -> tool0
     property vector3d ft_frame_tool0_p: Qt.vector3d(0.0, 0.0, 0.185)
@@ -47,66 +51,36 @@ QtObject {
     property vector3d world_base_link_p: Qt.vector3d(0.0, 0.0, 0.0)
     property quaternion world_base_link_q: Qt.quaternion(1, 0, 0, 0)
 
-    property QtObject _d: QtObject {
-        id: _d
-        property list<string> awaitedTransforms: [
-            "ft_frame_tool0",
-            "link_6_ft_frame",
-            "link_5_link_6",
-            "link_4_link_5",
-            "link_3_link_4",
-            "link_2_link_3",
-            "link_1_link_2",
-            "base_link_link_1",
-            "world_base_link"
-        ]
+    readonly property var _edges: [
+        ["ft_frame", "tool0", "ft_frame_tool0"],
+        ["link_6", "ft_frame", "link_6_ft_frame"],
+        ["link_5", "link_6", "link_5_link_6"],
+        ["link_4", "link_5", "link_4_link_5"],
+        ["link_3", "link_4", "link_3_link_4"],
+        ["link_2", "link_3", "link_2_link_3"],
+        ["link_1", "link_2", "link_1_link_2"],
+        ["base_link", "link_1", "base_link_link_1"],
+        ["world", "base_link", "world_base_link"]
+    ]
+
+    property Connections _conn: Connections {
+        target: root.frameTransformer
+        function onTransformsChanged() { root._refresh() }
     }
 
-    function updateTransforms(tfMessage) {
-        if (!tfMessage || !tfMessage.transforms)
+    function _refresh() {
+        if (!root.frameTransformer)
             return
-
-        let dirtyTransforms = []
-
-        tfMessage.transforms.forEach(function(tfm) {
-            const frameId = normalizeName(tfm.header.frameId)
-            const childId = normalizeName(tfm.childFrameId)
-            const key = frameId + "_" + childId
-
-            let val = cachedTransforms[key]
-            if (!!!val || val.transform !== tfm.transform) {
-                cachedTransforms[key] = tfm
-                dirtyTransforms.push(tfm)
+        let allReady = true
+        for (const e of root._edges) {
+            if (root.frameTransformer.canTransform(e[0], e[1])) {
+                const tr = root.frameTransformer.lookupTransform(e[0], e[1]).transform
+                root[e[2] + "_p"] = Qt.vector3d(tr.translation.x, tr.translation.y, tr.translation.z)
+                root[e[2] + "_q"] = Qt.quaternion(tr.rotation.w, tr.rotation.x, tr.rotation.y, tr.rotation.z)
+            } else {
+                allReady = false
             }
-
-            const index = _d.awaitedTransforms.indexOf(key)
-            if (index !== -1) {
-                _d.awaitedTransforms.splice(index, 1)
-            }
-        })
-
-        dirtyTransforms.forEach(function(tfm) {
-            const frameId = normalizeName(tfm.header.frameId)
-            const childId = normalizeName(tfm.childFrameId)
-            const base_prop_name = frameId + "_" + childId
-
-            root[base_prop_name + "_p"] = buildVector(tfm.transform.translation)
-            root[base_prop_name + "_q"] = buildQuaternion(tfm.transform.rotation)
-        })
-    }
-
-    function normalizeName(name) {
-        name = name.replace(/\//g, "_")
-        return !name.startsWith("_") ? name : name.substr(1)
-    }
-
-    function buildVector(v) {
-        // Keep ROS coordinates (x, y, z)
-        return Qt.vector3d(v.x || 0, v.y || 0, v.z || 0)
-    }
-
-    function buildQuaternion(r) {
-        // Keep ROS quaternion (w, x, y, z)
-        return Qt.quaternion(r.w !== undefined ? r.w : 1, r.x || 0, r.y || 0, r.z || 0)
+        }
+        root.transformsReady = allReady
     }
 }

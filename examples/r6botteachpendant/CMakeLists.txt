@@ -61,12 +61,11 @@ qt_add_qml_module(r6botteachpendant
 
 )
 
-# qt_ros2_configure_target pre-finds all Qt ROS2 base modules, enabling IMPORT_PACKAGES to
-# resolve transitive IDL dependencies (e.g. builtin_interfaces inside tf2_msgs).
+# TF is consumed through QtRos2.Transforms (FrameTransformer), which wraps
+# tf2_ros in C++, so no tf2_msgs QML module import is needed here.
 qt_ros2_configure_target(r6botteachpendant
     CAPABILITIES PUBLISHER SUBSCRIBER
     MODULES QtRos2TrajectoryMessages
-    IMPORT_PACKAGES tf2_msgs
 )
 
 target_link_libraries(r6botteachpendant PRIVATE
