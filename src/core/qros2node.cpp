@@ -122,9 +122,24 @@ void QRos2Node::initializeNode()
     }
 
     try {
+        // tf2 publishes/subscribes on the absolute topics /tf and /tf_static,
+        // so without help they would ignore nodeNamespace and every robot would
+        // share one global TF tree. Remap them to the relative names tf and
+        // tf_static, which then resolve under the node namespace (e.g.
+        // /dogzilla/tf). At the root namespace this is a no-op (tf -> /tf). This
+        // is the same trick Nav2 uses for multi-robot, applied once here so it
+        // covers tf2_ros broadcasters/listeners and QtRos2's own TF entities.
+        rclcpp::NodeOptions options;
+        options.arguments({
+            "--ros-args",
+            "-r", "/tf:=tf",
+            "-r", "/tf_static:=tf_static",
+        });
+
         m_rosNode = std::make_shared<rclcpp::Node>(
             m_nodeName.toStdString(),
-            m_nodeNamespace.toStdString()
+            m_nodeNamespace.toStdString(),
+            options
             );
 
         QRos2Context::instance().executor()->add_node(m_rosNode);
