@@ -132,6 +132,9 @@ QtObject {
             OccupancyGridSubscriber {
                 id: mapSubscriber
                 topic: "map"
+                // The map is latched (transient-local) by SLAM/Nav2, so request
+                // transient-local to receive the current map on connect.
+                qos: QualityOfService.transientLocal()
             }
 
             OccupancyGridSubscriber {
@@ -147,6 +150,9 @@ QtObject {
             LaserScanSubscriber {
                 id: laserScanSubscriber
                 topic: "scan"
+                // High-rate sensor stream: best-effort so a monitor stays
+                // responsive on a lossy link.
+                qos: QualityOfService.sensorData()
 
                 onMessageReceived: {
                     _d.updateInstanceList(message)
@@ -185,6 +191,8 @@ QtObject {
             ImageSubscriber {
                 id: imageSubscriber
                 topic: "oakd/rgb/preview/image_raw"
+                // Camera stream: best-effort, drop frames rather than clog the link.
+                qos: QualityOfService.sensorData()
             }
 
             TwistStampedPublisher {
