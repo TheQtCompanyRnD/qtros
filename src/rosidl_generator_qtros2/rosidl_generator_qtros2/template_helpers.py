@@ -43,10 +43,10 @@ def get_qml_module_uri(package_name: str) -> str:
 _FIELD_DOC_OVERRIDES: Dict[str, Dict[str, List[str]]] = {
     "geometry_msgs/Wrench": {
         "force":  ["Linear force in newtons (N)."],
-        "torque": ["Torque about each axis in newton-metres (N·m)."],
+        "torque": ["Torque about each axis in newton-meters (N·m)."],
     },
     "geometry_msgs/Twist": {
-        "linear":  ["Linear velocity in metres per second (m/s)."],
+        "linear":  ["Linear velocity in meters per second (m/s)."],
         "angular": ["Angular velocity in radians per second (rad/s)."],
     },
     "geometry_msgs/Accel": {
@@ -55,7 +55,7 @@ _FIELD_DOC_OVERRIDES: Dict[str, Dict[str, List[str]]] = {
     },
     "geometry_msgs/Inertia": {
         "m":   ["Mass in kilograms (kg)."],
-        "com": ["Position of the center of mass in metres (m)."],
+        "com": ["Position of the center of mass in meters (m)."],
         "ixx": ["Moment of inertia about the X axis in kg·m²."],
         "ixy": ["Product of inertia between the X and Y axes in kg·m²."],
         "ixz": ["Product of inertia between the X and Z axes in kg·m²."],

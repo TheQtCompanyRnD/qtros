@@ -164,7 +164,7 @@
             and each link binds its local \c position/\c rotation to one edge.
         \li A ROS quaternion is \c{(x, y, z, w)} but \c{Qt.quaternion()} takes
             \c{(w, x, y, z)} — note the reordering above. The model is also scaled
-            from metres to millimetres and rotated to map ROS Z-up into Qt Quick
+            from meters to millimeters and rotated to map ROS Z-up into Qt Quick
             3D's Y-up convention.
     \endlist
 
