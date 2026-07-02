@@ -1,9 +1,11 @@
 // Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
+import QtRos2.Core as Ros2
 import QtRos2.NavMsgs
 import QtRos2.Transforms
 import QtRos2.SensorMsgs
+import QtRos2.GeometryMsgs as Geom
 import QtQuick3D
 
 QtObject {
@@ -30,16 +32,16 @@ QtObject {
     }
 
     readonly property alias videoFeed: imageSubscriber.message
-    readonly property navmsgs_occupancygrid mapGrid: mapSubscriber.connected ? mapSubscriber.message : ({})
+    readonly property occupancyGrid mapGrid: mapSubscriber.connected ? mapSubscriber.message : ({})
     readonly property MapVisualSettings mapSettings: MapVisualSettings {}
 
-    readonly property navmsgs_occupancygrid localCostmapGrid: localCostmapSubscriber.connected ? localCostmapSubscriber.message : ({})
+    readonly property occupancyGrid localCostmapGrid: localCostmapSubscriber.connected ? localCostmapSubscriber.message : ({})
     readonly property MapVisualSettings localCostmapSettings: MapVisualSettings {
         colorScheme: GridPalette.CostmapHot
         opacity: 0.6
     }
 
-    readonly property navmsgs_occupancygrid globalCostmapGrid: globalCostmapSubscriber.connected ? globalCostmapSubscriber.message : ({})
+    readonly property occupancyGrid globalCostmapGrid: globalCostmapSubscriber.connected ? globalCostmapSubscriber.message : ({})
     readonly property MapVisualSettings globalCostmapSettings: MapVisualSettings {
         colorScheme: GridPalette.CostmapCool
         opacity: 0.4
@@ -98,22 +100,22 @@ QtObject {
 
         readonly property list<InstanceListEntry> instancePool: []
 
-        readonly property Node node: Node {
+        readonly property Ros2.Node node: Ros2.Node {
             id: rosNode
             nodeName: "qt_robot_monitor"
 
             readonly property var statistics: entities.reduce((acc, ce) => {
-                                                                  if (ce instanceof Ros2SubscriberBase) {
+                                                                  if (ce instanceof Ros2.SubscriberBase) {
                                                                       acc.totalSubscribers++
                                                                       if (ce.connected) {
                                                                           acc.connectedSubscribers++
                                                                       }
-                                                                  } else if (ce instanceof Ros2PublisherBase) {
+                                                                  } else if (ce instanceof Ros2.PublisherBase) {
                                                                       acc.totalPublishers++
                                                                       if (ce.subscriberCount > 0) {
                                                                           acc.connectedPublishers++
                                                                       }
-                                                                  } else if (ce instanceof Ros2ActionClientBase) {
+                                                                  } else if (ce instanceof Ros2.ActionClientBase) {
                                                                       acc.totalActionClients++
                                                                       if (ce.isServerReady) {
                                                                           acc.connectedActionClients++
@@ -134,7 +136,7 @@ QtObject {
                 topic: "map"
                 // The map is latched (transient-local) by SLAM/Nav2, so request
                 // transient-local to receive the current map on connect.
-                qos: QualityOfService.transientLocal()
+                qos: Ros2.QualityOfService.transientLocal()
             }
 
             OccupancyGridSubscriber {
@@ -152,7 +154,7 @@ QtObject {
                 topic: "scan"
                 // High-rate sensor stream: best-effort so a monitor stays
                 // responsive on a lossy link.
-                qos: QualityOfService.sensorData()
+                qos: Ros2.QualityOfService.sensorData()
 
                 onMessageReceived: {
                     _d.updateInstanceList(message)
@@ -192,7 +194,7 @@ QtObject {
                 id: imageSubscriber
                 topic: "oakd/rgb/preview/image_raw"
                 // Camera stream: best-effort, drop frames rather than clog the link.
-                qos: QualityOfService.sensorData()
+                qos: Ros2.QualityOfService.sensorData()
             }
 
             TwistStampedPublisher {
@@ -205,7 +207,7 @@ QtObject {
             }
         }
 
-        function updateInstanceList(laserScan: sensormsgs_laserscan): void {
+        function updateInstanceList(laserScan: laserScan): void {
             let validCount = 0
             const angleMin = laserScan.angleMin
             const angleIncrement = laserScan.angleIncrement
@@ -245,7 +247,7 @@ QtObject {
         }
     }
 
-    function publishVelocity(vel: geometrymsgs_twist) {
+    function publishVelocity(vel: Geom.twist) {
         rosNode.cancelCurrentAction()
         cmdVelPublisher.publish({
                                     "twist": vel
