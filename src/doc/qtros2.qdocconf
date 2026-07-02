@@ -12,19 +12,25 @@ qhp.QtRos2.virtualFolder = qtros2
 qhp.QtRos2.indexTitle = Qt ROS2
 qhp.QtRos2.indexRoot =
 
-qhp.QtRos2.subprojects = qmltypes
+qhp.QtRos2.subprojects = qmltypes examples
 qhp.QtRos2.subprojects.qmltypes.title = QML Types
 qhp.QtRos2.subprojects.qmltypes.indexTitle = Qt ROS2 QML Types
 qhp.QtRos2.subprojects.qmltypes.selectors = qmlclass
 qhp.QtRos2.subprojects.qmltypes.sortPages = true
+qhp.QtRos2.subprojects.examples.title = Examples
+qhp.QtRos2.subprojects.examples.indexTitle = Qt ROS2 Examples
+qhp.QtRos2.subprojects.examples.selectors = example
+qhp.QtRos2.subprojects.examples.sortPages = true
 
-depends = qtcore qtdoc qtqml qtquick3d
+depends = qtcore qtdoc qtqml qtquick3d qtquick3dphysics
 
 moduleheader = QtRos2Core
 
 headerdirs += ../
 sourcedirs += ../
 imagedirs += images
+imagedirs += ../../examples
+exampledirs += ../../examples
 
 includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include
 includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include/QtCore

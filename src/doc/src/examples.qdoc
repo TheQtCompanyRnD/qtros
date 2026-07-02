@@ -1,0 +1,58 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \group qtros2-examples
+    \title Qt ROS2 Examples
+    \brief Example applications that demonstrate the Qt ROS2 Bridge.
+
+    These examples show how to build Qt/QML applications on top of ROS 2 using
+    the Qt ROS2 Bridge — from a single publisher in a dozen lines of QML to a
+    full robot-monitoring dashboard and a 6-DOF teach pendant. Each one is a
+    self-contained Qt application; the ROS 2 side (topics, services, actions,
+    and TF) is spoken entirely through the generated QtRos2 QML modules.
+
+    The examples live in the \c examples/ directory of the repository and are
+    excluded from the default workspace build via a \c COLCON_IGNORE marker, so
+    they do not slow down a module build. Open an example's \c CMakeLists.txt in
+    Qt Creator (from a shell that has sourced your ROS 2 environment) to build
+    and run it.
+
+    \section1 Before You Start
+
+    All of the examples need a running ROS 2 environment. Source it in every
+    terminal you use — the one that launches Qt Creator or the application, and
+    any terminal running a ROS 2 backend such as \c turtlesim_node or a
+    simulation:
+
+    \badcode
+    source /opt/ros/jazzy/setup.bash
+    \endcode
+
+    \note Before running an example, make sure every ROS 2 node from a previous
+    example has been terminated — both the Qt application and any backend nodes
+    (\c turtlesim_node, simulation launches, controllers). Two nodes that claim
+    the same node name, topics, or TF frames will interfere with each other and
+    produce confusing results such as jumping poses or missing data.
+
+    \section1 The Examples
+
+    The list below is ordered roughly from simplest to most complete. If you are
+    new to the bridge, start with \l{Simple Publisher} and \l{Simple Subscriber},
+    which introduce the \l{Qt ROS2 Core QML Types}{Node} type and a single
+    publisher/subscriber, then move on to the \l{TurtleSim Controller}, which
+    adds services and actions.
+
+    \annotatedlist qtros2-examples
+
+    \section1 Where To Go Next
+
+    \list
+        \li For the message types the examples publish and subscribe to, see the
+            \l{Qt ROS2 QML Types} reference.
+        \li For guidance on picking sensor message types, see
+            \l{Choosing Sensor Message Types}.
+        \li For sending velocity commands and navigation goals, see
+            \l{Teleoperation and Remote Control}.
+    \endlist
+*/

@@ -1,0 +1,220 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example RobotMonitor
+    \title Robot Monitor
+    \ingroup qtros2-examples
+    \brief An RViz-style monitoring and control dashboard for a Nav2 mobile
+    robot, combining a live 3D scene, a camera feed, and navigation actions.
+
+    \c{Robot Monitor} is a production-scale example: a live dashboard for a mobile
+    robot running the Nav2 navigation stack (a simulated TurtleBot4 / iRobot
+    Create3). It renders the SLAM map, costmaps, laser scan, planned path, and
+    robot footprint in a Qt Quick 3D scene, streams the robot's camera into the
+    UI, and drives the robot with both direct velocity commands and Nav2/docking
+    actions. It brings together most of what the other examples show individually:
+    many subscribers, a publisher, action clients, TF, and QoS tuning.
+
+    \image RobotMonitor/robotmonitor-idle.png "The Robot Monitor dashboard (bottom) running against a simulated TurtleBot4 in Gazebo (top): connection counters and action status, a live camera feed, the laser scan, local costmap, and robot footprint in the 3D scene, and the Layers panel."
+
+    \section1 Running the Example
+
+    \list 1
+        \li Install the TurtleBot4 simulation (this pulls in \c nav2_msgs,
+            \c irobot_create_msgs, and other dependencies):
+            \badcode
+            sudo apt-get install ros-jazzy-turtlebot4-simulator
+            \endcode
+        \li Source your ROS 2 environment and launch Qt Creator from that shell.
+        \li Open \c examples/RobotMonitor/CMakeLists.txt in Qt Creator, then
+            build and run.
+        \li Launch the simulation in a separate, ROS-sourced terminal:
+            \badcode
+            ros2 launch turtlebot4_gz_bringup turtlebot4_gz.launch.py \
+                nav2:=true slam:=true localization:=false rviz:=false
+            \endcode
+    \endlist
+
+    \note You can add \c{rviz:=true} to compare the Robot Monitor scene with
+    RViz, but running both may strain simulation performance on some systems.
+
+    \section1 Modules and Imported Packages
+
+    The example links the built-in \c NavMsgs, \c GeometryMsgs, and \c SensorMsgs
+    modules, and additionally wraps distribution packages on demand. Its
+    \c CMakeLists.txt builds \c IMPORT_PACKAGES conditionally with
+    \c{find_package(... QUIET)}, so the application still builds and runs when an
+    optional package is missing:
+
+    \badcode
+    qt_ros2_configure_target(appRobotMonitor
+        CAPABILITIES PUBLISHER SUBSCRIBER ACTION
+        MODULES QtRos2NavigationMessages QtRos2GeometryMessages QtRos2SensorMessages
+        IMPORT_PACKAGES ${_optional_import_packages}  # nav2_msgs, irobot_create_msgs, ...
+    )
+    \endcode
+
+    Wrapped packages appear under the \c QtRos2.Imported namespace — here
+    \c QtRos2.Imported.Nav2Msgs (Nav2 actions) and
+    \c QtRos2.Imported.IrobotCreateMsgs (dock/undock actions). Because those
+    types may be absent, the example isolates them in a separate QML file loaded
+    through a \c Loader (see \l{Actions and Reactive State} below), so the app
+    degrades gracefully rather than failing to load.
+
+    \section1 One Node, Many Entities
+
+    All ROS entities are declared as children of a single
+    \c{Node { nodeName: "qt_robot_monitor" }} in \c MainViewModel.qml. The node
+    also computes connection \c statistics by reducing over its \c entities and
+    testing them against the base types (\c Ros2SubscriberBase,
+    \c Ros2PublisherBase, \c Ros2ActionClientBase) — which is what drives the
+    "connected vs total" counters in the status row.
+
+    \section1 Subscribers and QoS Presets
+
+    Different ROS topics need different Quality of Service, and the example
+    deliberately picks a preset to match each one via the \c QualityOfService
+    factory:
+
+    \list
+        \li The map is \e latched (published once and kept), so its subscriber
+            uses \c{QualityOfService.transientLocal()} to receive the last value
+            on connect.
+        \li The laser scan and camera are high-rate sensor streams, so they use
+            \c{QualityOfService.sensorData()} (best-effort).
+        \li Costmaps, the planned path, the footprint, and \c cmd_vel use the
+            reliable default.
+    \endlist
+
+    \qml
+    import QtRos2.Core
+    import QtRos2.NavMsgs
+    import QtRos2.SensorMsgs
+
+    OccupancyGridSubscriber {
+        id: mapSubscriber
+        topic: "map"
+        qos: QualityOfService.transientLocal()   // latched map
+    }
+
+    LaserScanSubscriber {
+        topic: "scan"
+        qos: QualityOfService.sensorData()        // best-effort sensor stream
+        onMessageReceived: _d.updateInstanceList(message)
+    }
+    \endqml
+
+    The laser scan handler converts polar ranges into XY points and feeds a Qt
+    Quick 3D \c InstanceList, so the whole scan is drawn as instanced geometry.
+    The map and costmaps are rendered by an \c OccupancyGrid component, the planned
+    path (\c nav_msgs/Path) and footprint (\c geometry_msgs/PolygonStamped) as
+    polylines.
+
+    \section1 The 3D Scene as a TF Tree
+
+    The scene mirrors the robot's TF tree: nested Qt Quick 3D \c Node items whose
+    \c position and \c rotation are bound to live transforms. Transforms come from
+    a single \l{Qt ROS2 Transforms QML Types}{FrameTransformer}, which maintains a
+    TF buffer from its own \c /tf and \c /tf_static subscriptions and emits
+    \c transformsChanged whenever the tree updates. \c TFManager.qml reads each
+    edge from it:
+
+    \qml
+    import QtRos2.Transforms
+
+    FrameTransformer { id: tfXform }
+
+    // Inside TFManager, refreshed on every transformsChanged:
+    if (frameTransformer.canTransform(parent, child)) {
+        const tr = frameTransformer.lookupTransform(parent, child).transform
+        root[prefix + "_p"] = GeometryHeleper.toVector3d(tr.translation)
+        root[prefix + "_q"] = GeometryHeleper.toQuaternion(tr.rotation)
+    }
+    \endqml
+
+    Each \c lookupTransform(parent, child) returns the child frame expressed in
+    its parent — exactly the local transform a nested scene-graph node needs.
+
+    \section1 Bridging the Camera Image
+
+    The camera feed shows how a C++ item can consume a ROS message value type
+    directly. \c RosImageItem is a \c QQuickItem with a single property typed as
+    the \c sensor_msgs/Image value type:
+
+    \code
+    Q_PROPERTY(Qtros2SensorMsgs::Image image READ image WRITE setImage NOTIFY imageChanged)
+    \endcode
+
+    In QML, the item is bound straight to the subscriber's message — there is no
+    separate C++ subscription; the bridge delivers the message as an assignable
+    value type:
+
+    \qml
+    import QtRos2.SensorMsgs
+
+    ImageSubscriber {
+        id: cameraSubscriber
+        topic: "oakd/rgb/preview/image_raw"
+        qos: QualityOfService.sensorData()
+    }
+
+    RosImageItem { image: cameraSubscriber.message }   // in VideoView.qml
+    \endqml
+
+    On the scene-graph thread the item maps the ROS \c encoding string to a
+    \c QImage format, wraps the message bytes without copying, and uploads them as
+    a texture. This is the general pattern for high-throughput data: let C++
+    consume the strongly-typed message value, not a raw ROS subscription.
+
+    \section1 Actions and Reactive State
+
+    Driving the robot and commanding navigation use a publisher and three action
+    clients. Direct driving publishes \c geometry_msgs/TwistStamped:
+
+    \qml
+    TwistStampedPublisher { id: cmdVelPublisher; topic: "cmd_vel" }
+
+    function publishVelocity(vel) {
+        rosNode.cancelCurrentAction()          // manual driving preempts navigation
+        cmdVelPublisher.publish({ twist: vel })
+    }
+    \endqml
+
+    The action clients — \c NavigateToPoseActionClient (Nav2) plus
+    \c DockActionClient and \c UndockActionClient (iRobot Create3) — live in
+    \c Nav2IrobotActions.qml, which is brought in through a \c Loader so the app
+    still runs when those imported packages are unavailable:
+
+    \qml
+    Loader {
+        id: _actions
+        source: "Nav2IrobotActions.qml"
+        onLoaded: item.node = rosNode
+    }
+    // Every access is guarded: _actions.item?.navigateToPose(pose, yaw)
+    \endqml
+
+    Although \c sendGoal() returns a JavaScript promise that resolves with the
+    result, this example intentionally does \e not await it. Instead it drives the
+    UI reactively from each client's \c state (an \c Ros2ActionClientBase action
+    state) and \c feedback properties, and cancels with the imperative
+    \c cancelGoal(). This "bind to state" style is often the cleanest way to keep
+    a dashboard in sync with several concurrent operations.
+
+    \section1 The UI at a Glance
+
+    \list
+        \li A top status row shows connection counters and live action status
+            (navigation distance/time remaining, dock/undock progress).
+        \li The center is a top-down Qt Quick 3D view: pan/zoom/rotate with the
+            mouse, and Ctrl+drag to draw a navigation-goal arrow.
+        \li A collapsible \e{Camera Feed} panel hosts the live video.
+        \li A right-hand side panel offers a \e Drive tab (velocity D-pad plus
+            dock/undock) and a \e Layers tab (per-layer visibility, opacity, and
+            color scheme).
+    \endlist
+
+    \sa {TurtleSim Controller}, {R6 Robot Teach Pendant}, {Qt ROS2 Transforms QML Types},
+    {Teleoperation and Remote Control}
+*/

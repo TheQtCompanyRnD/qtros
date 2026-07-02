@@ -1,0 +1,212 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example r6botteachpendant
+    \title R6 Robot Teach Pendant
+    \ingroup qtros2-examples
+    \brief A teach pendant for a 6-DOF arm: a live 3D model driven by TF, joint
+    jogging and waypoint programming driven by joint trajectories.
+
+    \c{R6 Robot Teach Pendant} is a teach pendant for the 6-DOF \c r6bot arm from
+    \l {https://github.com/ros-controls/ros2_control_demos/tree/master/example_7}{ros2_control example 7}.
+    It shows the arm as a live Qt Quick 3D model driven by TF, and lets the
+    operator jog individual joints, capture named waypoints, and replay them as
+    a looping sequence — commanding the arm through
+    \c trajectory_msgs/JointTrajectory messages. It is the most involved example
+    of driving a robot (as opposed to monitoring one), and a thorough
+    demonstration of consuming TF with
+    \l{Qt ROS2 Transforms QML Types}{FrameTransformer}.
+
+    \image r6botteachpendant/r6botteachpendant.jpg "The R6 Robot Teach Pendant: a TF-driven 3D model of the arm with joint-axis triads, and the Jog panel with per-joint controls and a speed profile."
+
+    \section1 Running the Example
+
+    \list 1
+        \li Build the \c ros2_control demos in a workspace, in a ROS-sourced
+            terminal:
+            \badcode
+            mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
+            git clone https://github.com/ros-controls/ros2_control_demos -b ${ROS_DISTRO}
+            cd ~/ros2_ws/
+            rosdep install --from-paths ./ -i -y --rosdistro ${ROS_DISTRO}
+            colcon build --merge-install
+            \endcode
+        \li Source your ROS 2 environment and launch Qt Creator from that shell.
+        \li Open \c examples/r6botteachpendant/CMakeLists.txt in Qt Creator, then
+            build and run.
+        \li Launch the r6bot simulation in a separate terminal:
+            \badcode
+            source ~/ros2_ws/install/setup.bash
+            ros2 launch ros2_control_demo_example_7 r6bot_controller.launch.py
+            \endcode
+    \endlist
+
+    \section1 Forwarding Command-Line Arguments to ROS
+
+    Because a teach pendant may be launched with ROS arguments (for remapping or
+    parameters), \c main.cpp initializes the ROS 2 context explicitly, forwarding
+    \c argc/\c argv, before constructing the Qt application:
+
+    \code
+    #include <QtRos2Core/qros2context.h>
+
+    int main(int argc, char *argv[])
+    {
+        QRos2Context::init(argc, argv);      // hand ROS args to rclcpp
+        QGuiApplication app(argc, argv);
+        QQmlApplicationEngine engine;
+        engine.loadFromModule("R6BotTeachPendant", "Main");
+        return app.exec();
+    }
+    \endcode
+
+    \section1 The View Model
+
+    All ROS logic is centralized in \c R6BotViewModel.qml — no other QML file
+    imports the bridge — which keeps the UI files purely presentational. It
+    declares one \c Node hosting three entities:
+
+    \qml
+    import QtRos2.Core
+    import QtRos2.SensorMsgs as SensorMsgs
+    import QtRos2.Transforms
+    import QtRos2.TrajectoryMsgs as TrajectoryMsgs
+
+    Node {
+        id: ros2Node
+        nodeName: "qt_r6bot_teach_pendant"
+
+        SensorMsgs.JointStateSubscriber { id: jointStateSubscriber; topic: "/joint_states" }
+        FrameTransformer { id: tfXform }
+        TrajectoryMsgs.JointTrajectoryPublisher {
+            id: trajectoryPublisher
+            topic: "/r6bot_controller/joint_trajectory"
+        }
+    }
+    \endqml
+
+    The CMake side enables the publisher/subscriber capabilities and links the
+    trajectory message module. TF is consumed through \c QtRos2.Transforms
+    (\c FrameTransformer), which wraps \c tf2_ros in C++, so no \c tf2_msgs QML
+    module import is required:
+
+    \badcode
+    qt_ros2_configure_target(r6botteachpendant
+        CAPABILITIES PUBLISHER SUBSCRIBER
+        MODULES QtRos2TrajectoryMessages
+    )
+    \endcode
+
+    \section1 Reading Joint State
+
+    The \c JointStateSubscriber's message drives the numeric panels. The view
+    model derives a few convenient properties from it, including a \c moving flag
+    used to sequence replay:
+
+    \qml
+    readonly property list<real> currentPositions: jointStateSubscriber.message.position
+    readonly property bool moving:
+        jointStateSubscriber.message.velocity.some(vel => vel !== 0.0)
+    \endqml
+
+    \section1 Commanding the Arm
+
+    Motion commands are \c trajectory_msgs/JointTrajectory messages. The view
+    model echoes the joint names from \c /joint_states, then builds a list of
+    interpolated points ending in a zero-velocity settling point, and publishes:
+
+    \qml
+    trajectoryPublisher.publish({
+        header: { stamp: { sec: 0, nanosec: 0 }, frameId: "" },
+        jointNames: jointStateSubscriber.message.name,   // echo names from /joint_states
+        points: points                                   // {positions, velocities, timeFromStart}
+    })
+    \endqml
+
+    Jogging a single joint applies a delta to one position and sends a short
+    single-point trajectory; the jog step sizes (Fine/Normal/Fast) are 0.02, 0.1,
+    and 0.2 radians.
+
+    \section1 Driving the 3D Model from TF
+
+    The 3D robot is driven entirely by TF, not by joint angles directly — the
+    \c robot_state_publisher in the r6bot stack turns \c /joint_states into \c /tf,
+    and the pendant consumes that. A single \c FrameTransformer maintains the TF
+    buffer from its own \c /tf and \c /tf_static subscriptions;
+    \c TFBufferManager.qml re-reads every edge of the kinematic chain whenever the
+    transformer signals a change:
+
+    \qml
+    Connections {
+        target: root.frameTransformer
+        function onTransformsChanged() { root._refresh() }
+    }
+
+    function _refresh() {
+        for (const e of root._edges) {                 // world→base_link→link_1→…→tool0
+            if (root.frameTransformer.canTransform(e[0], e[1])) {
+                const tr = root.frameTransformer.lookupTransform(e[0], e[1]).transform
+                root[e[2] + "_p"] = Qt.vector3d(tr.translation.x, tr.translation.y, tr.translation.z)
+                root[e[2] + "_q"] = Qt.quaternion(tr.rotation.w, tr.rotation.x,
+                                                  tr.rotation.y, tr.rotation.z)
+            }
+        }
+    }
+    \endqml
+
+    Two details are worth copying into your own code:
+
+    \list
+        \li \c{lookupTransform(parent, child)} returns the child frame in its
+            parent's coordinates — the local transform a nested scene-graph node
+            needs. \c R6BotModel.qml is a nested \c Node chain mirroring the URDF,
+            and each link binds its local \c position/\c rotation to one edge.
+        \li A ROS quaternion is \c{(x, y, z, w)} but \c{Qt.quaternion()} takes
+            \c{(w, x, y, z)} — note the reordering above. The model is also scaled
+            from metres to millimetres and rotated to map ROS Z-up into Qt Quick
+            3D's Y-up convention.
+    \endlist
+
+    A \c transformsReady flag (set once every edge resolves) gates the model's
+    visibility, so nothing renders until the whole chain is available.
+
+    \section1 Waypoints and Replay
+
+    Waypoints capture the \e joint positions (from \c /joint_states), not TF, and
+    are held in memory for the session. Replay is velocity-driven rather than
+    timed: after sending a waypoint, the view model waits for the arm to come to
+    rest (all joint velocities return to zero) before sending the next one, using
+    the \c moving transition:
+
+    \qml
+    onMovingChanged: {
+        if (wasMoving && !moving) {           // the arm just stopped
+            if (nextWaypointToSend >= waypoints.length) {
+                if (loopEnabled) { restartFromFirstWaypoint() }
+                else            { executing = false }
+            } else {
+                sendNextWaypoint()
+            }
+        }
+        wasMoving = moving
+    }
+    \endqml
+
+    Per-waypoint duration is derived from the largest joint delta, and
+    \e stopping publishes the current position with zeroed velocities to halt
+    smoothly.
+
+    \section1 The UI at a Glance
+
+    \list
+        \li A status bar shows the live joint readout from \c /joint_states.
+        \li The large 3D view shows the arm (with an optional per-joint axis
+            triad) driven by TF.
+        \li A tabbed side panel offers \e Jog (per-joint +/- with step size),
+            \e Waypoints (capture, list, jump-to), and \e Replay (play sequence,
+            progress, loop).
+    \endlist
+
+    \sa {Robot Monitor}, {Robot Arm Collision}, {Qt ROS2 Transforms QML Types}
+*/

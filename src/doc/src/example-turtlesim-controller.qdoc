@@ -1,0 +1,172 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example turtlesim_controller
+    \title TurtleSim Controller
+    \ingroup qtros2-examples
+    \brief Driving the classic ROS 2 \c turtlesim with all four communication
+    patterns — publisher, subscriber, service, and action — from one QML app.
+
+    \c{TurtleSim Controller} controls one or more turtles in the classic ROS 2
+    \c turtlesim simulator. In a single application it exercises every
+    communication pattern the bridge supports: a \e publisher for velocity
+    commands, a \e subscriber for pose updates, several \e service \e clients for
+    spawning turtles and setting the pen, and an \e action \e client for rotating
+    to an absolute heading. It is the best example to read once you have seen the
+    \l{Simple Publisher} and \l{Simple Subscriber} basics.
+
+    \image turtlesim_controller/turtlesim_controller.png "The TurtleSim Controller (top) driving turtlesim (bottom), which has drawn the Qt logo using the Draw Qt button."
+
+    \section1 Running the Example
+
+    \list 1
+        \li Source your ROS 2 environment and launch Qt Creator from that shell.
+        \li Open \c examples/turtlesim_controller/CMakeLists.txt in Qt Creator,
+            then build and run.
+        \li Start the TurtleSim backend in a separate, ROS-sourced terminal:
+            \badcode
+            ros2 run turtlesim turtlesim_node
+            \endcode
+    \endlist
+
+    \section1 Wrapping a Third-Party Package
+
+    \c turtlesim is not one of the built-in message modules, so the example wraps
+    it on demand. In \c CMakeLists.txt, \c qt_ros2_configure_target enables the
+    four capabilities the app needs and asks the bridge to generate a QML module
+    for the \c turtlesim package:
+
+    \badcode
+    qt_ros2_configure_target(appturtlesim_controller
+        CAPABILITIES PUBLISHER SUBSCRIBER SERVICE ACTION
+        MODULES QtRos2GeometryMessages
+        IMPORT_PACKAGES turtlesim
+    )
+    \endcode
+
+    The generated types become available in QML under
+    \c QtRos2.Imported.Turtlesim — imported packages are surfaced beneath the
+    \c QtRos2.Imported namespace:
+
+    \qml
+    import QtRos2.Core
+    import QtRos2.Imported.Turtlesim
+    import QtRos2.GeometryMsgs as Geom
+    \endqml
+
+    \section1 One Node per Turtle
+
+    All of a turtle's ROS entities are collected in \c TurtleControllerNode.qml,
+    a reusable component parameterized by a \c baseName. Because \c turtlesim
+    namespaces every topic and service under the turtle's name, the component
+    builds its topic strings from \c baseName and shares a single \c Node:
+
+    \qml
+    // Velocity command publisher
+    Geom.TwistPublisher {
+        node: root.rosNode
+        topic: `/${root.baseName}/cmd_vel`
+    }
+
+    // Pose subscriber
+    PoseSubscriber {
+        id: poseSubscriber
+        node: root.rosNode
+        topic: `/${root.baseName}/pose`
+    }
+    \endqml
+
+    \c{Main.qml} spawns one \c TurtleControllerNode per turtle at runtime and
+    switches the panel between them with a combo box, so the same declarative
+    block scales from one turtle to many.
+
+    \section1 Services: Spawn, Kill, and Pen Control
+
+    Service clients call a service and return a JavaScript \e promise that
+    resolves with the response. Spawning a turtle is a single call whose result
+    (the assigned name) is used to register a new controller:
+
+    \qml
+    SpawnServiceClient {
+        id: spawnService
+        topic: "/spawn"
+    }
+
+    spawnService.callService({ name: "turtle2", x: 5, y: 5 })
+        .then(name => root.addTurtle(name))
+        .catch(err => console.log("Failed to spawn", err))
+    \endqml
+
+    The \e Spawn button is disabled while \c{spawnService.isCallPending} is true,
+    and the top-level \c SpawnServiceClient auto-spawns \c turtle1 as soon as its
+    \c isServiceReady turns true — a small illustration of driving UI and startup
+    logic from service-client state.
+
+    \section2 Chaining Promises: the "Draw Qt" Button
+
+    Because each service call returns a promise, sequential motions compose
+    naturally with \c{.then()}. The \e{Draw Qt} button traces the Qt logo by
+    chaining \c SetPen and \c TeleportAbsolute calls into one long promise chain,
+    so each stroke waits for the previous teleport to complete before starting:
+
+    \qml
+    let promise = moveTo(firstPoint)      // pen off, teleport
+    for (let i = 1; i < points.length; i++)
+        promise = promise.then(() => lineTo(points[i], width))  // pen on, teleport
+    promise.then(() => console.log("drawing complete"))
+    \endqml
+
+    \section1 An Action: Rotate to an Absolute Heading
+
+    Rotating the turtle to a heading is a long-running operation with feedback, so
+    it is an \e action. \c RotateAbsoluteActionClient.sendGoal() returns a promise
+    that resolves with the result, while \c onFeedbackChanged streams progress and
+    the \c state property reports the goal's lifecycle:
+
+    \qml
+    RotateAbsoluteActionClient {
+        id: rotateAction
+        node: root.rosNode
+        topic: `/${root.baseName}/rotate_absolute`
+
+        onFeedbackChanged: (feedback) =>
+            _d.feedbackText = "Remaining: " + feedback.toFixed(3) + " rad"
+    }
+
+    // Send a goal and react to the final result
+    rotateAction.sendGoal(theta)
+        .then(delta => _d.resultText = "Delta: " + delta.toFixed(3) + " rad")
+        .catch(error => console.error("Rotation failed:", error))
+    \endqml
+
+    The \e{Cancel Rotation} button is bound to the goal state so it is only
+    enabled while a goal is in flight:
+
+    \qml
+    Button {
+        text: "Cancel Rotation"
+        enabled: rotateAction.state === RotateAbsoluteActionClient.Accepted
+        onClicked: rotateAction.cancelGoal()
+    }
+    \endqml
+
+    \section1 The UI at a Glance
+
+    The window is organized around the currently selected turtle:
+
+    \list
+        \li A top row selects a turtle and offers \e Kill and \e{Draw Qt}; a
+            second row spawns new turtles by name and position.
+        \li \b{Current Turtle Pose} shows the live pose from the \c PoseSubscriber.
+        \li \b{Move} provides a directional D-pad (publishing \c Twist velocities),
+            plus \e{Move Absolute} and \e{Move Relative} groups that call the
+            teleport services.
+        \li \b{Absolute heading} sends rotation goals via the action client and
+            shows status, feedback, and result.
+        \li \b{Pen Settings} sets the pen color (presets or custom RGB), width,
+            and on/off state through the \c SetPen service.
+    \endlist
+
+    \sa {Simple Publisher}, {Simple Subscriber}, {Qt ROS2 geometry_msgs QML Types}
+*/

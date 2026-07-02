@@ -1,0 +1,104 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example simple_subscriber
+    \title Simple Subscriber
+    \ingroup qtros2-examples
+    \brief Subscribing to a geometry_msgs/PoseStamped message and binding its
+    fields into the UI.
+
+    \c{Simple Subscriber} is the receiving counterpart to \l{Simple Publisher}.
+    It subscribes to a \c geometry_msgs/PoseStamped topic with a single
+    \l{Qt ROS2 geometry_msgs QML Types}{PoseStampedSubscriber} and displays the
+    incoming pose — position, orientation (as a quaternion \e and as Euler
+    angles), timestamp, and frame — using ordinary QML property bindings.
+
+    \image simple_subscriber/simple_subscriber.png "The Simple Subscriber window showing the latest received pose, its frame and timestamp, and the orientation as both a quaternion and Euler angles."
+
+    \section1 Running the Example
+
+    \list 1
+        \li Source your ROS 2 environment and launch Qt Creator from that shell.
+        \li Open \c examples/simple_subscriber/CMakeLists.txt in Qt Creator, then
+            build and run.
+        \li Run the \l{Simple Publisher} example (or any node publishing
+            \c geometry_msgs/PoseStamped on \c /simple_publisher_pose) so there
+            is something to receive.
+    \endlist
+
+    \section1 Declaring a Subscriber
+
+    As with a publisher, a subscriber is a child of a \c Node. It can be given an
+    explicit \c node and its \c topic can be edited live:
+
+    \qml
+    import QtRos2.Core
+    import QtRos2.GeometryMsgs as Geom
+
+    Node {
+        id: rosNode
+        nodeName: "simple_subscriber_node"
+
+        Geom.PoseStampedSubscriber {
+            id: poseSubscriber
+            node: rosNode
+            topic: topicField.text
+
+            onMessageReceived: (msg) => ++root.messageCount
+        }
+    }
+    \endqml
+
+    There are two ways to react to incoming data, and this example uses both:
+
+    \list
+        \li The \c onMessageReceived handler fires once per message. Here it is
+            used only to count messages; it is also the right place for
+            imperative logic that must run exactly once per message.
+        \li Property bindings onto the subscriber's \c message (and its
+            convenience accessors) update automatically whenever a new message
+            arrives — no handler required.
+    \endlist
+
+    \section1 Reactive Bindings and Convenience Accessors
+
+    The subscriber exposes the last message as \c message, and a stamped
+    subscriber also surfaces shortcut accessors so common paths read cleanly. For
+    a \c PoseStampedSubscriber, \c{poseSubscriber.pose} and
+    \c{poseSubscriber.header} are equivalent to \c{poseSubscriber.message.pose}
+    and \c{poseSubscriber.message.header}:
+
+    \qml
+    // These value-type properties re-evaluate every time a message arrives.
+    property Geom.point position: poseSubscriber.pose.position
+    property Geom.quaternion orientation: poseSubscriber.pose.orientation
+
+    Label { text: `x=${root.position.x}  y=${root.position.y}  z=${root.position.z}` }
+    Label { text: `frame: ${poseSubscriber.message.header.frameId}` }
+    \endqml
+
+    \section2 Euler Angles for Free
+
+    A \c geometry_msgs/Quaternion value type also exposes its orientation as
+    Euler angles, so you do not have to convert by hand. \c rpyDegrees gives
+    roll/pitch/yaw in degrees (there is a matching radians accessor):
+
+    \qml
+    Label {
+        text: `roll=${orientation.rpyDegrees.x}°  ` +
+              `pitch=${orientation.rpyDegrees.y}°  ` +
+              `yaw=${orientation.rpyDegrees.z}°`
+    }
+    \endqml
+
+    \section1 Connection Status
+
+    Alongside \c{rosNode.initialized}, a subscriber reports whether a publisher
+    is present on its topic through the \c connected property. The example uses it
+    to show "Publisher available" versus "Waiting for publisher", which makes it
+    obvious whether the absence of data is a connection problem or simply that
+    nothing has been published yet.
+
+    \sa {Simple Publisher}, {Qt ROS2 geometry_msgs QML Types}
+*/

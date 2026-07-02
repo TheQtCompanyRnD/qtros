@@ -1,0 +1,126 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example robotarmcollision
+    \title Robot Arm Collision
+    \ingroup qtros2-examples
+    \brief Importing a URDF robot as a Qt Quick 3D module with physics collision
+    shapes, driven either by an animation or by live ROS 2 joint states.
+
+    \c{Robot Arm Collision} turns a URDF robot description into a Qt Quick 3D
+    scene at build time and adds \l{Qt Quick 3D Physics} collision detection. The
+    arm sweeps through a static box obstacle; while any link overlaps the box it
+    tints red and an on-screen "Collision detected" banner flashes. The arm can
+    be driven two ways: by a built-in animation, or live from
+    \c sensor_msgs/JointState messages arriving over ROS 2.
+
+    \image robotarmcollision/robotarmcollision.png "The Robot Arm Collision example: while the arm sweeps into the obstacle, the box turns red and a Collision detected banner appears."
+
+    \section1 Running the Example
+
+    \list 1
+        \li Source your ROS 2 environment and launch Qt Creator from that shell.
+        \li Open \c examples/robotarmcollision/CMakeLists.txt in Qt Creator, then
+            build and run.
+        \li With \b Animate checked, the arm runs the demo animation and
+            periodically collides with the obstacle.
+        \li With \b Animate unchecked, the arm follows incoming
+            \c sensor_msgs/JointState messages on \c /joint_states. Publish joint
+            states to move it — for example with a joint-state publisher loading
+            \c simple_arm.urdf, in a separate ROS-sourced terminal:
+            \badcode
+            ros2 launch examples/robotarmcollision/simple_arm.launch.py
+            \endcode
+    \endlist
+
+    \section1 Importing a URDF at Build Time
+
+    Unlike the other examples, this one does not import a ROS \e message package —
+    it imports a \e robot. \c qt_ros2_import_urdf() converts \c simple_arm.urdf
+    into a Qt Quick 3D QML module named \c SimpleArm and links it into the target.
+    The \c PHYSICS option generates \l{Qt Quick 3D Physics} rigid bodies and
+    collision shapes from the URDF collision meshes, and \c ROS_BRIDGE generates a
+    companion type that feeds live joint states into the model:
+
+    \badcode
+    qt_ros2_import_urdf(robotarmcollisionapp
+        simple_arm.urdf
+        PHYSICS
+        ROS_BRIDGE
+    )
+    \endcode
+
+    The \c qt_ros2_import_urdf() function also accepts options for the QML module
+    URI, scene scale, and output directory, and it re-runs the importer
+    automatically whenever the URDF file changes — so a plain \c{cmake --build}
+    picks up edits to the robot description.
+
+    \section1 Assembling the Scene
+
+    The generated module provides three cooperating types:
+
+    \list
+        \li \c SimpleArmControl — the control object. It holds the joint angles
+            (for example \c shoulderLiftAngle) and joint metadata
+            (\c{jointInfos[n].upper} / \c lower limits), and — because
+            \c PHYSICS was used — can emit collision overlap reports when
+            \c sendTriggerReports is enabled.
+        \li \c SimpleArm — the 3D model. It renders the links and is bound to a
+            control object via its \c control property.
+        \li \c RosBridge — the generated ROS bridge. Bound to the same control
+            object, it applies incoming \c /joint_states to the arm.
+    \endlist
+
+    \qml
+    import QtQuick3D
+    import QtQuick3D.Physics
+    import SimpleArm
+
+    SimpleArmControl {
+        id: armControl
+        sendTriggerReports: true   // let links report overlaps to the obstacle
+    }
+
+    RosBridge {
+        control: armControl
+        // Drop joint messages while animating; otherwise drive from /joint_states.
+        processMessages: !window.animate
+    }
+
+    View3D {
+        SimpleArm { control: armControl }   // the 3D model, sharing the control
+    }
+    \endqml
+
+    Toggling the \b Animate check box flips \c{RosBridge.processMessages}: when the
+    built-in animation is running the bridge ignores ROS messages so the two drive
+    sources never fight, and when it is off the arm follows \c /joint_states.
+
+    \section1 Detecting Collisions
+
+    The obstacle is a \c TriggerBody, which does not physically block the
+    kinematic arm — it only reports overlaps. An \c overlaps counter is
+    incremented and decremented as links enter and leave, which both tints the box
+    red and flashes the banner:
+
+    \qml
+    TriggerBody {
+        id: obstacle
+        property int overlaps: 0
+        collisionShapes: BoxShape { extents: Qt.vector3d(18, 18, 18) }
+
+        onBodyEntered: { obstacle.overlaps++; banner.flash() }
+        onBodyExited:  obstacle.overlaps = Math.max(0, obstacle.overlaps - 1)
+
+        Model {
+            source: "#Cube"
+            materials: PrincipledMaterial {
+                baseColor: obstacle.overlaps > 0 ? "red" : "#cccccc"
+            }
+        }
+    }
+    \endqml
+
+    \sa {R6 Robot Teach Pendant}
+*/
