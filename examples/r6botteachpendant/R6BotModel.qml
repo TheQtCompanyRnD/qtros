@@ -63,7 +63,9 @@ Node {
                     id: link1Visual
 
                     Link_1 {
-                        // Cancel Y-UP balsam rotation
+                        // URDF <visual> origin offset within link_1, plus
+                        // cancel Y-UP balsam rotation
+                        position: Qt.vector3d(0.0, 0.0, -0.182)
                         rotation: Qt.quaternion(0.7071068, 0.7071068, 0, 0)
                     }
                 }
@@ -85,7 +87,9 @@ Node {
                         id: link2Visual
 
                         Link_2 {
-                            // Cancel Y-UP balsam rotation
+                            // URDF <visual> origin offset within link_2, plus
+                            // cancel Y-UP balsam rotation
+                            position: Qt.vector3d(0.0, 0.0, -0.168)
                             rotation: Qt.quaternion(0.7071068, 0.7071068, 0, 0)
                         }
                     }
@@ -107,7 +111,9 @@ Node {
                             id: link3Visual
 
                             Link_3 {
-                                // Cancel Y-UP balsam rotation
+                                // URDF <visual> origin offset within link_3, plus
+                                // cancel Y-UP balsam rotation
+                                position: Qt.vector3d(0.0, 0.0, -0.144)
                                 rotation: Qt.quaternion(0.7071068,
                                                         0.7071068, 0, 0)
                             }
@@ -130,7 +136,9 @@ Node {
                                 id: link4Visual
 
                                 Link_4 {
-                                    // Cancel Y-UP balsam rotation
+                                    // URDF <visual> origin offset within link_4, plus
+                                    // cancel Y-UP balsam rotation
+                                    position: Qt.vector3d(0.0, 0.0, 0.077)
                                     rotation: Qt.quaternion(0.7071068,
                                                             0.7071068, 0, 0)
                                 }
@@ -153,7 +161,9 @@ Node {
                                     id: link5Visual
 
                                     Link_5 {
-                                        // Cancel Y-UP balsam rotation
+                                        // URDF <visual> origin offset within link_5, plus
+                                        // cancel Y-UP balsam rotation
+                                        position: Qt.vector3d(0.0, 0.0, 0.113)
                                         rotation: Qt.quaternion(0.7071068,
                                                                 0.7071068, 0, 0)
                                     }
@@ -176,7 +186,9 @@ Node {
                                         id: link6Visual
 
                                         Link_6 {
-                                            // Cancel Y-UP balsam rotation
+                                            // URDF <visual> origin offset within link_6, plus
+                                            // cancel Y-UP balsam rotation
+                                            position: Qt.vector3d(0.0, 0.0, 0.086)
                                             rotation: Qt.quaternion(0.7071068,
                                                                     0.7071068,
                                                                     0, 0)
