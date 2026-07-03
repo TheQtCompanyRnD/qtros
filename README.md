@@ -7,6 +7,7 @@ QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated
 **Getting Started:**
 - [Environment Setup (Ubuntu 24.04)](#environment-setup-ubuntu-2404)
 - [Building the Workspace](#building-the-workspace)
+- [Building with Docker](#building-with-docker)
 - [Developing with Qt Creator](#developing-with-qt-creator)
 - [Examples](#examples)
 - [QML Usage Highlights](#qml-usage-highlights)
@@ -238,6 +239,46 @@ Adjust the Qt path to match your Qt build or installation.
 > installed Qt (online installer, system package, or other prefix). For **non-prefix
 > (in-tree) builds**, where this module is built as part of a Qt source tree, the install
 > step is not needed as files land directly in the build tree.
+
+## Building with Docker
+
+Rather than installing ROS 2 and Qt on the host, you can build QtROS2 inside containers defined under [docker/](docker/). The setup is split into two images:
+
+- **`docker/Dockerfile.base`** — a toolchain-only image (Ubuntu 24.04 + ROS 2 Jazzy + Qt 6, installed via the [official Qt installer](https://download.qt.io/official_releases/online_installers/)). It contains no repository source and only needs to be rebuilt when the toolchain itself changes.
+- **`docker/Dockerfile.bindings`** — extends the base image (`FROM`), copies the repository in, and runs `qt-configure-module` / `cmake --build` / `cmake --install` to produce the compiled QtROS2 module.
+
+Building the base image requires a Qt account (free for open-source use) supplied as build secrets — **never** as `--build-arg` or baked into the image, since build args persist in image history. The images target `linux/amd64` only, since that's the only Linux desktop architecture the Qt official installer ships prebuilt packages for; on Apple Silicon hosts, builds run under emulation and are slower.
+
+**Option 1 — Docker Compose (recommended for local use):**
+
+Copy `docker/.env.example` to `docker/.env` and fill in your Qt account credentials, then:
+
+```bash
+cd docker
+docker compose build base      # slow: installs ROS 2 + Qt
+docker compose build bindings  # fast: copies source and compiles
+```
+
+`docker/.env` is git-ignored — never commit it. Compose reads the secrets from that file automatically (via `secrets: ...: environment: ...`), and `docker/.dockerignore`-equivalent exclusions live in the repo-root [.dockerignore](.dockerignore) (see the note in that file about why it can't live under `docker/`).
+
+**Option 2 — Plain `docker build` (also works with Podman and Apple's `container` CLI):**
+
+```bash
+# 1. Build (and optionally push) the toolchain image, from the repo root:
+docker build --platform linux/amd64 \
+  --secret id=QT_ACCOUNT_USER_NAME,env=QT_ACCOUNT_USER_NAME \
+  --secret id=QT_ACCOUNT_PASSWORD,env=QT_ACCOUNT_PASSWORD \
+  -f docker/Dockerfile.base -t qtros2-bridge:base .
+
+# 2. Build the module against it:
+docker build --platform linux/amd64 \
+  --build-arg BASE_IMAGE=qtros2-bridge:base \
+  -f docker/Dockerfile.bindings -t qtros2-bridge:bindings .
+```
+
+Both steps require `--secret`/`--build-arg` support (BuildKit for Docker, Buildah 1.21+ for Podman); substitute `podman build` or `container build` with the same flags. Export the credentials into your shell first with `set -a && source docker/.env && set +a` if you're not passing them another way.
+
+**Continuous Integration:** [.gitlab-ci.yml](.gitlab-ci.yml) builds and pushes both images to the project's GitLab Container Registry — `build-linux-x64-base-image` only reruns when `docker/Dockerfile.base` changes, and `build-linux-x64-project-image` reruns on source changes (or pushes to the default branch), extending whatever base image was last pushed.
 
 ## Developing with Qt Creator
 

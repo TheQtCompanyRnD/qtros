@@ -1,0 +1,35 @@
+services:
+  # Toolchain-only image (ROS 2 Jazzy + Qt 6). Build this first — it's the
+  # slow one (Qt official installer + ROS2 apt install).
+  base:
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.base
+      secrets:
+        - source: QT_ACCOUNT_USER_NAME
+        - source: QT_ACCOUNT_PASSWORD
+    image: qtros2-bridge:base
+    env_file:
+      - .env
+
+  # Extends `base`: COPYs the repo in and compiles the QtROS2 module
+  # (bindings). Requires `base` to already be built (docker compose build
+  # base) since BASE_IMAGE is resolved by tag, not by compose's own
+  # dependency graph.
+  bindings:
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.bindings
+      args:
+        BASE_IMAGE: qtros2-bridge:base
+    image: qtros2-bridge:bindings
+    depends_on:
+      - base
+
+secrets:
+  QT_ACCOUNT_USER_NAME:
+    environment: QT_ACCOUNT_USER_NAME
+  QT_ACCOUNT_PASSWORD:
+    environment: QT_ACCOUNT_PASSWORD
