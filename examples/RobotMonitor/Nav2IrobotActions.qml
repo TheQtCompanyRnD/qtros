@@ -8,7 +8,7 @@ import QtRos2.Imported.IrobotCreateMsgs
 QtObject {
     id: root
 
-    required property var node
+    property var node
 
     readonly property var navigationStatus: _navigateToPoseAction.state
     readonly property var navigationFeedback: _navigateToPoseAction.feedback
