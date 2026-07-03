@@ -448,13 +448,18 @@ else()
     # For Qt-internal module dependencies, "/auto" resolves to the importing module's
     # version (1.0), but Qt-internal modules are registered at Qt's version (6.x).
     # Replace "/auto" with "/${QT_VERSION_MAJOR}" to get the right major version.
+    # Sibling generated modules (QtRos2.Imported.*) are versioned at 1.0 like this
+    # module, so leave their "/auto" alone — rewriting it to 6.0 would make the import
+    # request a version that is not installed.
     set(_qtros2_external_imports "")
     foreach(_imp ${_qtros2_module_imports})
-        string(REPLACE "/auto" "/${Qt6_VERSION_MAJOR}.0" _imp "${_imp}")
+        if(NOT _imp MATCHES "^QtRos2\\.Imported\\.")
+            string(REPLACE "/auto" "/${Qt6_VERSION_MAJOR}.0" _imp "${_imp}")
+        endif()
         list(APPEND _qtros2_external_imports "${_imp}")
     endforeach()
     unset(_imp)
-    qt_add_library(${_qtros2_module_name} SHARED)
+    qt_add_library(${_qtros2_module_name} STATIC)
     qt_add_qml_module(${_qtros2_module_name}
         URI "${_qtros2_module_uri}"
         VERSION 1.0
