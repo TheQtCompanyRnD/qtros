@@ -1,31 +1,11 @@
-# Builds the QtROS2 module (bindings) against the toolchain baked into
-# docker/Dockerfile.base (ROS 2 Jazzy + Qt 6). Extending that image via FROM
-# means this build only reruns the (fast) COPY + compile layers when source
-# changes; the (slow) ROS2/Qt install layers are reused unmodified from the
-# base image's cache.
-#
-# Build context must be the repo ROOT (not docker/), since this Dockerfile
-# COPYs the whole source tree in. Build from the repo root with:
-#   docker build --platform linux/amd64 \
-#     --build-arg BASE_IMAGE=qtros2-bridge:base \
-#     -f docker/Dockerfile.bindings -t qtros2-bridge:bindings .
-# (same for podman build / container build). BASE_IMAGE must already exist
-# locally or be pullable — build docker/Dockerfile.base first.
-
 ARG BASE_IMAGE=qtros2-bridge:base
 FROM ${BASE_IMAGE}
 
-# SHELL doesn't carry across FROM, so this must be redeclared here for the
-# `source` builtin used by the RUN step below (default /bin/sh is dash).
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 WORKDIR /workspace
 COPY . .
 
-# Sources the ROS 2 environment so FindWrapRos2.cmake can resolve rclcpp via
-# AMENT_PREFIX_PATH, then configures/builds/installs against the Qt prefix
-# from the base image (a prefix build, so `cmake --install` is required per
-# README). ROS_DISTRO/QT_ROOT/PATH are inherited as ENV from the base image.
 RUN source "/opt/ros/${ROS_DISTRO}/setup.bash" \
     && mkdir -p /workspace/build \
     && cd /workspace/build \

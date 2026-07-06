@@ -249,36 +249,15 @@ Rather than installing ROS 2 and Qt on the host, you can build QtROS2 inside con
 
 Building the base image requires a Qt account (free for open-source use) supplied as build secrets — **never** as `--build-arg` or baked into the image, since build args persist in image history. The images target `linux/amd64` only, since that's the only Linux desktop architecture the Qt official installer ships prebuilt packages for; on Apple Silicon hosts, builds run under emulation and are slower.
 
-**Option 1 — Docker Compose (recommended for local use):**
-
 Copy `docker/.env.example` to `docker/.env` and fill in your Qt account credentials, then:
 
 ```bash
 cd docker
-docker compose build base      # slow: installs ROS 2 + Qt
-docker compose build bindings  # fast: copies source and compiles
+docker compose build base
+docker compose build bindings
 ```
 
 `docker/.env` is git-ignored — never commit it. Compose reads the secrets from that file automatically (via `secrets: ...: environment: ...`), and `docker/.dockerignore`-equivalent exclusions live in the repo-root [.dockerignore](.dockerignore) (see the note in that file about why it can't live under `docker/`).
-
-**Option 2 — Plain `docker build` (also works with Podman and Apple's `container` CLI):**
-
-```bash
-# 1. Build (and optionally push) the toolchain image, from the repo root:
-docker build --platform linux/amd64 \
-  --secret id=QT_ACCOUNT_USER_NAME,env=QT_ACCOUNT_USER_NAME \
-  --secret id=QT_ACCOUNT_PASSWORD,env=QT_ACCOUNT_PASSWORD \
-  -f docker/Dockerfile.base -t qtros2-bridge:base .
-
-# 2. Build the module against it:
-docker build --platform linux/amd64 \
-  --build-arg BASE_IMAGE=qtros2-bridge:base \
-  -f docker/Dockerfile.bindings -t qtros2-bridge:bindings .
-```
-
-Both steps require `--secret`/`--build-arg` support (BuildKit for Docker, Buildah 1.21+ for Podman); substitute `podman build` or `container build` with the same flags. Export the credentials into your shell first with `set -a && source docker/.env && set +a` if you're not passing them another way.
-
-**Continuous Integration:** [.gitlab-ci.yml](.gitlab-ci.yml) builds and pushes both images to the project's GitLab Container Registry — `build-linux-x64-base-image` only reruns when `docker/Dockerfile.base` changes, and `build-linux-x64-project-image` reruns on source changes (or pushes to the default branch), extending whatever base image was last pushed.
 
 ## Developing with Qt Creator
 

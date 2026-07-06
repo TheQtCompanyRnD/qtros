@@ -13,9 +13,6 @@ stages:
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
 
-# Toolchain-only image: ROS 2 Jazzy + Qt 6 (docker/Dockerfile.base). Only
-# rebuilds when the toolchain itself changes, since it's the slow layer
-# (Qt official installer + ROS2 apt install).
 build-linux-x64-base-image:
   extends: .docker-build
   stage: build-base-image
@@ -33,11 +30,6 @@ build-linux-x64-base-image:
     - docker push $CI_REGISTRY_IMAGE:linux-x64-base-$CI_COMMIT_SHA
     - docker push $CI_REGISTRY_IMAGE:linux-x64-base-latest
 
-# Extends the base image (docker/Dockerfile.bindings): COPies the repo in
-# and compiles the QtROS2 module. `docker build`'s FROM pulls the base image
-# from the registry automatically if it's not already on this (ephemeral
-# dind) daemon, so `needs: optional: true` lets this run even when the base
-# image job itself was skipped by its own rules.
 build-linux-x64-project-image:
   extends: .docker-build
   stage: build-project-image

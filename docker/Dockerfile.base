@@ -1,25 +1,3 @@
-# Toolchain-only base image: ROS 2 Jazzy + Qt 6, no repo source inside.
-# docker/Dockerfile.bindings extends this (FROM) to COPY the repo in and
-# compile it, so this slow layer (ROS2 apt install + Qt official installer)
-# only rebuilds when this Dockerfile changes, not on every source commit.
-#
-# syntax notes:
-#   - Only uses instructions supported by the classic Dockerfile spec (FROM,
-#     ARG, ENV, RUN, COPY, WORKDIR, SHELL) plus the one BuildKit extension
-#     that's unavoidable here: `RUN --mount=type=secret`, used to pass Qt
-#     account credentials to the official installer without baking them into
-#     an image layer. Docker (BuildKit, default since Docker 23), Podman
-#     (Buildah 1.21+) and Apple's `container` CLI all implement this syntax.
-#   - Qt's official installer only ships prebuilt Linux desktop packages for
-#     x86_64, so this image targets linux/amd64 regardless of host
-#     architecture. Build explicitly with (from the repo root; see the
-#     credential note below the Qt install step for the --secret flags):
-#       docker build    --platform linux/amd64 -f docker/Dockerfile.base -t qtros2-bridge:base .
-#       podman build    --platform linux/amd64 -f docker/Dockerfile.base -t qtros2-bridge:base .
-#       container build --platform linux/amd64 -f docker/Dockerfile.base -t qtros2-bridge:base .
-#     On Apple Silicon hosts this runs under emulation; expect a slower build
-#     than a native arm64 image.
-
 FROM ubuntu:24.04
 
 ARG ROS_DISTRO=jazzy
@@ -39,12 +17,18 @@ ENV DEBIAN_FRONTEND=noninteractive \
     QT_INSTALL_DIR=${QT_INSTALL_DIR} \
     QT_ROOT=${QT_INSTALL_DIR}/${QT_VERSION}/gcc_64
 
+ENV QT_COMPONENTS=" \
+    qt.qt6.${QT_VERSION_STUB}.linux_gcc_64 \
+    qt.qt6.${QT_VERSION_STUB}.addons.qtquick3d \
+    qt.qt6.${QT_VERSION_STUB}.addons.qtquick3dphysics \
+    qt.qt6.${QT_VERSION_STUB}.addons.qtmultimedia \
+    qt.qt6.${QT_VERSION_STUB}.addons.qtshadertools \
+    qt.qt6.${QT_VERSION_STUB}.addons.qt5compat \
+    qt.qt6.${QT_VERSION_STUB}.addons.qtimageformats\
+    "
+
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# --- Base build tooling ------------------------------------------------
-# Includes the X11/xcb/GL runtime libraries the Qt online installer binary
-# itself is linked against (it's a Qt Widgets app, so it needs them even
-# when run non-interactively / offscreen via QT_QPA_PLATFORM=minimal below).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
@@ -95,7 +79,6 @@ RUN apt-get update \
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-# --- ROS 2 Jazzy ---------------------------------------------------------
 RUN add-apt-repository -y universe \
     && ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') \
     && curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb" \
@@ -107,37 +90,14 @@ RUN add-apt-repository -y universe \
         ros-dev-tools \
     && rm -rf /var/lib/apt/lists/*
 
-# --- Python deps for the urdfviewer tool / URDF importer ----------------
-RUN pip3 install --no-cache-dir urdf_parser_py jinja2
-
-# --- Qt 6 (official installer, Linux host + Linux desktop (gcc_64) target) --
-# Components beyond the essential qtbase/qtdeclarative set that this repo's
-# CMakeLists.txt files ask for: Quick3D + Quick3DPhysics (urdfviewer /
-# examples), Multimedia (ImageCapture in the sensor_msgs QML sample),
-# shadertools (required by Quick3D), qt5compat/imageformats as safe defaults.
-# Adjust QT_COMPONENTS if `qt-online-installer-linux-x64-online.run search`
-# reports different ids for the pinned QT_VERSION.
-ENV QT_COMPONENTS="qt.qt6.${QT_VERSION_STUB}.linux_gcc_64 \
-                    qt.qt6.${QT_VERSION_STUB}.addons.qtquick3d \
-                    qt.qt6.${QT_VERSION_STUB}.addons.qtquick3dphysics \
-                    qt.qt6.${QT_VERSION_STUB}.addons.qtmultimedia \
-                    qt.qt6.${QT_VERSION_STUB}.addons.qtshadertools \
-                    qt.qt6.${QT_VERSION_STUB}.addons.qt5compat \
-                    qt.qt6.${QT_VERSION_STUB}.addons.qtimageformats"
+RUN pip3 install --no-cache-dir \
+    urdf_parser_py \
+    jinja2
 
 WORKDIR /tmp
 RUN wget -q https://download.qt.io/official_releases/online_installers/qt-online-installer-linux-x64-online.run \
     && chmod +x qt-online-installer-linux-x64-online.run
 
-# Requires a Qt account (free for open-source use) supplied as BuildKit
-# secrets, never as --build-arg (build args land in image history/cache).
-# Build with, e.g.:
-#   docker build --platform linux/amd64 \
-#     --secret id=QT_ACCOUNT_USER_NAME,env=QT_ACCOUNT_USER_NAME \
-#     --secret id=QT_ACCOUNT_PASSWORD,env=QT_ACCOUNT_PASSWORD \
-#     -t qtros2-bridge .
-# (podman build takes the same --secret flags; for `container build`, check
-# `container build --help` for its current secret-mount syntax.)
 RUN --mount=type=secret,id=QT_ACCOUNT_USER_NAME \
     --mount=type=secret,id=QT_ACCOUNT_PASSWORD \
     QT_QPA_PLATFORM=minimal \
@@ -154,10 +114,6 @@ RUN --mount=type=secret,id=QT_ACCOUNT_USER_NAME \
 
 ENV PATH="${QT_ROOT}/bin:${PATH}"
 
-# Make the Qt install and ROS 2 environment available in interactive shells
-# started from this image (docker/Dockerfile.bindings's RUN steps source the
-# same setup.bash explicitly instead, since non-interactive RUN shells
-# don't read /etc/bash.bashrc).
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /etc/bash.bashrc \
     && echo "export PATH=\"${QT_ROOT}/bin:\$PATH\"" >> /etc/bash.bashrc
 

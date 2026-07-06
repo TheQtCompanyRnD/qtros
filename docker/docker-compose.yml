@@ -1,6 +1,4 @@
 services:
-  # Toolchain-only image (ROS 2 Jazzy + Qt 6). Build this first — it's the
-  # slow one (Qt official installer + ROS2 apt install).
   base:
     platform: linux/amd64
     build:
@@ -13,10 +11,6 @@ services:
     env_file:
       - .env
 
-  # Extends `base`: COPYs the repo in and compiles the QtROS2 module
-  # (bindings). Requires `base` to already be built (docker compose build
-  # base) since BASE_IMAGE is resolved by tag, not by compose's own
-  # dependency graph.
   bindings:
     platform: linux/amd64
     build:
