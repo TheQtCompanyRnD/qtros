@@ -1,3 +1,6 @@
+# Copyright (C) 2026 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 ARG BASE_IMAGE=qtros2-bridge:base
 FROM ${BASE_IMAGE}
 
