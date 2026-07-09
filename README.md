@@ -8,6 +8,7 @@ QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated
 - [Environment Setup (Ubuntu 24.04)](#environment-setup-ubuntu-2404)
 - [Building the Workspace](#building-the-workspace)
 - [Building with Docker](#building-with-docker)
+  - [Running an Example with Docker](#running-an-example-with-docker)
 - [Developing with Qt Creator](#developing-with-qt-creator)
 - [Examples](#examples)
 - [QML Usage Highlights](#qml-usage-highlights)
@@ -258,6 +259,39 @@ docker compose build bindings
 ```
 
 `docker/.env` is git-ignored — never commit it. Compose reads the secrets from that file automatically (via `secrets: ...: environment: ...`), and `docker/.dockerignore`-equivalent exclusions live in the repo-root [.dockerignore](.dockerignore) (see the note in that file about why it can't live under `docker/`).
+
+### Running an Example with Docker
+
+The `qtros2-bridge:bindings` image builds and installs the `Ros2Core` module and the generated message modules into the Qt prefix, but the [examples/](examples/) are excluded from that build (via `examples/COLCON_IGNORE`) so the image stays focused on the module itself. To run one, start a container and build the example inside it.
+
+Since the examples are Qt Quick GUI applications, the container needs access to a display. On a Linux host with a Wayland compositor, forward the Wayland socket and start an interactive shell:
+
+```bash
+docker run -it --rm \
+    -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+    -e XDG_RUNTIME_DIR=/tmp/runtime \
+    -e QT_QPA_PLATFORM=wayland \
+    -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/runtime/$WAYLAND_DISPLAY \
+    --name qtros2 \
+    qtros2-bridge:bindings bash
+```
+
+Inside the container, the ROS 2 and Qt environments are already sourced for interactive bash shells (see `/etc/bash.bashrc` in [docker/Dockerfile.base](docker/Dockerfile.base)), so you can configure and build the example directly against the installed Qt/QtROS2 prefix:
+
+```bash
+cd examples/simple_publisher
+qt-cmake -S . -B build
+cmake --build build --parallel
+./build/appsimple_publisher
+```
+
+**Observe published messages** (in a second terminal, attached to the same running container):
+
+```bash
+docker exec -it qtros2 bash -c "ros2 topic echo /simple_publisher_pose"
+```
+
+The same pattern applies to the other [examples](#examples) — `cd` into the example directory, build it with `qt-cmake`, and run the resulting `app*` binary.
 
 ## Developing with Qt Creator
 
