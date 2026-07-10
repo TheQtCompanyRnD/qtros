@@ -15,7 +15,14 @@ qt_find_package(WrapRos2 PROVIDED_TARGETS
 # rosidl_generator_qtros2Config.cmake (which uses ${CMAKE_CURRENT_LIST_DIR}/...)
 # can be used directly without an extra source-tree specific one.
 set(_qtros2_src "${CMAKE_CURRENT_SOURCE_DIR}/rosidl_generator_qtros2")
-set(_qtros2_cmake_dest "${QT_CONFIG_BUILD_DIR}/Qt6Ros2Core")
+# Build-tree location, used to populate the build dir for configure-time
+# find_package() below. This is an absolute path under ${QT_CONFIG_BUILD_DIR}.
+set(_qtros2_cmake_build_dest "${QT_CONFIG_BUILD_DIR}/Qt6Ros2Core")
+# Install location, relative to the install prefix. qt_copy_or_install()'s
+# DESTINATION must be this (NOT the absolute build dir), otherwise the generated
+# install() rule writes into the build tree -- which, under a DESTDIR install
+# (e.g. Yocto), lands as <sysroot>/<abs-build-path>/... instead of the prefix.
+set(_qtros2_cmake_install_dest "${QT_CONFIG_INSTALL_DIR}/Qt6Ros2Core")
 
 # In prefix builds qt_copy_or_install only generates install() rules and does not
 # populate the build tree at configure time (qt_non_prefix_copy is a no-op when
@@ -28,12 +35,12 @@ if(QT_WILL_INSTALL)
         "${_qtros2_src}/cmake/qtros2_generate_from_package.cmake"
         "${_qtros2_src}/cmake/analyze_idl_dependencies.cmake"
         "${_qtros2_src}/cmake/rosidl_generator_qtros2_generate_interfaces.cmake"
-        DESTINATION "${_qtros2_cmake_dest}"
+        DESTINATION "${_qtros2_cmake_build_dest}"
     )
     file(COPY
         "${_qtros2_src}/rosidl_generator_qtros2"
         "${_qtros2_src}/resource"
-        DESTINATION "${_qtros2_cmake_dest}"
+        DESTINATION "${_qtros2_cmake_build_dest}"
     )
 endif()
 
@@ -42,18 +49,20 @@ qt_copy_or_install(FILES
     "${_qtros2_src}/cmake/qtros2_generate_from_package.cmake"
     "${_qtros2_src}/cmake/analyze_idl_dependencies.cmake"
     "${_qtros2_src}/cmake/rosidl_generator_qtros2_generate_interfaces.cmake"
-    DESTINATION "${_qtros2_cmake_dest}"
+    DESTINATION "${_qtros2_cmake_install_dest}"
 )
 qt_copy_or_install(DIRECTORY
     "${_qtros2_src}/rosidl_generator_qtros2"
     "${_qtros2_src}/resource"
-    DESTINATION "${_qtros2_cmake_dest}"
+    DESTINATION "${_qtros2_cmake_install_dest}"
 )
 unset(_qtros2_src)
+unset(_qtros2_cmake_install_dest)
 
-set(rosidl_generator_qtros2_DIR "${_qtros2_cmake_dest}"
+# find_package() at configure time needs the build-tree copy populated above.
+set(rosidl_generator_qtros2_DIR "${_qtros2_cmake_build_dest}"
     CACHE PATH "Path to rosidl_generator_qtros2 cmake directory" FORCE)
-unset(_qtros2_cmake_dest)
+unset(_qtros2_cmake_build_dest)
 find_package(rosidl_generator_qtros2 REQUIRED)
 
 add_subdirectory(core)
