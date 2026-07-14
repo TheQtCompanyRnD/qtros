@@ -438,6 +438,16 @@ if(QT_BUILDING_QT)
         PUBLIC_LIBRARIES ${_qtros2_module_public_libs}
         LIBRARIES ${_qtros2_module_private_libs}
     )
+
+    # NO_SYNC_QT above skips Qt's normal syncqt-based header install, since these
+    # generated headers already live under "${_output_path}/include/<module>/..." and
+    # don't follow the syncqt source layout. Install them directly so that the headers
+    # referenced via PUBLIC_INCLUDE_DIRECTORIES' $<INSTALL_INTERFACE:include> actually
+    # end up in the Qt prefix (needed by consumers building outside this project's own
+    # build tree, e.g. the examples/ built standalone against the installed module).
+    qt_install(DIRECTORY "${_output_path}/include/"
+        DESTINATION "include"
+    )
 else()
     # External project build (e.g. user app with ROS2_PACKAGES): use public Qt API.
     # Generated headers include QtRos2Core private headers, so the private module IS needed.
