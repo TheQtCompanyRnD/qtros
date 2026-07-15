@@ -1,0 +1,42 @@
+# Copyright (C) 2026 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+services:
+  base:
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.base
+      secrets:
+        - source: QT_ACCOUNT_USER_NAME
+        - source: QT_ACCOUNT_PASSWORD
+    image: qtros2-bridge:base
+    env_file:
+      - .env
+
+  bindings:
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.bindings
+      args:
+        BASE_IMAGE: qtros2-bridge:base
+    image: qtros2-bridge:bindings
+    depends_on:
+      - base
+
+  testing:
+    platform: linux/amd64
+    image: git.qt.io:4567/qt-robotics/qt-ros2-bridge:linux-x64-latest
+    stdin_open: true
+    tty: true
+    environment:
+      - ROS_DOMAIN_ID=0
+      - DISPLAY=host.docker.internal:0
+      - QT_X11_NO_MITSHM=1
+
+secrets:
+  QT_ACCOUNT_USER_NAME:
+    environment: QT_ACCOUNT_USER_NAME
+  QT_ACCOUNT_PASSWORD:
+    environment: QT_ACCOUNT_PASSWORD

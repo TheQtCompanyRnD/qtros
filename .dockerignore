@@ -1,0 +1,10 @@
+.git
+build
+**/build
+*.qmlc
+*.jsc
+.vscode
+.idea
+.env
+**/.env
+docker/docker-compose.yml
