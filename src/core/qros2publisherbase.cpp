@@ -112,13 +112,12 @@ void QRos2PublisherBase::setSubscriberCount(int count)
     \qmlproperty bool PublisherBase::autoPublish
 
     If \c true (the default), assigning any field property of a
-    multi-field publisher schedules a publish at the end of the current
+    publisher schedules a publish at the end of the current
     event-loop iteration. Multiple assignments per iteration coalesce
     into one publish. If \c false, field property writes update the
     stored message silently and \l publish() must be called explicitly.
 
-    Has no effect on single-field or empty publisher types, which have
-    no stored state.
+    Has no effect on empty publisher types, which have no stored state.
 */
 void QRos2PublisherBase::setAutoPublish(bool autoPublish)
 {
@@ -136,8 +135,7 @@ void QRos2PublisherBase::setAutoPublish(bool autoPublish)
     fires only when the publisher has been quiet for the full interval.
     Defaults to \c 0 (no timer).
 
-    Has no effect on single-field or empty publisher types, which have
-    no stored state.
+    Has no effect on empty publisher types, which have no stored state.
 */
 void QRos2PublisherBase::setPublishInterval(int ms)
 {
@@ -153,9 +151,10 @@ void QRos2PublisherBase::setPublishInterval(int ms)
 /*!
     \qmlmethod void PublisherBase::publish()
 
-    Publishes the stored message state. For single-field and empty
-    publisher types this is a no-op; use the typed \c publish(value)
-    overload instead.
+    Publishes the stored message state. For empty publisher types this
+    is a no-op. Single-field publishers also offer a typed
+    \c publish(value) overload that sends a value immediately without
+    touching the stored property.
 
     Calling this clears any pending coalesced publish and, when
     \l publishInterval is greater than zero, restarts the heartbeat
@@ -183,9 +182,10 @@ void QRos2PublisherBase::requestPublish()
 }
 
 /*!
-    Overridden by generated multi-field publishers to publish m_message.
-    Empty default is correct for single-field and empty messages, which
-    have no stored state to flush.
+    Overridden by generated publishers to publish their stored state
+    (m_message for multi-field, the stored scalar for single-field).
+    Empty default is correct for empty messages, which have no stored
+    state to flush.
 */
 void QRos2PublisherBase::publishStoredState() {}
 

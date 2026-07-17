@@ -78,6 +78,9 @@ class @(qt_export_macro) @(qt_class_name)Publisher : public @(publisher_base)
     Q_PROPERTY(@(fp['qt_type']) @(fp['prop_name']) READ @(fp['prop_name']) WRITE @(fp['setter_name']) NOTIFY @(fp['signal_name']))
 @[  end for]@
 @[end if]@
+@[if sf and sf['prop_name']]@
+    Q_PROPERTY(@(sf['qt_type']) @(sf['prop_name']) READ @(sf['prop_name']) WRITE @(sf['setter_name']) NOTIFY @(sf['signal_name']))
+@[end if]@
 
 public:
     explicit @(qt_class_name)Publisher(QObject* parent = nullptr);
@@ -86,6 +89,10 @@ public:
 @[  for fp in fps]@
     @(fp['qt_type']) @(fp['prop_name'])() const { return @(fp['getter_expr']); }
 @[  end for]@
+    using QRos2PublisherBase::publish;
+@[end if]@
+@[if sf and sf['prop_name']]@
+    @(sf['qt_type']) @(sf['prop_name'])() const { return @(sf['member_name']); }
     using QRos2PublisherBase::publish;
 @[end if]@
     /*!
@@ -105,6 +112,11 @@ public Q_SLOTS:
 @[  end for]@
 
 @[end if]@
+@[if sf and sf['prop_name']]@
+public Q_SLOTS:
+    void @(sf['setter_name'])(@(sf['param_decl']));
+
+@[end if]@
 @[if fps]@
 Q_SIGNALS:
 @[  for fp in fps]@
@@ -112,17 +124,25 @@ Q_SIGNALS:
 @[  end for]@
 
 @[end if]@
+@[if sf and sf['prop_name']]@
+Q_SIGNALS:
+    void @(sf['signal_name'])(@(sf['param_decl']));
+
+@[end if]@
 protected:
     void setupConnection() override;
     void clearConnection() override;
     void checkHealth() override;
-@[if fps]@
+@[if fps or (sf and sf['prop_name'])]@
     void publishStoredState() override;
 @[end if]@
 
 private:
 @[if fps]@
     @(qt_class_name_full) m_message;
+@[end if]@
+@[if sf and sf['prop_name']]@
+    @(sf['qt_type']) @(sf['member_name']){};
 @[end if]@
 #ifndef Q_QDOC
     rclcpp::Publisher<@(ros_msg_type)>::SharedPtr m_publisher;

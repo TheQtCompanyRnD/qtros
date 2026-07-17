@@ -73,6 +73,10 @@ namespace @(qt_namespace) {
     @(qt_class_name)Publisher publishes \l @(qml_value_type_name) values to a ROS 2 topic.
 @[end if]@
     Set the \c topic and \c node properties, then call \c publish() to send messages.
+@[if sf and sf['prop_name']]@
+    Alternatively, bind the \l @(sf['prop_name']) property to publish
+    automatically whenever the bound value changes.
+@[end if]@
 
 @[if sf]@
     \sa @(qt_class_name)Subscriber
@@ -107,6 +111,17 @@ namespace @(qt_namespace) {
 
 @[  end for]@
 @[end if]@
+@[if sf and sf['prop_name']]@
+/*!
+    \qmlproperty @(sf['qml_doc_type']) @(qt_class_name)Publisher::@(sf['prop_name'])
+
+    The @(sf['qml_doc_type']) value included in the next publish.
+    Setting this property emits \l @(sf['signal_name']) and, when
+    \l {PublisherBase::autoPublish}{autoPublish} is \c true, requests a
+    publish at the end of the current event-loop iteration.
+*/
+
+@[end if]@
 @(qt_class_name)Publisher::@(qt_class_name)Publisher(QObject* parent)
     : @(publisher_base)(parent)
 {
@@ -138,6 +153,30 @@ void @(qt_class_name)Publisher::@(fp['setter_name'])(@(fp['param_decl']))
 }
 
 @[  end for]@
+@[end if]@
+@[if sf and sf['prop_name']]@
+void @(qt_class_name)Publisher::publishStoredState()
+{
+    if (!m_publisher) {
+        return;
+    }
+
+    @(ros_msg_type) ros_msg;
+    const auto& @(sf['field_name']) = @(sf['member_name']);
+    @(sf['qt_to_ros'])
+    m_publisher->publish(ros_msg);
+}
+
+void @(qt_class_name)Publisher::@(sf['setter_name'])(@(sf['param_decl']))
+{
+    if (@(sf['member_name']) == @(sf['field_name'])) {
+        return;
+    }
+    @(sf['member_name']) = @(sf['field_name']);
+    emit @(sf['signal_name'])(@(sf['member_name']));
+    requestPublish();
+}
+
 @[end if]@
 @[if sf]@
 void @(qt_class_name)Publisher::publish(@(sf['param_decl']))

@@ -666,15 +666,41 @@ _SINGLE_FIELD_TYPE_OVERRIDES: Dict[str, Dict[str, Any]] = {
 }
 
 
+def _add_single_field_prop_keys(info: Dict[str, Any]) -> Dict[str, Any]:
+    """Add bindable Q_PROPERTY naming keys to a single-field info dict.
+
+    prop_name is the camelCased field name, mirroring the multi-field
+    convention (an override may supply its own prop_name).  When the name
+    would collide with a reserved base-class name, prop_name is set to
+    None and the publisher stays publish()-only.
+    (References _PUBSUB_RESERVED_PROP_NAMES, defined below — resolved at
+    call time.)
+    """
+    prop_name = info.get('prop_name') or snake_to_camel(info['field_name'])
+    if prop_name in _PUBSUB_RESERVED_PROP_NAMES:
+        info['prop_name'] = None
+        return info
+    info['prop_name'] = prop_name
+    info['setter_name'] = 'set' + prop_name[0].upper() + prop_name[1:]
+    info['signal_name'] = prop_name + 'Changed'
+    info['member_name'] = 'm_' + prop_name
+    return info
+
+
 def build_single_field_info(package_name: str, message_spec) -> Dict[str, Any] | None:
     """For single-field messages, return type/conversion info for direct use in pub/sub.
 
     Returns None for empty messages and messages with 2+ fields.
+
+    In addition to the type/conversion keys, the dict carries the
+    Q_PROPERTY naming keys added by _add_single_field_prop_keys
+    (prop_name, setter_name, signal_name, member_name); prop_name is
+    None when the field name collides with a reserved base-class name.
     """
     msg_name = message_spec.structure.namespaced_type.name
     key = f"{package_name}/{msg_name}"
     if key in _SINGLE_FIELD_TYPE_OVERRIDES:
-        return _SINGLE_FIELD_TYPE_OVERRIDES[key]
+        return _add_single_field_prop_keys(dict(_SINGLE_FIELD_TYPE_OVERRIDES[key]))
 
     members = message_spec.structure.members
     if len(members) != 1 or members[0].name == 'structure_needs_at_least_one_member':
@@ -727,7 +753,7 @@ def build_single_field_info(package_name: str, message_spec) -> Dict[str, Any] |
 
     param_decl = f'const {qt_type}& {field_name}' if const_ref else f'{qt_type} {field_name}'
 
-    return {
+    return _add_single_field_prop_keys({
         'qt_type':      qt_type,
         'field_name':   field_name,
         'param_decl':   param_decl,
@@ -735,7 +761,7 @@ def build_single_field_info(package_name: str, message_spec) -> Dict[str, Any] |
         'qt_to_ros':    qt_to_ros,
         'extra_inc':    extra_inc,
         'qml_doc_type': qml_doc_type,
-    }
+    })
 
 
 # camelCase property/method names that must not be shadowed by generated per-field
