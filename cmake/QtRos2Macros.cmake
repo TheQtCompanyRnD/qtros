@@ -68,7 +68,7 @@ function(qt_ros2_configure_target _qt_ros2_app_target)
   endif()
 
   # Validate CAPABILITIES values
-  set(_valid_types MESSAGES PUBLISHER SUBSCRIBER SERVICE ACTION)
+  set(_valid_types MESSAGES PUBLISHER SUBSCRIBER SERVICE SERVER ACTION)
   foreach(_t ${ARG_CAPABILITIES})
     string(TOUPPER "${_t}" _t_upper)
     if(NOT _t_upper IN_LIST _valid_types)

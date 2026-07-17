@@ -276,6 +276,8 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
             service_templates = [
                 ('srv__client.hpp.em', out_srv_dir / f"{base_name}_service_client.hpp"),
                 ('srv__client.cpp.em', out_srv_src_dir / f"{base_name}_service_client.cpp"),
+                ('srv__server.hpp.em', out_srv_dir / f"{base_name}_service_server.hpp"),
+                ('srv__server.cpp.em', out_srv_src_dir / f"{base_name}_service_server.cpp"),
             ]
 
             for template_file, output_file in service_templates:
