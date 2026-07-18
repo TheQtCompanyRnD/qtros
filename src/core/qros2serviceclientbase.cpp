@@ -28,6 +28,23 @@
     \c true while a service call is in progress and a response is awaited.
 */
 
+/*!
+    \qmlproperty bool ServiceClientBase::autoCall
+
+    If \c true (the default), assigning the \c request property of a
+    generated service client schedules a service call at the end of the
+    current event-loop iteration. Multiple assignments per iteration
+    coalesce into one call. While the service is unavailable or a call
+    is already in flight, the latest request value is remembered and
+    dispatched as soon as possible, so a binding on \c request behaves
+    like desired state that is reconciled with the server.
+
+    If \c false, writes to \c request only store the value and
+    \c callService() must be called explicitly. Auto-calls happen only
+    when the \c request property is written, so clients used purely
+    imperatively are unaffected by this property.
+*/
+
 QT_BEGIN_NAMESPACE
 
 QRos2ServiceClientBase::QRos2ServiceClientBase(QObject* parent)
@@ -40,6 +57,8 @@ void QRos2ServiceClientBase::setServiceReady(bool ready)
     if (m_serviceReady != ready) {
         m_serviceReady = ready;
         emit isServiceReadyChanged();
+        if (ready)
+            scheduleStoredCallAttempt();
     }
 }
 
@@ -48,7 +67,49 @@ void QRos2ServiceClientBase::setCallPending(bool pending)
     if (m_isCallPending != pending) {
         m_isCallPending = pending;
         emit isCallPendingChanged();
+        if (!pending)
+            scheduleStoredCallAttempt();
     }
+}
+
+void QRos2ServiceClientBase::setAutoCall(bool autoCall)
+{
+    if (m_autoCall == autoCall)
+        return;
+    m_autoCall = autoCall;
+    emit autoCallChanged();
+    if (autoCall)
+        scheduleStoredCallAttempt();
+}
+
+void QRos2ServiceClientBase::requestCall()
+{
+    if (!m_autoCall)
+        return;
+    m_requestDirty = true;
+    scheduleStoredCallAttempt();
+}
+
+void QRos2ServiceClientBase::scheduleStoredCallAttempt()
+{
+    if (m_attemptScheduled || !m_requestDirty || !m_autoCall)
+        return;
+    m_attemptScheduled = true;
+    QMetaObject::invokeMethod(this, &QRos2ServiceClientBase::attemptStoredCall,
+                              Qt::QueuedConnection);
+}
+
+void QRos2ServiceClientBase::attemptStoredCall()
+{
+    m_attemptScheduled = false;
+    if (!m_requestDirty || !m_autoCall)
+        return;
+    // Not ready or busy: keep the dirty flag; setServiceReady() and
+    // setCallPending() re-schedule the attempt when the state clears.
+    if (!m_serviceReady || m_isCallPending)
+        return;
+    m_requestDirty = false;
+    callStoredRequest();
 }
 
 QT_END_NAMESPACE

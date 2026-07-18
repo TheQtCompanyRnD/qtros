@@ -34,8 +34,12 @@
         Use this for requests that take time to complete.
     \endlist
 
-    If no handler is set (or the handler throws), a default-constructed
-    response is sent so callers do not block indefinitely.
+    Setting a handler is optional: generated server types also offer a
+    declarative \c response property that answers each request with its
+    current (bindable) value. A callable handler takes precedence over
+    the \c response property. If neither is set (or the handler throws),
+    a default-constructed response is sent so callers do not block
+    indefinitely.
 */
 
 /*!

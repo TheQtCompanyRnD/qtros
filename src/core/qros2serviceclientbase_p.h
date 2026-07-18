@@ -37,6 +37,7 @@ class Q_ROS2CORE_EXPORT QRos2ServiceClientBase : public QRos2Entity
 
     Q_PROPERTY(bool isServiceReady READ isServiceReady NOTIFY isServiceReadyChanged)
     Q_PROPERTY(bool isCallPending READ isCallPending NOTIFY isCallPendingChanged)
+    Q_PROPERTY(bool autoCall READ autoCall WRITE setAutoCall NOTIFY autoCallChanged)
 
 public:
     explicit QRos2ServiceClientBase(QObject* parent = nullptr);
@@ -45,15 +46,28 @@ public:
     bool isServiceReady() const { return m_serviceReady; }
     bool isCallPending() const { return m_isCallPending; }
 
+    bool autoCall() const { return m_autoCall; }
+    void setAutoCall(bool autoCall);
+
 Q_SIGNALS:
     void isServiceReadyChanged();
     void isCallPendingChanged();
+    void autoCallChanged();
 
 protected:
     // Must be called by derived class when client is created
     void setServiceReady(bool ready);
 
     void setCallPending(bool pending);
+
+    // Generated setRequest() setters call this to schedule a coalesced
+    // auto-call of the stored request at the end of the current event-loop
+    // iteration (mirrors QRos2PublisherBase::requestPublish()).
+    void requestCall();
+
+    // Overridden by generated clients that have a bindable request property
+    // to dispatch the stored request via callService.
+    virtual void callStoredRequest() {}
 
     template<typename T>
     QFuture<T> makeRejectedFuture(const QString& message) const
@@ -72,6 +86,13 @@ protected:
     bool m_serviceReady = false;
     bool m_isCallPending = false;
 
+private:
+    void scheduleStoredCallAttempt();
+    void attemptStoredCall();
+
+    bool m_autoCall = true;
+    bool m_requestDirty = false;
+    bool m_attemptScheduled = false;
 };
 
 QT_END_NAMESPACE

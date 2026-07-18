@@ -142,6 +142,13 @@ namespace @(qt_namespace) {
     The handler is invoked as \c {(request, reply) => response}; it may
     return the response value directly, or return \c undefined and call
     \c {reply.send(response)} later for work that takes time.
+@[if resp_param]@
+
+    Alternatively, answer declaratively without a handler: bind the
+    \l response property, and each incoming request is answered with its
+    current value. The binding may depend on \l request@[if req_param] (updated before
+    the response is read)@[end if] and on state changed in \c onRequestReceived.
+@[end if]@
 @[if resp_class != 'void']@
 
     The response is a @(resp_l_type) value@[if resp_needs_wrap]; a plain
@@ -163,10 +170,48 @@ namespace @(qt_namespace) {
 @[end if]@
 */
 
+@[if req_param]@
+/*!
+    \qmlproperty @(req_class_qml) @(qt_class_name)ServiceServer::request
+
+    The payload of the most recent incoming request. Updated before
+    \l requestReceived is emitted and before the handler or the
+    \l response binding runs, so both can rely on it.
+*/
+
+@[end if]@
+@[if resp_param]@
+/*!
+    \qmlproperty @(resp_class_qml) @(qt_class_name)ServiceServer::response
+
+    The declarative response. When no
+    \l {ServiceServerBase::handler}{handler} is set, each incoming
+    request is answered immediately with the current value of this
+    property. Bindings re-evaluate synchronously, so the expression may
+    depend on \l request and on state updated in \c onRequestReceived —
+    both are already up to date when the response is sent. A callable
+    handler takes precedence over this property.
+*/
+
+@[end if]@
 @(qt_class_name)ServiceServer::@(qt_class_name)ServiceServer(QObject* parent)
     : QRos2ServiceServerBase(parent)
 {
 }
+
+@[if resp_param]@
+void @(qt_class_name)ServiceServer::setResponse(@(resp_param))
+{
+    const bool firstSet = !m_responseSet;
+    m_responseSet = true;
+    if (!firstSet && m_response == response) {
+        return;
+    }
+    m_response = response;
+    emit responseChanged();
+}
+
+@[end if]@
 
 @(qt_class_name)ServiceServer::~@(qt_class_name)ServiceServer()
 {
@@ -288,6 +333,14 @@ void @(qt_class_name)ServiceServer::dispatchRequest(const std::shared_ptr<rmw_re
 @[end if]@
 
 @[if req_param]@
+    // Contract: the request property updates first, then requestReceived
+    // fires, and only then is the response produced — so per-request
+    // effects in onRequestReceived are visible to the response binding
+    // and to the handler.
+    if (!(m_request == requestValue)) {
+        m_request = requestValue;
+        emit requestChanged();
+    }
     emit requestReceived(requestValue);
 @[else]@
     emit requestReceived();
@@ -296,6 +349,14 @@ void @(qt_class_name)ServiceServer::dispatchRequest(const std::shared_ptr<rmw_re
     QJSValue h = handler();
     QQmlEngine* engine = qmlEngine(this);
     if (!engine || !h.isCallable()) {
+@[if resp_param]@
+        if (m_responseSet) {
+            // Declarative style: answer with the response property, whose
+            // binding has re-evaluated after the notifications above.
+            sendResponse(*requestId, m_response);
+            return;
+        }
+@[end if]@
         qWarning() << "@(qt_class_name)ServiceServer: no callable handler for" << topic()
                    << "- sending default response";
         sendDefaultResponse(*requestId);

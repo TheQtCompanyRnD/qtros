@@ -145,15 +145,38 @@ class @(qt_export_macro) @(qt_class_name)ServiceServer : public QRos2ServiceServ
     Q_OBJECT
     QML_ELEMENT
 
+@[if req_param]@
+    Q_PROPERTY(@(req_class_full) request READ request NOTIFY requestChanged)
+@[end if]@
+@[if resp_param]@
+    Q_PROPERTY(@(resp_class_full) response READ response WRITE setResponse NOTIFY responseChanged)
+@[end if]@
+
 public:
     explicit @(qt_class_name)ServiceServer(QObject* parent = nullptr);
     ~@(qt_class_name)ServiceServer() override;
 
+@[if req_param]@
+    @(req_class_full) request() const { return m_request; }
+@[end if]@
+@[if resp_param]@
+    @(resp_class_full) response() const { return m_response; }
+@[end if]@
+
+@[if resp_param]@
+public Q_SLOTS:
+    void setResponse(@(resp_param));
+
+@[end if]@
 Q_SIGNALS:
 @[if req_param]@
     void requestReceived(@(req_param));
+    void requestChanged();
 @[else]@
     void requestReceived();
+@[end if]@
+@[if resp_param]@
+    void responseChanged();
 @[end if]@
 
 protected:
@@ -173,6 +196,13 @@ private:
     void sendDefaultResponse(const rmw_request_id_t& requestId);
     rclcpp::Service<@(ros_srv_type)>::SharedPtr m_service;
 #endif
+@[if req_param]@
+    @(req_class_full) m_request{};
+@[end if]@
+@[if resp_param]@
+    @(resp_class_full) m_response{};
+    bool m_responseSet = false;
+@[end if]@
 };
 
 } // namespace @(qt_namespace)

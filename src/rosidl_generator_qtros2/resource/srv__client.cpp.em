@@ -106,6 +106,11 @@ namespace @(qt_namespace) {
 
     @(qt_class_name)ServiceClient calls a ROS 2 service.
     Set the \c topic and \c node properties, then call \c callService() to invoke the service.
+@[if req_param]@
+    Alternatively, bind the \l request property: whenever the bound value
+    changes, the service is called automatically and \l response is updated
+    with the result.
+@[end if]@
 */
 
 /*!
@@ -137,10 +142,53 @@ namespace @(qt_namespace) {
     Emitted when the service call fails. \a error contains the error message.
 */
 
+@[if req_param]@
+/*!
+    \qmlproperty @(req_class_qml) @(qt_class_name)ServiceClient::request
+
+    The request value for declarative service calls. When
+    \l {ServiceClientBase::autoCall}{autoCall} is \c true (the default),
+    each change of this property schedules a service call at the end of
+    the current event-loop iteration; changes made while the service is
+    unavailable or a call is in flight are remembered and the latest
+    value is dispatched as soon as possible. The result arrives in
+    \l response.
+*/
+
+@[end if]@
+@[if resp_class != 'void']@
+/*!
+    \qmlproperty @(resp_class_qml) @(qt_class_name)ServiceClient::response
+
+    The most recent response received from the service, whether the call
+    was made via \l request or \c callService(). Holds a
+    default-constructed value until the first response arrives. Updated
+    just before \l responseReceived is emitted.
+*/
+
+@[end if]@
 @(qt_class_name)ServiceClient::@(qt_class_name)ServiceClient(QObject* parent)
     : QRos2ServiceClientBase(parent)
 {
 }
+
+@[if req_param]@
+void @(qt_class_name)ServiceClient::setRequest(@(req_param))
+{
+    if (m_request == request) {
+        return;
+    }
+    m_request = request;
+    emit requestChanged();
+    requestCall();
+}
+
+void @(qt_class_name)ServiceClient::callStoredRequest()
+{
+    callServiceFuture(m_request);
+}
+
+@[end if]@
 
 @(qt_class_name)ServiceClient::~@(qt_class_name)ServiceClient()
 {
@@ -333,10 +381,11 @@ request_is_qlist = qt_type.startswith('QList<')
         if (weakThis) {
             QMetaObject::invokeMethod(
                 qApp,
-                [weakThis] {
+                [weakThis, msg] {
                     if (!weakThis)
                         return;
                     weakThis->setCallPending(false);
+                    emit weakThis->callFailed(msg);
                 },
                 Qt::QueuedConnection);
         }
@@ -413,6 +462,8 @@ resp_result_is_list = resp_is_qlist or resp_is_qstringlist
                         if (!weakThis)
                             return;
                         weakThis->setCallPending(false);
+                        weakThis->m_response = result;
+                        emit weakThis->responseChanged();
                         emit weakThis->responseReceived(result);
                     },
                     Qt::QueuedConnection);

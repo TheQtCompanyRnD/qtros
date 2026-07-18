@@ -105,9 +105,23 @@ class @(qt_export_macro) @(qt_class_name)ServiceClient : public QRos2ServiceClie
     Q_OBJECT
     QML_ELEMENT
 
+@[if req_param]@
+    Q_PROPERTY(@(req_class_full) request READ request WRITE setRequest NOTIFY requestChanged)
+@[end if]@
+@[if resp_class != 'void']@
+    Q_PROPERTY(@(resp_class_full) response READ response NOTIFY responseChanged)
+@[end if]@
+
 public:
     explicit @(qt_class_name)ServiceClient(QObject* parent = nullptr);
     ~@(qt_class_name)ServiceClient() override;
+
+@[if req_param]@
+    @(req_class_full) request() const { return m_request; }
+@[end if]@
+@[if resp_class != 'void']@
+    @(resp_class_full) response() const { return m_response; }
+@[end if]@
 
 @[if resp_class == 'void']@
 #ifdef QTROS2_EXPERIMENTAL_FUTURE
@@ -123,6 +137,11 @@ public:
 #endif
 @[end if]@
 
+@[if req_param]@
+public Q_SLOTS:
+    void setRequest(@(req_param));
+
+@[end if]@
 Q_SIGNALS:
 @[if resp_class != 'void']@
     void responseReceived(@(resp_param));
@@ -130,16 +149,31 @@ Q_SIGNALS:
     void responseReceived();
 @[end if]@
     void callFailed(QString error);
+@[if req_param]@
+    void requestChanged();
+@[end if]@
+@[if resp_class != 'void']@
+    void responseChanged();
+@[end if]@
 
 protected:
     void setupConnection() override;
     void clearConnection() override;
     void checkHealth() override;
+@[if req_param]@
+    void callStoredRequest() override;
+@[end if]@
 
 private:
 #ifndef Q_QDOC
     rclcpp::Client<@(ros_srv_type)>::SharedPtr m_client;
 #endif
+@[if req_param]@
+    @(req_class_full) m_request{};
+@[end if]@
+@[if resp_class != 'void']@
+    @(resp_class_full) m_response{};
+@[end if]@
 
 @[if resp_class == 'void']@
 @[  if req_param]@
