@@ -40,8 +40,9 @@
     The list below is ordered roughly from simplest to most complete. If you are
     new to the bridge, start with \l{Simple Publisher} and \l{Simple Subscriber},
     which introduce the \l{Qt ROS2 Core QML Types}{Node} type and a single
-    publisher/subscriber, then move on to the \l{TurtleSim Controller}, which
-    adds services and actions.
+    publisher/subscriber, continue with \l{Simple Service} and
+    \l{Simple Service Client}, which show both ends of a ROS 2 service, then
+    move on to the \l{TurtleSim Controller}, which adds actions.
 
     \annotatedlist qtros2-examples
 

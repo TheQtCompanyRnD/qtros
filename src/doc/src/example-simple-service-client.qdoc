@@ -1,0 +1,73 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example simple_service_client
+    \title Simple Service Client
+    \ingroup qtros2-examples
+    \brief Calling a std_srvs/SetBool service from QML and handling the
+    response as a JS promise.
+
+    \c{Simple Service Client} is the calling side of the \l{Simple Service}
+    example: it wraps one \l{Qt ROS2 std_srvs QML Types}{SetBoolServiceClient}
+    in a \l{Qt ROS2 Core QML Types}{Node} and calls a \c std_srvs/SetBool
+    service when you press \e{Turn lamp on} or \e{Turn lamp off}.
+
+    \image simple_service_client/simple_service_client.png "The Simple Service Client window: an editable topic, on/off buttons, and the last response."
+
+    \section1 Running the Example
+
+    \list 1
+        \li Source your ROS 2 environment, then launch Qt Creator from the same
+            shell so it can find the generated QML modules.
+        \li Open \c examples/simple_service_client/CMakeLists.txt in Qt Creator,
+            then build and run.
+        \li Provide the service by running the \l{Simple Service} example with
+            the same topic. The buttons enable as soon as
+            \c isServiceReady reports that the server was discovered.
+    \endlist
+
+    \section1 Calling a Service
+
+    A service client is declared as a child of a \c Node. \c callService()
+    returns a JavaScript promise that resolves with the response value — for
+    \c std_srvs/SetBool an object carrying \c success and \c message:
+
+    \qml
+    import QtRos2.StdSrvs
+
+    Node {
+        id: rosNode
+        nodeName: "simple_service_client_node"
+
+        SetBoolServiceClient {
+            id: lampClient
+            topic: topicField.text
+        }
+    }
+    \endqml
+
+    \qml
+    lampClient.callService(true).then(response => {
+        console.log(response.success, response.message)
+    }, error => {
+        console.log("call failed:", error)
+    })
+    \endqml
+
+    A few things worth noting:
+
+    \list
+        \li \c isServiceReady is \c true while a server for \l topic is
+            discovered on the ROS 2 graph — the example keeps its buttons
+            disabled until then, so a call can never be attempted into the
+            void.
+        \li \c isCallPending is \c true from \c callService() until the
+            response (or an error) arrives; the example uses it to prevent
+            overlapping calls from button mashing.
+        \li The promise rejects with an error string when the call fails, for
+            example when the server disappears mid-call.
+    \endlist
+
+    \sa {Simple Service}, {Qt ROS2 std_srvs QML Types}
+*/
