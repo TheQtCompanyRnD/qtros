@@ -98,6 +98,12 @@
 */
 
 /*!
+    \qmlmodule QtRos2.StdSrvs
+    \title Qt ROS2 std_srvs QML Types
+    \brief QML types for \c std_srvs ROS 2 services.
+*/
+
+/*!
     \qmlmodule QtRos2.StereoMsgs
     \title Qt ROS2 stereo_msgs QML Types
     \brief QML types for \c stereo_msgs ROS 2 messages.
@@ -140,8 +146,8 @@
     \brief Provides Qt and QML integration with ROS 2 (Robot Operating System).
 
     Qt ROS2 Bridge enables Qt applications to communicate with ROS 2 nodes
-    by publishing and subscribing to topics, calling services, and sending
-    action goals — all from C++ or QML.
+    by publishing and subscribing to topics, calling and providing services,
+    and sending action goals — all from C++ or QML.
 
     \section1 Getting Started
 
@@ -172,7 +178,8 @@
 
     Qt ROS2 Bridge connects Qt/QML applications to a running ROS 2 graph.
     It provides publisher and subscriber types for every ROS 2 message type,
-    service clients, and action clients — all usable directly in QML.
+    service clients and servers, and action clients — all usable directly
+    in QML.
 
     \section1 Guides
 
@@ -309,6 +316,13 @@
 
     \generatelist qmltypesbymodule QtRos2.StdMsgs
     \generatelist qmlvaluetypesbymodule QtRos2.StdMsgs
+
+    \section1 QtRos2.StdSrvs
+
+    The following QML types are available when you import \c{QtRos2.StdSrvs}:
+
+    \generatelist qmltypesbymodule QtRos2.StdSrvs
+    \generatelist qmlvaluetypesbymodule QtRos2.StdSrvs
 
     \section1 QtRos2.StereoMsgs
 
