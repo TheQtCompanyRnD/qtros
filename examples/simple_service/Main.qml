@@ -8,12 +8,12 @@ import QtRos2.StdSrvs
 Window {
     id: root
     width: 480
-    height: 440
+    height: 500
     visible: true
     title: `Service ${lampService.topic}`
 
-    property bool lampOn: false
-    property int requestCount: 0
+    property int cycles: 0
+    readonly property bool burnedOut: cycles >= 10
     property string lastRequest: qsTr("No requests received yet.")
 
     Node {
@@ -24,29 +24,29 @@ Window {
             id: lampService
             topic: topicField.text
 
-            // The handler is invoked on the GUI thread for every incoming
-            // request. For std_srvs/SetBool the request payload is a plain
-            // bool; `reply` allows answering later when the work takes time.
-            handler: (request, reply) => {
-                ++root.requestCount
-                root.lampOn = request
-                root.lastRequest = `Request #${root.requestCount}: data=${request}`
-
-                if (delaySwitch.checked) {
-                    // Deferred style: return undefined now and answer from
-                    // replyTimer once the "work" is done. The ROS executor is
-                    // not blocked while the reply is pending.
-                    replyTimer.pendingReplies.push(reply)
-                    replyTimer.restart()
-                    return
-                }
-
-                // Synchronous style: return the response object directly.
-                return {
-                    success: true,
-                    message: `lamp is now ${request ? "on" : "off"}`
-                }
+            // Effects and bookkeeping are imperative, in the signal handler...
+            onRequestReceived: request => {
+                ++root.cycles
+                root.lastRequest = `Request #${root.cycles}: data=${request}`
             }
+
+            // ...while the response is declarative: each request is answered
+            // with the current value of this binding. It re-evaluates after
+            // request and onRequestReceived update, so root.cycles is already
+            // current — the request that burns out the bulb gets the failure.
+            response: root.burnedOut
+                ? ({ success: false, message: "the bulb is burned out" })
+                : ({ success: true, message: `lamp is now ${lampService.request ? "on" : "off"}` })
+
+            // Deferred style, selected by the switch: a callable handler takes
+            // precedence over the declarative response. This one parks the
+            // reply and answers from the timer below when the "work" is done.
+            handler: delaySwitch.checked
+                ? (request, reply) => {
+                      replyTimer.pendingReplies.push(reply)
+                      replyTimer.restart()
+                  }
+                : undefined
         }
     }
 
@@ -55,12 +55,8 @@ Window {
         interval: 1000
         property var pendingReplies: []
         onTriggered: {
-            for (const reply of pendingReplies) {
-                reply.send({
-                    success: true,
-                    message: `lamp is now ${root.lampOn ? "on" : "off"} (delayed reply)`
-                })
-            }
+            for (const reply of pendingReplies)
+                reply.send(lampService.response)   // same declarative value, later
             pendingReplies = []
         }
     }
@@ -97,22 +93,31 @@ Window {
             width: 48
             height: 48
             radius: 24
-            color: root.lampOn ? "gold" : "dimgray"
+            color: root.burnedOut ? "black"
+                 : lampService.request ? "gold" : "dimgray"
             border.color: "black"
             Behavior on color { ColorAnimation { duration: 150 } }
+        }
+
+        Label {
+            text: qsTr("Bulb wear")
+        }
+        RowLayout {
+            Label {
+                text: root.burnedOut ? qsTr("%1 cycles — burned out!").arg(root.cycles)
+                                     : qsTr("%1 of 10 cycles").arg(root.cycles)
+            }
+            Button {
+                text: qsTr("Replace bulb")
+                visible: root.burnedOut
+                onClicked: root.cycles = 0
+            }
         }
 
         Switch {
             id: delaySwitch
             text: qsTr("Delay the response by 1 s (deferred reply)")
             Layout.columnSpan: 2
-        }
-
-        Label {
-            text: qsTr("Requests received")
-        }
-        Label {
-            text: root.requestCount
         }
 
         Label {

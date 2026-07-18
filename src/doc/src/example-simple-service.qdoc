@@ -5,16 +5,18 @@
     \example simple_service
     \title Simple Service
     \ingroup qtros2-examples
-    \brief Answering std_srvs/SetBool requests from QML with a single
-    service server.
+    \brief Answering std_srvs/SetBool requests from QML with a single,
+    mostly declarative service server.
 
     \c{Simple Service} shows the server side of a ROS 2 service in QML: it wraps
     one \l{Qt ROS2 std_srvs QML Types}{SetBoolServiceServer} in a \l{Qt ROS2 Core
     QML Types}{Node} and switches a "lamp" on or off whenever a
     \c std_srvs/SetBool request arrives — from the \l{Simple Service Client}
-    example, from \c{ros2 service call}, or from any other ROS 2 node.
+    example, from \c{ros2 service call}, or from any other ROS 2 node. To make
+    failure handling honest, the bulb burns out after ten switching cycles and
+    the service starts reporting \c{success: false} until the bulb is replaced.
 
-    \image simple_service/simple_service.png "The Simple Service window: an editable topic, the lamp that requests switch on and off, a deferred-reply switch, and the last request."
+    \image simple_service/simple_service.png "The Simple Service window: an editable topic, the lamp that requests switch on and off, bulb wear, a deferred-reply switch, and the last request."
 
     \section1 Running the Example
 
@@ -32,12 +34,14 @@
     Pair this example with \l{Simple Service Client} to see both ends of a
     service in two Qt windows.
 
-    \section1 Declaring a Service Server
+    \section1 A Declarative Service Server
 
     Like publishers and subscribers, a service server is declared as a child of
     a \c Node; the node owns the underlying \c rclcpp service and tears it down
-    automatically. The \c handler function is called for every incoming
-    request:
+    automatically. In the simplest style there is no callback at all: the
+    server's \c response property is a binding, and each incoming request is
+    answered with its current value. The incoming payload is available as the
+    read-only \c request property:
 
     \qml
     import QtRos2.StdSrvs
@@ -50,40 +54,56 @@
             id: lampService
             topic: topicField.text
 
-            handler: (request, reply) => {
-                root.lampOn = request
-                return { success: true, message: `lamp is now ${request ? "on" : "off"}` }
-            }
+            onRequestReceived: request => ++root.cycles
+
+            response: root.burnedOut
+                ? ({ success: false, message: "the bulb is burned out" })
+                : ({ success: true, message: `lamp is now ${lampService.request ? "on" : "off"}` })
         }
     }
     \endqml
 
+    The work splits along QML's usual grain: derived state lives in bindings
+    (the lamp color binds to \c{lampService.request}), per-request effects live
+    in the \c onRequestReceived signal handler (counting switching cycles), and
+    the response — including failure — is a conditional expression. The
+    evaluation order is guaranteed: \c request updates first, then
+    \c requestReceived fires, and only then is \c response read and sent. That
+    is why the very request that burns out the bulb already receives the
+    failure answer.
+
     For \c std_srvs/SetBool the request payload is a single \c bool, so
-    \c request arrives as a plain boolean. Services with multi-field requests
-    receive the generated value type instead, with the same \c camelCase field
-    access as messages. The response works symmetrically: a plain JavaScript
-    object with the response fields (here \c success and \c message) is
-    converted to the \c SetBool response automatically.
+    \c request is a plain boolean. Services with multi-field requests receive
+    the generated value type instead, with the same \c camelCase field access
+    as messages. The response works symmetrically: a plain JavaScript object
+    with the response fields (here \c success and \c message) converts to the
+    \c SetBool response automatically.
 
-    The handler always runs on the GUI thread, so it can freely touch QML
-    state — the ROS executor thread is never blocked, even while a response is
-    still pending.
+    \section1 Failure Is In-Band
 
-    \section1 Deferred Replies
+    ROS 2 services have no separate error channel — a server that cannot
+    comply still answers, encoding failure in the response. That is exactly
+    why \c std_srvs types carry \c success and \c message fields, and why
+    failure needs no special API here: it is just another branch of the
+    \c response binding.
 
-    Returning the response directly is the right style for instant answers.
-    When honoring a request takes time — moving an arm, speaking an utterance,
-    waiting for hardware to settle — return \c undefined instead and keep the
-    \c reply parameter; the caller receives the response only when
-    \c{reply.send()} is called:
+    \section1 Handlers and Deferred Replies
+
+    When producing the response requires running code per request — or when
+    honoring the request takes time — set the
+    \l {ServiceServerBase::handler}{handler} property instead; a callable
+    handler takes precedence over the \c response property. The handler may
+    return the response value directly, or return \c undefined and call
+    \c{reply.send()} later. The example's \e{Delay the response} switch
+    demonstrates the precedence rule by binding the handler property itself:
 
     \qml
-    handler: (request, reply) => {
-        root.lampOn = request
-        replyTimer.pendingReplies.push(reply)
-        replyTimer.restart()
-        // no return statement: the response is sent later
-    }
+    handler: delaySwitch.checked
+        ? (request, reply) => {
+              replyTimer.pendingReplies.push(reply)
+              replyTimer.restart()
+          }
+        : undefined
     \endqml
 
     \qml
@@ -93,19 +113,20 @@
         property var pendingReplies: []
         onTriggered: {
             for (const reply of pendingReplies)
-                reply.send({ success: true, message: "done (delayed reply)" })
+                reply.send(lampService.response)   // same declarative value, later
             pendingReplies = []
         }
     }
     \endqml
 
-    The example's \e{Delay the response} switch selects between the two styles
-    at runtime, so you can observe from the calling terminal that the answer
-    arrives one second late — while the server window stays fully responsive
-    and continues to accept further requests.
+    With the switch on, callers observe the answer arriving one second late —
+    while the server window stays fully responsive and keeps accepting further
+    requests: the handler runs on the GUI thread and the ROS executor is never
+    blocked, even while replies are pending.
 
-    If no handler is set, or the handler throws, the server sends a
-    default-constructed response so that callers never wait forever.
+    If neither a handler nor a \c response binding is set (or the handler
+    throws), the server sends a default-constructed response so that callers
+    never wait forever.
 
     \sa {Simple Service Client}, {Qt ROS2 std_srvs QML Types}
 */

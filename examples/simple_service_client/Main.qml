@@ -12,8 +12,6 @@ Window {
     visible: true
     title: `Service client ${lampClient.topic}`
 
-    property string lastResponse: qsTr("Press On or Off to call the service.")
-
     Node {
         id: rosNode
         nodeName: "simple_service_client_node"
@@ -21,19 +19,13 @@ Window {
         SetBoolServiceClient {
             id: lampClient
             topic: topicField.text
-        }
-    }
 
-    function switchLamp(on) {
-        root.lastResponse = qsTr("Calling...")
-        // callService() returns a JS promise that resolves with the
-        // std_srvs/SetBool response (success, message).
-        lampClient.callService(on).then(response => {
-            root.lastResponse =
-                `success: ${response.success}\nmessage: "${response.message}"`
-        }, error => {
-            root.lastResponse = qsTr("Call failed: ") + error
-        })
+            // Desired lamp state: every change of the switch calls the
+            // service automatically (autoCall is on by default). If the
+            // server is not up yet or a call is in flight, the latest
+            // value is applied as soon as possible.
+            request: lampSwitch.checked
+        }
     }
 
     GridLayout {
@@ -61,15 +53,24 @@ Window {
             text: "/simple_service_lamp"
         }
 
-        Button {
-            text: qsTr("Turn lamp on")
-            enabled: lampClient.isServiceReady && !lampClient.isCallPending
-            onClicked: root.switchLamp(true)
+        Switch {
+            id: lampSwitch
+            text: qsTr("Lamp")
+            Layout.columnSpan: 2
         }
-        Button {
-            text: qsTr("Turn lamp off")
-            enabled: lampClient.isServiceReady && !lampClient.isCallPending
-            onClicked: root.switchLamp(false)
+
+        Label {
+            text: qsTr("Result")
+            font.bold: true
+        }
+        Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: lampClient.response.message
+                  ? `${lampClient.response.success ? qsTr("OK") : qsTr("FAILED")}: ${lampClient.response.message}`
+                  : qsTr("Flip the switch to call the service.")
+            color: !lampClient.response.message || lampClient.response.success
+                   ? palette.text : "firebrick"
         }
 
         Label {
@@ -82,13 +83,6 @@ Window {
             text: qsTr("Run the Simple Service example with the same topic.")
         }
 
-        TextArea {
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            readOnly: true
-            wrapMode: TextEdit.Wrap
-            text: root.lastResponse
-        }
+        Item { Layout.columnSpan: 2; Layout.fillHeight: true }
     }
 }
