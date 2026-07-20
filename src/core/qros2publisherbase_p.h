@@ -54,12 +54,19 @@ protected:
     virtual void publishStoredState();
     void timerEvent(QTimerEvent* event) override;
 
+    // Called by generated setupConnection() after the rcl publisher is
+    // (re)created: latched (transient_local) topics republish the stored
+    // state so late-joining subscriptions see the current value even if
+    // it was bound before the node initialized.
+    bool shouldRepublishOnConnect() const;
+
 private:
     QBasicTimer m_publishTimer;
     int m_subscriberCount = 0;
     int m_publishInterval = 0;
     bool m_autoPublish = true;
     bool m_publishPending = false;
+    bool m_storedStateWritten = false;
 };
 
 #endif // QROS2_PUBLISHERBASE_P_H

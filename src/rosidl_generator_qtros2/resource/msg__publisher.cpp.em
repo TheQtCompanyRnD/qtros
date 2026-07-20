@@ -223,6 +223,12 @@ void @(qt_class_name)Publisher::setupConnection()
         topic().toStdString(),
         qos()
     );
+
+    // Latched (transient_local) topics: republish the stored state so
+    // late-joining subscriptions see a value bound before the node
+    // initialized (or before a topic/qos change re-created the publisher).
+    if (shouldRepublishOnConnect())
+        publishStoredState();
 }
 
 void @(qt_class_name)Publisher::clearConnection()

@@ -175,10 +175,25 @@ void QRos2PublisherBase::publish()
 */
 void QRos2PublisherBase::requestPublish()
 {
+    m_storedStateWritten = true;
     if (!m_autoPublish || m_publishPending)
         return;
     m_publishPending = true;
     QMetaObject::invokeMethod(this, &QRos2PublisherBase::publish, Qt::QueuedConnection);
+}
+
+/*!
+    Whether generated setupConnection() should republish the stored state
+    after (re)creating the rcl publisher. True only for latched
+    (transient_local) topics whose stored state was actually written:
+    state bound before node initialization (or before a topic/qos change)
+    would otherwise never reach late-joining subscriptions. Volatile
+    (command-style) topics are left alone.
+*/
+bool QRos2PublisherBase::shouldRepublishOnConnect() const
+{
+    return m_storedStateWritten
+        && m_qos.durability() == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
 }
 
 /*!
