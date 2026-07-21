@@ -40,9 +40,11 @@
     like desired state that is reconciled with the server.
 
     If \c false, writes to \c request only store the value and
-    \c callService() must be called explicitly. Auto-calls happen only
-    when the \c request property is written, so clients used purely
-    imperatively are unaffected by this property.
+    \c callService() must be called explicitly; when \c autoCall is
+    later enabled, the most recent stored request (if any was written)
+    is dispatched, so gating \c autoCall gates dispatch, not intent.
+    Auto-calls happen only when the \c request property is written, so
+    clients used purely imperatively are unaffected by this property.
 */
 
 QT_BEGIN_NAMESPACE
@@ -84,9 +86,12 @@ void QRos2ServiceClientBase::setAutoCall(bool autoCall)
 
 void QRos2ServiceClientBase::requestCall()
 {
+    // Remember the write even while autoCall is off: enabling autoCall later
+    // dispatches the latest stored request (desired state is reconciled from
+    // the moment reconciliation is switched on).
+    m_requestDirty = true;
     if (!m_autoCall)
         return;
-    m_requestDirty = true;
     scheduleStoredCallAttempt();
 }
 
