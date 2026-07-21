@@ -15,7 +15,11 @@ qt_internal_add_module(Ros2Core
     EXCEPTIONS
     SOURCES
         qros2node_p.h qros2node.cpp
+        qros2nodechild_p.h qros2nodechild.cpp
         qros2entity_p.h qros2entity.cpp
+        qros2parametervalue_p.h
+        qros2parameter_p.h qros2parameter.cpp
+        qros2remoteparameter_p.h qros2remoteparameter.cpp
         qros2publisherbase_p.h qros2publisherbase.cpp
         qros2stampedpublisherbase_p.h qros2stampedpublisherbase.cpp
         qros2subscriberbase_p.h qros2subscriberbase.cpp

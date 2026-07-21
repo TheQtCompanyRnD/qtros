@@ -3,6 +3,7 @@
 
 add_subdirectory(geometry)
 add_subdirectory(nodelifecycle)
+add_subdirectory(parameters)
 add_subdirectory(sensors)
 add_subdirectory(shutdown)
 add_subdirectory(stampedpublisher)
