@@ -29,7 +29,7 @@
 
 QT_BEGIN_NAMESPACE
 
-class QRos2Entity;
+class QRos2NodeChild;
 
 class Q_ROS2CORE_EXPORT QRos2Node : public QObject, public QQmlParserStatus
 {
@@ -41,8 +41,8 @@ class Q_ROS2CORE_EXPORT QRos2Node : public QObject, public QQmlParserStatus
     Q_PROPERTY(QString nodeName READ nodeName WRITE setNodeName NOTIFY nodeNameChanged)
     Q_PROPERTY(QString nodeNamespace READ nodeNamespace WRITE setNodeNamespace NOTIFY nodeNamespaceChanged)
     Q_PROPERTY(bool initialized READ initialized NOTIFY initializedChanged)
-    Q_PROPERTY(QList<QRos2Entity*> entities READ entities NOTIFY entitiesChanged)
-    Q_PROPERTY(QQmlListProperty<QRos2Entity> childEntities READ childEntities)
+    Q_PROPERTY(QList<QRos2NodeChild*> entities READ entities NOTIFY entitiesChanged)
+    Q_PROPERTY(QQmlListProperty<QRos2NodeChild> childEntities READ childEntities)
 
 public:
     explicit QRos2Node(QObject* parent = nullptr);
@@ -54,7 +54,7 @@ public:
     QString nodeNamespace() const { return m_nodeNamespace; }
     void setNodeNamespace(const QString& ns);
 
-    QList<QRos2Entity*> entities() const { return m_entities;}
+    QList<QRos2NodeChild*> entities() const { return m_entities;}
 
     bool initialized() const { return m_initialized; }
 
@@ -62,10 +62,10 @@ public:
     rclcpp::Node::SharedPtr rosNode() const { return m_rosNode; }
 #endif
 
-    QQmlListProperty<QRos2Entity> childEntities();
+    QQmlListProperty<QRos2NodeChild> childEntities();
 
-    void registerEntity(QRos2Entity* entity);
-    void unregisterEntity(QRos2Entity* entity);
+    void registerEntity(QRos2NodeChild* entity);
+    void unregisterEntity(QRos2NodeChild* entity);
 
     void classBegin() override;
     void componentComplete() override;
@@ -83,10 +83,10 @@ private:
     void initializeNode();
     void shutdownNode();
 
-    static void appendChildEntity(QQmlListProperty<QRos2Entity> *list, QRos2Entity *entity);
-    static qsizetype childEntitiesCount(QQmlListProperty<QRos2Entity> *list);
-    static QRos2Entity *childEntityAt(QQmlListProperty<QRos2Entity> *list, qsizetype index);
-    static void clearChildEntities(QQmlListProperty<QRos2Entity> *list);
+    static void appendChildEntity(QQmlListProperty<QRos2NodeChild> *list, QRos2NodeChild *entity);
+    static qsizetype childEntitiesCount(QQmlListProperty<QRos2NodeChild> *list);
+    static QRos2NodeChild *childEntityAt(QQmlListProperty<QRos2NodeChild> *list, qsizetype index);
+    static void clearChildEntities(QQmlListProperty<QRos2NodeChild> *list);
 
     QString m_nodeName;
     QString m_nodeNamespace;
@@ -98,8 +98,8 @@ private:
 #endif
     QTimer m_healthTimer;
 
-    QList<QRos2Entity *> m_children;
-    QList<QRos2Entity*> m_entities;
+    QList<QRos2NodeChild *> m_children;
+    QList<QRos2NodeChild*> m_entities;
 };
 
 QT_END_NAMESPACE

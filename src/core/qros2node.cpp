@@ -3,7 +3,7 @@
 
 #include "qros2node_p.h"
 #include "qros2context.h"
-#include "qros2entity_p.h"
+#include "qros2nodechild_p.h"
 
 #include <QDebug>
 #include <QLoggingCategory>
@@ -52,10 +52,11 @@
 */
 
 /*!
-    \qmlproperty list<Entity> Node::entities
+    \qmlproperty list<NodeChild> Node::entities
 
-    Read-only. The list of \l Entity items currently registered with
-    this node. Managed automatically as entities are created and destroyed.
+    Read-only. The list of \l NodeChild items (entities, parameters)
+    currently registered with this node. Managed automatically as they
+    are created and destroyed.
 */
 
 QT_BEGIN_NAMESPACE
@@ -206,17 +207,17 @@ void QRos2Node::updateAllConnectionStates()
     }
 }
 
-QQmlListProperty<QRos2Entity> QRos2Node::childEntities()
+QQmlListProperty<QRos2NodeChild> QRos2Node::childEntities()
 {
-    return QQmlListProperty<QRos2Entity>(this,
-                                         nullptr,
-                                         &QRos2Node::appendChildEntity,
-                                         &QRos2Node::childEntitiesCount,
-                                         &QRos2Node::childEntityAt,
-                                         &QRos2Node::clearChildEntities);
+    return QQmlListProperty<QRos2NodeChild>(this,
+                                            nullptr,
+                                            &QRos2Node::appendChildEntity,
+                                            &QRos2Node::childEntitiesCount,
+                                            &QRos2Node::childEntityAt,
+                                            &QRos2Node::clearChildEntities);
 }
 
-void QRos2Node::appendChildEntity(QQmlListProperty<QRos2Entity> *list, QRos2Entity *entity)
+void QRos2Node::appendChildEntity(QQmlListProperty<QRos2NodeChild> *list, QRos2NodeChild *entity)
 {
     QRos2Node* node = qobject_cast<QRos2Node*>(list->object);
     if (node && entity) {
@@ -226,21 +227,21 @@ void QRos2Node::appendChildEntity(QQmlListProperty<QRos2Entity> *list, QRos2Enti
     }
 }
 
-qsizetype QRos2Node::childEntitiesCount(QQmlListProperty<QRos2Entity> *list)
+qsizetype QRos2Node::childEntitiesCount(QQmlListProperty<QRos2NodeChild> *list)
 {
     QRos2Node* node = qobject_cast<QRos2Node*>(list->object);
 
     return node ? node->m_children.count() : 0;
 }
 
-QRos2Entity *QRos2Node::childEntityAt(QQmlListProperty<QRos2Entity> *list, qsizetype index)
+QRos2NodeChild *QRos2Node::childEntityAt(QQmlListProperty<QRos2NodeChild> *list, qsizetype index)
 {
     QRos2Node* node = qobject_cast<QRos2Node*>(list->object);
     return (node && index >= 0 && index < node->m_children.count()) ? node->m_children.at(index)
                                                                     : nullptr;
 }
 
-void QRos2Node::clearChildEntities(QQmlListProperty<QRos2Entity> *list)
+void QRos2Node::clearChildEntities(QQmlListProperty<QRos2NodeChild> *list)
 {
     QRos2Node* node = qobject_cast<QRos2Node*>(list->object);
     if (node) {
@@ -248,7 +249,7 @@ void QRos2Node::clearChildEntities(QQmlListProperty<QRos2Entity> *list)
     }
 }
 
-void QRos2Node::registerEntity(QRos2Entity* entity)
+void QRos2Node::registerEntity(QRos2NodeChild* entity)
 {
     if (!entity || m_entities.contains(entity)) return;
 
@@ -264,7 +265,7 @@ void QRos2Node::registerEntity(QRos2Entity* entity)
     
 }
 
-void QRos2Node::unregisterEntity(QRos2Entity* entity)
+void QRos2Node::unregisterEntity(QRos2NodeChild* entity)
 {
     // When this node is deleting its children (the ~QObject phase), our member
     // m_entities has already been destroyed; a child entity's destructor calling

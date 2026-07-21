@@ -16,9 +16,8 @@
 //
 
 #include <QtRos2Core/qtros2coreexports.h>
-#include <QObject>
+#include "qros2nodechild_p.h"
 #include <QString>
-#include <QQmlEngine>
 #ifndef Q_QDOC
 #include <rmw/types.h>
 #endif
@@ -26,15 +25,14 @@
 
 QT_BEGIN_NAMESPACE
 
-class QRos2Node;
-Q_MOC_INCLUDE(<QtRos2Core/private/qros2node_p.h>)
-
-class Q_ROS2CORE_EXPORT QRos2Entity : public QObject
+// A topic-based node child: everything that talks to a named topic or
+// service endpoint with a QoS profile (publishers, subscribers, service
+// and action clients/servers).
+class Q_ROS2CORE_EXPORT QRos2Entity : public QRos2NodeChild
 {
     Q_OBJECT
 
     Q_PROPERTY(QString topic READ topic WRITE setTopic NOTIFY topicChanged)
-    Q_PROPERTY(QRos2Node* node READ node WRITE setNode NOTIFY nodeChanged)
     Q_PROPERTY(QRos2QoS qos READ qos WRITE setQos NOTIFY qosChanged)
 
     QML_NAMED_ELEMENT(Entity)
@@ -42,7 +40,7 @@ class Q_ROS2CORE_EXPORT QRos2Entity : public QObject
 
 public:
     explicit QRos2Entity(QObject* parent = nullptr);
-    ~QRos2Entity() override;
+    ~QRos2Entity() override = default;
 
     // QoS policy enums live on QRos2QualityOfService (QML: QualityOfService),
     // so they can be reached without going through an entity-derived type.
@@ -50,30 +48,16 @@ public:
     QString topic() const { return m_topic; }
     void setTopic(const QString& topic);
 
-    QRos2Node* node() const { return m_node; }
-    void setNode(QRos2Node* node);
-
     QRos2QoS qos() const { return m_qos; }
     void setQos(const QRos2QoS& qos);
 
-    // Called when parent node is initialized to setup the ROS2 connection
-    virtual void setupConnection() = 0;
-    virtual void clearConnection() = 0;
-
-    // Called periodically by QRos2Node to update connection state
-    virtual void checkHealth() {}
-
 Q_SIGNALS:
     void topicChanged();
-    void nodeChanged();
     void qosChanged();
 
 protected:
     QString m_topic;
-    QRos2Node* m_node = nullptr;
     QRos2QoS m_qos;
-
-    friend class QRos2Node;
 };
 
 QT_END_NAMESPACE
