@@ -367,6 +367,8 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
             action_templates = [
                 ('action__client.hpp.em', out_action_dir / f"{base_name}_action_client.hpp"),
                 ('action__client.cpp.em', out_action_src_dir / f"{base_name}_action_client.cpp"),
+                ('action__server.hpp.em', out_action_dir / f"{base_name}_action_server.hpp"),
+                ('action__server.cpp.em', out_action_src_dir / f"{base_name}_action_server.cpp"),
             ]
 
             for template_file, output_file in action_templates:
