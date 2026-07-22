@@ -216,7 +216,8 @@ inline QByteArray uuidKey(const rclcpp_action::GoalUUID& id)
     \c goalReceived signal. Each accepted goal is delivered with a
     per-goal \c handle; call \c {handle.publishFeedback(...)},
     \c {handle.succeed(...)}, \c {handle.abort(...)} or
-    \c {handle.canceled(...)}, and react to \c {handle.cancelRequested}.
+    \c {handle.canceled(...)}, and react to cancellation via the
+    \c {handle.cancelRequested} bool property (observe \c onCancelRequestedChanged).
 */
 
 @(qt_class_name)ActionServer::@(qt_class_name)ActionServer(QObject* parent)
@@ -308,7 +309,6 @@ void @(qt_class_name)GoalHandle::notifyCancelRequested()
     }
     m_cancelRequested = true;
     emit cancelRequestedChanged();
-    emit cancelRequested();
 }
 
 void @(qt_class_name)GoalHandle::finish()

@@ -138,7 +138,10 @@ public:
     Q_INVOKABLE void canceled(@(result_param_prefix)result);
 
 Q_SIGNALS:
-    void cancelRequested();
+    // Cancellation is exposed only as the cancelRequested bool property (it
+    // latches false->true once), so cancelRequestedChanged() fires exactly at
+    // the cancel request -- observe that. A same-named cancelRequested() signal
+    // would shadow the property in QML (property wins), making it unconnectable.
     void cancelRequestedChanged();
 
 private:
