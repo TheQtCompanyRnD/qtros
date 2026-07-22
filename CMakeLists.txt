@@ -19,7 +19,7 @@ include(cmake/QtRos2Macros.cmake)
 # defined.
 qt_internal_project_setup()
 
-find_package(Qt6 ${PROJECT_VERSION} CONFIG REQUIRED COMPONENTS Core Quick)
+find_package(Qt6 ${PROJECT_VERSION} CONFIG REQUIRED COMPONENTS Core Network Quick)
 find_package(Qt6 ${PROJECT_VERSION} QUIET CONFIG OPTIONAL_COMPONENTS Concurrent QuickTest)
 
 if(WATCHOS)

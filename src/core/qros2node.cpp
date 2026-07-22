@@ -7,6 +7,13 @@
 
 #include <QDebug>
 #include <QLoggingCategory>
+#include <QNetworkInterface>
+
+#ifdef QTROS2_HAVE_RMW_FASTRTPS
+#include <rcl/node.h>
+#include <rmw_fastrtps_cpp/get_participant.hpp>
+#include <fastdds/dds/domain/DomainParticipant.hpp>
+#endif
 
 /*!
     \qmltype Node
@@ -52,6 +59,20 @@
 */
 
 /*!
+    \qmlmethod void Node::refreshNetworkInterfaces()
+
+    Makes the DDS layer re-scan the host's network interfaces. Fast DDS
+    captures the interface list when the node is created; an interface
+    that appears later (a cable plugged in, Wi-Fi association, a DHCP
+    lease) is otherwise never used for discovery, leaving the node
+    invisible to other machines until restart. The node watches for
+    interface changes and calls this automatically every few seconds;
+    call it directly for an immediate re-scan when the application has
+    its own network-change signal. A no-op under non-Fast-DDS RMW
+    implementations.
+*/
+
+/*!
     \qmlproperty list<NodeChild> Node::entities
 
     Read-only. The list of \l NodeChild items (entities, parameters)
@@ -68,10 +89,17 @@ static QString getDefaultNamespace() { return QStringLiteral("/"); }
 QRos2Node::QRos2Node(QObject* parent)
     : QObject(parent)
     , m_healthTimer(this)
+    , m_networkWatchTimer(this)
 {
     m_healthTimer.setInterval(100); // 10 Hz health checks
     m_nodeNamespace = getDefaultNamespace();
     connect(&m_healthTimer, &QTimer::timeout, this, &QRos2Node::updateAllConnectionStates);
+
+    // Interface enumeration is a cheap netlink dump; every few seconds is
+    // plenty for cable/Wi-Fi/DHCP arrival, and refreshNetworkInterfaces()
+    // offers an immediate path for apps with their own network signal.
+    m_networkWatchTimer.setInterval(3000);
+    connect(&m_networkWatchTimer, &QTimer::timeout, this, &QRos2Node::checkNetworkInterfaces);
 }
 
 QRos2Node::~QRos2Node()
@@ -146,6 +174,8 @@ void QRos2Node::initializeNode()
         QRos2Context::instance().executor()->add_node(m_rosNode);
 
         m_healthTimer.start();
+        m_networkSignature = networkInterfaceSignature();
+        m_networkWatchTimer.start();
 
         m_initialized = true;
         emit initializedChanged();
@@ -177,6 +207,9 @@ void QRos2Node::shutdownNode()
     if (m_healthTimer.isActive()) {
         m_healthTimer.stop();
     }
+    if (m_networkWatchTimer.isActive()) {
+        m_networkWatchTimer.stop();
+    }
 
     for (auto entity : std::as_const(m_entities)) {
         entity->clearConnection();
@@ -205,6 +238,67 @@ void QRos2Node::updateAllConnectionStates()
     for (auto entity : std::as_const(m_entities)) {
         entity->checkHealth();
     }
+}
+
+// A stable fingerprint of the up-and-running interfaces and their
+// addresses, so cable plug/unplug, Wi-Fi association and DHCP leases all
+// register as changes.
+QString QRos2Node::networkInterfaceSignature()
+{
+    QStringList parts;
+    const auto interfaces = QNetworkInterface::allInterfaces();
+    for (const QNetworkInterface& iface : interfaces) {
+        const auto flags = iface.flags();
+        if (!(flags & QNetworkInterface::IsUp) || !(flags & QNetworkInterface::IsRunning))
+            continue;
+        const auto entries = iface.addressEntries();
+        for (const QNetworkAddressEntry& entry : entries)
+            parts << iface.name() + QLatin1Char('/') + entry.ip().toString();
+    }
+    parts.sort();
+    return parts.join(QLatin1Char(';'));
+}
+
+void QRos2Node::checkNetworkInterfaces()
+{
+    const QString signature = networkInterfaceSignature();
+    if (signature == m_networkSignature)
+        return;
+    qCInfo(lcNode) << "network interfaces changed; refreshing DDS locators for" << m_nodeName;
+    m_networkSignature = signature;
+    refreshNetworkInterfaces();
+}
+
+void QRos2Node::refreshNetworkInterfaces()
+{
+    if (!m_rosNode)
+        return;
+#ifdef QTROS2_HAVE_RMW_FASTRTPS
+    // Fast DDS freezes its network-interface list (announced unicast
+    // locators + joined discovery multicast groups) when the participant
+    // is created: an interface that appears afterwards is never used, so
+    // a node started before the network was up stays undiscoverable from
+    // other machines. Fast DDS's documented "dynamic network interfaces"
+    // hook is a re-applied participant QoS, which triggers a re-scan --
+    // but nothing in rmw/rclcpp ever calls it, so we reach through
+    // rmw_fastrtps' introspection API and do it here.
+    // get_domain_participant returns null under any other RMW.
+    rmw_node_t* rmwNode = rcl_node_get_rmw_handle(
+        m_rosNode->get_node_base_interface()->get_rcl_node_handle());
+    if (!rmwNode)
+        return;
+    if (auto* participant = rmw_fastrtps_cpp::get_domain_participant(rmwNode)) {
+        const auto ret = participant->set_qos(participant->get_qos());
+        if (ret != eprosima::fastrtps::types::ReturnCode_t::RETCODE_OK)
+            qCWarning(lcNode) << "DDS network interface re-scan failed:" << ret();
+        else
+            qCDebug(lcNode) << "DDS network interfaces re-scanned";
+    } else {
+        qCDebug(lcNode) << "not running rmw_fastrtps; interface re-scan skipped";
+    }
+#else
+    qCDebug(lcNode) << "built without rmw_fastrtps support; interface re-scan unavailable";
+#endif
 }
 
 QQmlListProperty<QRos2NodeChild> QRos2Node::childEntities()

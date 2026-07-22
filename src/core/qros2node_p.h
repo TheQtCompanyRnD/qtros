@@ -67,6 +67,11 @@ public:
     void registerEntity(QRos2NodeChild* entity);
     void unregisterEntity(QRos2NodeChild* entity);
 
+    // Make the DDS layer re-scan the host's network interfaces (see the
+    // implementation notes). Called automatically when the interface set
+    // changes; invokable for apps with their own network monitoring.
+    Q_INVOKABLE void refreshNetworkInterfaces();
+
     void classBegin() override;
     void componentComplete() override;
 
@@ -82,6 +87,8 @@ private Q_SLOTS:
 private:
     void initializeNode();
     void shutdownNode();
+    void checkNetworkInterfaces();
+    static QString networkInterfaceSignature();
 
     static void appendChildEntity(QQmlListProperty<QRos2NodeChild> *list, QRos2NodeChild *entity);
     static qsizetype childEntitiesCount(QQmlListProperty<QRos2NodeChild> *list);
@@ -97,6 +104,8 @@ private:
     rclcpp::Node::SharedPtr m_rosNode;
 #endif
     QTimer m_healthTimer;
+    QTimer m_networkWatchTimer;
+    QString m_networkSignature;
 
     QList<QRos2NodeChild *> m_children;
     QList<QRos2NodeChild*> m_entities;

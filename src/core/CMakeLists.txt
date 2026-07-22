@@ -31,6 +31,7 @@ qt_internal_add_module(Ros2Core
         qros2context.h qros2context.cpp
         qros2contextitem_p.h qros2contextitem.cpp
     LIBRARIES
+        Qt::Network
         Qt::Quick
         Qt::GuiPrivate
     PUBLIC_LIBRARIES
@@ -64,6 +65,17 @@ target_link_libraries(Ros2Core PUBLIC
     rclcpp_action::rclcpp_action
     rosidl_runtime_cpp::rosidl_runtime_cpp
 )
+
+# Fast DDS network-interface re-scan (see qros2node.cpp): the participant is
+# reached through rmw_fastrtps' introspection API. Optional: without it the
+# bridge builds fine and Node.refreshNetworkInterfaces() becomes a no-op.
+# rmw_fastrtps_cpp exports old-style ament variables, not imported targets.
+find_package(rmw_fastrtps_cpp QUIET)
+if(rmw_fastrtps_cpp_FOUND)
+    target_link_libraries(Ros2Core PRIVATE ${rmw_fastrtps_cpp_LIBRARIES})
+    target_include_directories(Ros2Core PRIVATE ${rmw_fastrtps_cpp_INCLUDE_DIRS})
+    target_compile_definitions(Ros2Core PRIVATE QTROS2_HAVE_RMW_FASTRTPS)
+endif()
 
 qt_internal_add_docs(Ros2Core
     ../doc/qtros2.qdocconf
