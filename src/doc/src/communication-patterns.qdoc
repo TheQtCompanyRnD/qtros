@@ -1,0 +1,240 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \page qtros2-communication-patterns.html
+    \title Choosing a Communication Pattern
+    \ingroup qtros2-guides
+
+    \keyword topic
+    \keyword service
+    \keyword action
+    \keyword parameter
+    \keyword publish subscribe
+    \keyword request response
+    \keyword long-running task
+    \keyword communication pattern
+    \keyword when to use
+
+    \brief When to use topics, services, actions, or parameters, and the QML
+    types the bridge provides for each.
+
+    ROS 2 gives nodes four ways to exchange information, and the Qt ROS2 Bridge
+    exposes all four directly in QML. Picking the right one is almost always a
+    question about the \e shape of the interaction — how many participants there
+    are, whether the caller expects an answer, and how long the work takes — not
+    about the data itself. This guide describes each pattern, when it fits, and
+    the QML types that implement it.
+
+    \section1 At a Glance
+
+    \table
+    \header
+        \li Pattern
+        \li Direction
+        \li Returns a result?
+        \li Best for
+    \row
+        \li \b Topic
+        \li Many-to-many, one-way stream
+        \li No
+        \li Continuous or event-driven data with no reply: sensor readings,
+            poses, velocity commands, status.
+    \row
+        \li \b Service
+        \li One-to-one request/response
+        \li Yes, once, quickly
+        \li A short call that must return an answer: a query, or a command that
+            reports whether it succeeded.
+    \row
+        \li \b Action
+        \li One-to-one goal with feedback
+        \li Yes, eventually, with progress
+        \li A long-running task you want to monitor and be able to cancel:
+            navigation, motion, a scripted routine.
+    \row
+        \li \b Parameter
+        \li Named, typed configuration value
+        \li n/a (read/write state)
+        \li Tuning knobs and configuration that change rarely and belong to a
+            node, not to a message stream.
+    \endtable
+
+    A useful rule of thumb: if the sender does not care who is listening and
+    never waits for a reply, use a \b topic. If it needs an answer and the work
+    is quick, use a \b service. If the work takes long enough that you want
+    progress updates or a cancel button, use an \b action. If you are describing
+    \e how a node should behave rather than sending it data, use a \b parameter.
+
+    \section1 Topics: One-Way Streams
+
+    A topic is an anonymous, many-to-many channel. Any number of publishers can
+    write to it and any number of subscribers can read from it; neither side
+    knows the other exists, and a publisher never blocks or waits for
+    acknowledgement. This makes topics the right choice for data that flows
+    continuously or fires on events — laser scans, camera frames, odometry,
+    joint states, velocity commands — and for anything where "fire and forget"
+    is acceptable.
+
+    In QML each message type has a generated \c{<Msg>Publisher} and
+    \c{<Msg>Subscriber}, declared as children of a \l{Qt ROS2 Core QML
+    Types}{Node}:
+
+    \qml
+    import QtRos2.GeometryMsgs
+
+    Node {
+        nodeName: "example_node"
+
+        PoseStampedPublisher {
+            id: posePublisher
+            topic: "/pose"
+        }
+
+        PoseStampedSubscriber {
+            topic: "/other_pose"
+            onMessageReceived: console.log(message.pose.position.x)
+        }
+    }
+    \endqml
+
+    Topics carry no delivery guarantee by default; you tune reliability,
+    history, and durability through \l{Qt ROS2 Core QML Types}{QualityOfService}
+    on the entity's \c qos property. Because there is no reply, a subscriber
+    that misses a message simply never sees it — if you need to know that the
+    other side acted, you want a service or an action instead.
+
+    \b{See:} \l{Simple Publisher}, \l{Simple Subscriber}.
+
+    \section1 Services: Request and Response
+
+    A service is a one-to-one call: the client sends a request and receives
+    exactly one response. Use it when the caller genuinely needs the answer and
+    the work is quick and bounded — a query ("what is the current map?"), or a
+    command whose outcome matters ("switch the lamp on; did it work?"). Services
+    have no separate error channel: failure is reported \e in-band, as ordinary
+    fields of the response value.
+
+    Both ends are declared as children of a \c Node. A client can call by
+    binding its \c request property or imperatively with \c callService(), which
+    returns a JavaScript promise:
+
+    \qml
+    import QtRos2.StdSrvs
+
+    SetBoolServiceClient {
+        id: lampClient
+        topic: "/lamp"
+    }
+    // ...
+    lampClient.callService(true).then(response => {
+        console.log(response.success, response.message)
+    })
+    \endqml
+
+    A server answers each request, either from a declarative \c response binding
+    or from a \c handler callback. It never blocks the GUI thread, and it can
+    defer a reply and send it later.
+
+    A service is the wrong tool if the work can take a long time: the caller is
+    left waiting with no progress and no way to cancel, and a slow server ties
+    up the call. For that, reach for an action.
+
+    \b{See:} \l{Simple Service}, \l{Simple Service Client},
+    \l{Qt ROS2 std_srvs QML Types}.
+
+    \section1 Actions: Long-Running Goals
+
+    An action is built on top of topics and services to manage a task that takes
+    time. The client sends a \e goal; the server accepts or rejects it, streams
+    \e feedback while it works, and finally reports a \e result. The goal can be
+    canceled, and its status is observable throughout. Use an action whenever a
+    request may take seconds or longer and you want a progress indicator, a
+    cancel button, or both — navigation goals, arm motions, scripted sequences.
+
+    The generated \c{<Action>ActionClient} exposes \c sendGoal() (returning a
+    promise), a \c feedback property, an \c ActionState, and \c cancelGoal():
+
+    \qml
+    navClient.sendGoal({ x: 2.0, y: 1.0 })   // goal message fields
+    // navClient.feedback updates as the server reports progress
+    // navClient.state reflects Accepted, Succeeded, Canceled, Aborted, ...
+    \endqml
+
+    The generated \c{<Action>ActionServer} emits \c goalReceived with a goal
+    handle whose methods — \c publishFeedback(), \c succeed(), \c abort(),
+    \c canceled() — drive the goal to completion and whose \c cancelRequested
+    property lets long work bail out cleanly.
+
+    Reserve actions for genuinely long or cancelable work. For a call that
+    returns immediately, the extra goal/feedback/result machinery is overhead a
+    service avoids.
+
+    \b{See:} \l{TurtleSim Controller}.
+
+    \section1 Parameters: Node Configuration
+
+    Parameters are named, typed values that configure a node — thresholds,
+    frame names, gains, feature switches. They are not a data channel: they
+    change rarely, they belong to a specific node, and they persist as that
+    node's state rather than flowing as messages. Reach for a parameter when
+    you are describing \e how a node should behave, and for a topic, service, or
+    action when you are moving data or commands.
+
+    The bridge covers both sides of the parameter system:
+
+    \list
+        \li \l{Qt ROS2 Core QML Types}{Parameter} declares and owns a parameter
+            on the \e local node, with a type, description, optional read-only
+            flag, and range constraints. It reports external changes so the UI
+            can follow them.
+        \li \l{Qt ROS2 Core QML Types}{RemoteParameter} gets and sets a
+            parameter on \e another node by name, tracking the remote value
+            live — the natural way to build a settings panel for a driver or
+            controller running elsewhere on the graph.
+    \endlist
+
+    \qml
+    import QtRos2.Core
+
+    RemoteParameter {
+        remoteNode: "/camera_driver"
+        name: "exposure"
+        // value is two-way: reading reflects the remote node,
+        // writing pushes the new value to it
+    }
+    \endqml
+
+    \section1 Combining Patterns
+
+    Real applications use several patterns at once, and a single logical feature
+    often spans more than one. A navigation panel might set a planner's tuning
+    through \b parameters, dispatch a route as an \b action so it can show
+    progress and offer a cancel button, publish manual overrides on a \c cmd_vel
+    \b topic, and query the current map through a \b service. Choose each channel
+    independently, by the shape of that specific interaction.
+
+    Two cross-cutting concepts apply regardless of the pattern you pick:
+
+    \list
+        \li \l{Qt ROS2 Core QML Types}{QualityOfService} governs delivery
+            semantics for topics (and the underlying transport of services and
+            actions) — reliability, history depth, and durability.
+        \li \l{Qt ROS2 Transforms QML Types}{transforms} (TF) carry the spatial
+            relationships between coordinate frames, which most of the data on
+            your topics is expressed in.
+    \endlist
+
+    \section1 Where To Go Next
+
+    \list
+        \li Work through the \l{Qt ROS2 Examples}, which introduce the patterns
+            in roughly this order.
+        \li For picking the right message type once you have chosen a topic, see
+            \l{Choosing Sensor Message Types}.
+        \li For sending velocity commands and navigation goals specifically, see
+            \l{Teleoperation and Remote Control}.
+        \li For the full list of generated types, see the
+            \l{Qt ROS2 QML Types} reference.
+    \endlist
+*/

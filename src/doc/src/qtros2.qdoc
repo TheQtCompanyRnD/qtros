@@ -184,6 +184,7 @@
     \section1 Guides
 
     \list
+        \li \l{Choosing a Communication Pattern}
         \li \l{Choosing Sensor Message Types}
         \li \l{Teleoperation and Remote Control}
     \endlist
