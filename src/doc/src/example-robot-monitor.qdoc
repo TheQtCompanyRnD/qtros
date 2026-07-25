@@ -5,6 +5,7 @@
     \example RobotMonitor
     \title Robot Monitor
     \ingroup qtros2-examples
+    \meta sortkey {70}
     \brief An RViz-style monitoring and control dashboard for a Nav2 mobile
     robot, combining a live 3D scene, a camera feed, and navigation actions.
 

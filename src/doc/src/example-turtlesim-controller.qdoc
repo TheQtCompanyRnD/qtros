@@ -5,6 +5,7 @@
     \example turtlesim_controller
     \title TurtleSim Controller
     \ingroup qtros2-examples
+    \meta sortkey {50}
     \brief Driving the classic ROS 2 \c turtlesim with all four communication
     patterns — publisher, subscriber, service, and action — from one QML app.
 

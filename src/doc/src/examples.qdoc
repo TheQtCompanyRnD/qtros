@@ -5,6 +5,7 @@
     \group qtros2-examples
     \title Qt ROS2 Examples
     \brief Example applications that demonstrate the Qt ROS2 Bridge.
+    \noautolist
 
     These examples show how to build Qt/QML applications on top of ROS 2 using
     the Qt ROS2 Bridge — from a single publisher in a dozen lines of QML to a

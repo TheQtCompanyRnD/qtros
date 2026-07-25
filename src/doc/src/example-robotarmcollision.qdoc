@@ -5,6 +5,7 @@
     \example robotarmcollision
     \title Robot Arm Collision
     \ingroup qtros2-examples
+    \meta sortkey {60}
     \brief Importing a URDF robot as a Qt Quick 3D module with physics collision
     shapes, driven either by an animation or by live ROS 2 joint states.
 

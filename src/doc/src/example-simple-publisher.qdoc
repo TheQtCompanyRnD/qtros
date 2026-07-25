@@ -5,6 +5,7 @@
     \example simple_publisher
     \title Simple Publisher
     \ingroup qtros2-examples
+    \meta sortkey {10}
     \brief Publishing a geometry_msgs/PoseStamped message from QML with a
     single publisher.
 

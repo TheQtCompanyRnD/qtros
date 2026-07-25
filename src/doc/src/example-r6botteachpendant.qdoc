@@ -5,6 +5,7 @@
     \example r6botteachpendant
     \title R6 Robot Teach Pendant
     \ingroup qtros2-examples
+    \meta sortkey {80}
     \brief A teach pendant for a 6-DOF arm: a live 3D model driven by TF, joint
     jogging and waypoint programming driven by joint trajectories.
 

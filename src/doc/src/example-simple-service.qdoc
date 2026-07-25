@@ -5,6 +5,7 @@
     \example simple_service
     \title Simple Service
     \ingroup qtros2-examples
+    \meta sortkey {30}
     \brief Answering std_srvs/SetBool requests from QML with a single,
     mostly declarative service server.
 

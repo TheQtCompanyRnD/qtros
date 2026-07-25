@@ -5,6 +5,7 @@
     \example simple_service_client
     \title Simple Service Client
     \ingroup qtros2-examples
+    \meta sortkey {40}
     \brief Calling a std_srvs/SetBool service declaratively from QML by
     binding the request property.
 

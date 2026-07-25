@@ -5,6 +5,7 @@
     \example simple_subscriber
     \title Simple Subscriber
     \ingroup qtros2-examples
+    \meta sortkey {20}
     \brief Subscribing to a geometry_msgs/PoseStamped message and binding its
     fields into the UI.
 
