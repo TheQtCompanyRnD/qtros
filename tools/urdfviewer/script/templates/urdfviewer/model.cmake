@@ -19,7 +19,9 @@ qt_add_qml_module(Robot_{{ base_name }}
 {% endif %}
         "{{ base_name }}.qml"
 {% if preview_scene %}
+{% if not ros_bridge %}
         "ControlPanel.qml"
+{% endif %}
         "PreviewScene.qml"
 {% endif %}
 {% if ros_bridge %}
@@ -47,18 +49,12 @@ add_subdirectory(Generated)
 
 # --- ROS Bridge dependencies (requires Qt ROS2 bridge installed) ---
 find_package(Qt6 REQUIRED COMPONENTS Ros2Core)
-find_package(qtros2_sensor_msgs REQUIRED)
-find_package(qtros2_geometry_msgs REQUIRED)
 
+# qt_ros2_configure_target() finds the requested QtRos2* message modules and
+# links them, together with Qt6::Ros2Core, into the target.
 qt_ros2_configure_target(Robot_{{ base_name }}
     CAPABILITIES SUBSCRIBER
     MODULES QtRos2SensorMessages QtRos2GeometryMessages
-)
-
-target_link_libraries(Robot_{{ base_name }} PUBLIC
-    Qt6::Ros2Core
-    qtros2_sensor_msgs::qtros2_sensor_msgs_qtcpp
-    qtros2_geometry_msgs::qtros2_geometry_msgs_qtcpp
 )
 {% endif %}
 {% if physics %}
@@ -68,10 +64,14 @@ find_package(Qt6 REQUIRED COMPONENTS Quick3DPhysics)
 target_link_libraries(Robot_{{ base_name }} PUBLIC Qt6::Quick3DPhysics)
 {% endif %}
 
-set(ROBOT_{{ base_name }}_PLUGIN
-    Robot_{{ base_name }}plugin
+# Export the QML plugin list when this project is pulled in via add_subdirectory().
+# Skipped for a standalone build, where there is no parent scope to set.
+if(NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(ROBOT_{{ base_name }}_PLUGIN
+        Robot_{{ base_name }}plugin
 {% for p in plugins %}
-    {{ p }}
+        {{ p }}
 {% endfor %}
-    PARENT_SCOPE
-)
+        PARENT_SCOPE
+    )
+endif()
