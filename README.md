@@ -5,7 +5,7 @@ QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated
 ## Table of Contents
 
 **Getting Started:**
-- [Environment Setup (Ubuntu 24.04)](#environment-setup-ubuntu-2404)
+- [Environment Setup (Ubuntu 24.04 or 26.04)](#environment-setup-ubuntu)
 - [Building the Workspace](#building-the-workspace)
 - [Building with Docker](#building-with-docker)
   - [Running an Example with Docker](#running-an-example-with-docker)
@@ -113,9 +113,9 @@ qt-ros2-bridge/src/
 - **urdfviewer** — GUI tool for importing URDF robot descriptions and previewing them as Qt Quick 3D scenes (requires `urdf_parser_py` and `jinja2`)
 - **examples** — Sample applications demonstrating publishers, subscribers, services, actions, and QML integration (excluded from workspace build by default)
 
-## Environment Setup (Ubuntu 24.04)
+## Environment Setup (Ubuntu 24.04 or 26.04)
 
-QtROS2 requires ROS 2 Jazzy and Qt 6. Follow these steps to set up your build environment:
+QtROS2 requires ROS 2 Jazzy or Lyrical and Qt 6. Follow these steps to set up your build environment:
 
 ### Install System Dependencies
 
