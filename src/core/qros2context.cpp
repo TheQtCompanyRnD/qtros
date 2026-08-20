@@ -13,6 +13,73 @@
 
 #include <QtGui/private/qguiapplication_p.h>
 
+/*!
+    \class QRos2Context
+    \inmodule QtRos2
+    \inheaderfile QtRos2Core/qros2context.h
+    \brief Owns the process-wide ROS 2 context and the executor that spins it.
+
+    Every ROS 2 entity in a process shares one context: rclcpp has to be
+    initialized before any node is created, and something has to spin an
+    executor for callbacks to arrive. QRos2Context is that singleton.
+
+    QML applications do not normally touch it, because declaring a
+    \l {QtRos2.Core::}{Node} initializes the context on demand. A C++
+    application that creates entities before any QML is loaded, or that wants
+    to pass ROS command-line arguments through, calls \l init() from \c main()
+    first:
+
+    \code
+    int main(int argc, char *argv[])
+    {
+        QGuiApplication app(argc, argv);
+        QRos2Context::init(argc, argv);
+        ...
+    }
+    \endcode
+
+    The context shuts down with the application.
+*/
+
+/*!
+    \fn bool QRos2Context::isInitialized()
+    Returns \c true if the ROS 2 context has been initialized.
+*/
+
+/*!
+    \fn void QRos2Context::init()
+    Initializes the ROS 2 context with no command-line arguments and a
+    single-threaded executor.
+
+    Does nothing if the context is already initialized, so it is safe to call
+    from several places.
+*/
+
+/*!
+    \fn void QRos2Context::init(int argc, char **argv, bool useMultithreadedExecutor, size_t threadCount)
+    Initializes the ROS 2 context, passing \a argc and \a argv on to rclcpp so
+    that ROS command-line arguments such as \c {--ros-args} are honoured.
+
+    Pass \c true for \a useMultithreadedExecutor to spin callbacks on several
+    threads, with \a threadCount threads; \c 0 lets rclcpp choose. Callbacks
+    then run on executor threads rather than the Qt main thread, so anything
+    they touch must be thread-safe.
+
+    Does nothing if the context is already initialized.
+*/
+
+/*!
+    \fn QRos2Context &QRos2Context::instance()
+    Returns the singleton instance, initializing the context if it is not
+    already initialized.
+*/
+
+/*!
+    \fn const std::shared_ptr<rclcpp::Executor> &QRos2Context::executor() const
+    Returns the executor spinning this context, for code that needs to add or
+    remove nodes directly.
+*/
+
 QT_BEGIN_NAMESPACE
 
 Q_STATIC_LOGGING_CATEGORY(lcCtx, "qt.robotics.context")
