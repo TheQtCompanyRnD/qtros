@@ -32,11 +32,6 @@ imagedirs += images
 imagedirs += ../../examples
 exampledirs += ../../examples
 
-includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include
-includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include/QtCore
-includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include/QtQml
-includepaths += -I/home/rutledge/dev/qt6-dbg/qtbase/include/QtRos2Core/6.8.0
-
 navigation.landingpage = "Qt ROS2"
 navigation.qmltypespage = "Qt ROS2 QML Types"
 
