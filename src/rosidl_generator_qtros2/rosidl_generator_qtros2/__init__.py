@@ -253,7 +253,12 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
 
         # Generate code for each message
         for message_spec in messages:
-            emit_pub_sub = interface_type == 'msg'
+            _msg_key = (
+                f"{namespace_package}/{message_spec.structure.namespaced_type.name}"
+            )
+            emit_pub_sub = (
+                interface_type == 'msg' and _msg_key not in _NESTED_ONLY_MESSAGES
+            )
             _generate_message_artifacts(message_spec, interface_type, idl_file, emit_pub_sub)
 
         # Generate code for each service (Qt service clients)
@@ -746,6 +751,25 @@ def to_snake_case(name: str) -> str:
     s1 = re.sub('(.)([A-Z][a-z]+[a-z0-9]*)', r'\1_\2', name)
     s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1)
     return s2.replace('__', '_').lower()
+
+
+# ROS messages that exist only as a nested field of another message, never as a
+# topic type of their own. A publisher or subscriber for these is API nobody can
+# use meaningfully: a bare diagnostic_msgs/KeyValue carries no indication of what
+# it describes, which is the context DiagnosticStatus supplies through its name,
+# hardware_id and level fields. The value type is still generated -- it is needed
+# as a field type -- only the publisher and subscriber are skipped.
+#
+# There is no way to infer this from the IDL: std_msgs/Header is nested-only in
+# practice while geometry_msgs/PoseStamped is both nested and published, and
+# nothing distinguishes them structurally. So the list is curated; add to it only
+# when a type is genuinely never a topic in its own right.
+_NESTED_ONLY_MESSAGES: frozenset = frozenset({
+    # Only ever DiagnosticStatus.values.
+    "diagnostic_msgs/KeyValue",
+    # Only ever GetTypeDescription.srv's extra_information.
+    "type_description_interfaces/KeyValue",
+})
 
 
 # Override QML type names that would otherwise collide -- with a built-in QML
