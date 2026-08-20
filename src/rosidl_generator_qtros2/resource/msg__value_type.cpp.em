@@ -59,6 +59,9 @@ has_factories = value_type_has_static_factories(package_name, message)
     \inqmlmodule @(qml_module_uri)
 @[if msg_brief]@
     \brief @(msg_brief)
+@[if msg_brief_continuation]@
+
+@[end if]@
 @[for line in msg_brief_continuation]@
     @(line)
 @[end for]@
@@ -90,13 +93,15 @@ has_factories = value_type_has_static_factories(package_name, message)
     individually, or by composing it with a factory function of the
     \l {@(qml_module_uri)::}{@(qt_class_name)} helper type.
 
-    \sa {@(qml_module_uri)::}{@(qt_class_name)}, @(qt_class_name)Publisher, @(qt_class_name)Subscriber
+    \sa {@(qml_module_uri)::}{@(qt_class_name)}@[if emit_pub_sub], @(qt_class_name)Publisher, @(qt_class_name)Subscriber@[end if]
 @[else]@
     Construct a @(qml_value_type_name) in QML by assigning a JavaScript object
     whose keys are its component properties, or by setting those properties
     individually.
 
+@[if emit_pub_sub]@
     \sa @(qt_class_name)Publisher, @(qt_class_name)Subscriber
+@[end if]@
 @[end if]@
 */
 

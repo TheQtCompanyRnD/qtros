@@ -51,6 +51,9 @@ namespace @(qt_namespace) {
     \inherits SubscriberBase
 @[if msg_brief]@
     \brief Subscribes to \c @(ros_msg_type) messages — @(msg_brief)
+@[if msg_brief_continuation]@
+
+@[end if]@
 @[for line in msg_brief_continuation]@
     @(line)
 @[end for]@
@@ -111,7 +114,7 @@ namespace @(qt_namespace) {
     \qmlproperty @(fp['qml_doc_type']) @(qt_class_name)Subscriber::@(fp['prop_name'])
 
     The \c @(fp['prop_name']) field of the last received message. Updated whenever a new
-    message arrives. \l @(fp['signal_name']) is emitted on every update.
+    message arrives. \c @(fp['signal_name']) is emitted on every update.
 */
 
 @[  end for]@

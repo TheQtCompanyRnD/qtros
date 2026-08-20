@@ -172,7 +172,7 @@ namespace @(qt_namespace) {
     \qmlproperty @(feedback_class_qml) @(qt_class_name)ActionClient::feedback
 
     The most recently received feedback from the action server.
-    Updated during goal execution; emits \l feedbackChanged when new feedback arrives.
+    Updated during goal execution; emits \c feedbackChanged when new feedback arrives.
 */
 @[end if]@
 

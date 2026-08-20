@@ -43,7 +43,9 @@ if req_needs_wrap:
 else:
     req_class = get_single_field_type(request_msg, package_name)
     req_class_full = req_class
-    req_class_qml = req_class
+    # A single-field request/response collapses to its Qt type, which is a
+    # C++ spelling qdoc rejects in \qmlproperty (QStringList, float, ...).
+    req_class_qml = qml_doc_type_name(req_class)
     if req_class != 'void':
         req_param = 'const ' + req_class_full + '& request'
     else:
@@ -56,7 +58,9 @@ if resp_needs_wrap:
 else:
     resp_class = get_single_field_type(response_msg, package_name)
     resp_class_full = resp_class
-    resp_class_qml = resp_class
+    # A single-field request/response collapses to its Qt type, which is a
+    # C++ spelling qdoc rejects in \qmlproperty (QStringList, float, ...).
+    resp_class_qml = qml_doc_type_name(resp_class)
 
 # Determine template type for QFuture/QPromise
 if resp_class == 'void':
@@ -161,7 +165,7 @@ namespace @(qt_namespace) {
     \qmlproperty @(resp_class_qml) @(qt_class_name)ServiceClient::response
 
     The most recent response received from the service, whether the call
-    was made via \l request or \c callService(). Holds a
+    was made via @[if req_param]\l request or @[end if]\c callService(). Holds a
     default-constructed value until the first response arrives. Updated
     just before \l responseReceived is emitted.
 */

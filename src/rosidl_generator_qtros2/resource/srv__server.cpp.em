@@ -43,7 +43,9 @@ if req_needs_wrap:
 else:
     req_class = get_single_field_type(request_msg, package_name)
     req_class_full = req_class
-    req_class_qml = req_class
+    # A single-field request/response collapses to its Qt type, which is a
+    # C++ spelling qdoc rejects in \qmlproperty (QStringList, float, ...).
+    req_class_qml = qml_doc_type_name(req_class)
     if req_class != 'void':
         req_param = 'const ' + req_class_full + '& request'
     else:
@@ -56,7 +58,9 @@ if resp_needs_wrap:
 else:
     resp_class = get_single_field_type(response_msg, package_name)
     resp_class_full = resp_class
-    resp_class_qml = resp_class
+    # A single-field request/response collapses to its Qt type, which is a
+    # C++ spelling qdoc rejects in \qmlproperty (QStringList, float, ...).
+    resp_class_qml = qml_doc_type_name(resp_class)
 
 if resp_class != 'void':
     resp_param = 'const ' + resp_class_full + '& response'
@@ -146,8 +150,8 @@ namespace @(qt_namespace) {
 
     Alternatively, answer declaratively without a handler: bind the
     \l response property, and each incoming request is answered with its
-    current value. The binding may depend on \l request@[if req_param] (updated before
-    the response is read)@[end if] and on state changed in \c onRequestReceived.
+    current value. The binding may depend on@[if req_param] \l request (updated before
+    the response is read) and@[end if] on state changed in \c onRequestReceived.
 @[end if]@
 @[if resp_class != 'void']@
 
@@ -188,7 +192,7 @@ namespace @(qt_namespace) {
     \l {ServiceServerBase::handler}{handler} is set, each incoming
     request is answered immediately with the current value of this
     property. Bindings re-evaluate synchronously, so the expression may
-    depend on \l request and on state updated in \c onRequestReceived —
+    depend on@[if req_param] \l request and on@[end if] state updated in \c onRequestReceived —
     both are already up to date when the response is sent. A callable
     handler takes precedence over this property.
 */

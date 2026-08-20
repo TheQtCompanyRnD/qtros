@@ -135,6 +135,7 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
         if interface_type in ('srv', 'action'):
             emit_wrapper = needs_wrap
 
+        from .template_helpers import qml_doc_type_name
         context = {
             'package_name': namespace_package,
             'qt_module_name': package_name,
@@ -149,10 +150,12 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
             'ros_type_to_cpp': ros_type_to_cpp,
             'needs_wrapper_type': needs_wrapper_type,
             'get_single_field_type': get_single_field_type,
+            'qml_doc_type_name': qml_doc_type_name,
             'get_single_field_include': get_single_field_include,
             'qtros2_interface_subdir': interface_type,
             'ros_include_override': ros_include_override,
             'emit_wrapper': emit_wrapper,
+            'emit_pub_sub': emit_pub_sub,
             'qt_package_mapping': qt_package_mapping,
         }
 
@@ -256,6 +259,7 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
             out_srv_dir.mkdir(parents=True, exist_ok=True)
             out_srv_src_dir.mkdir(parents=True, exist_ok=True)
 
+            from .template_helpers import qml_doc_type_name
             context = {
                 'package_name': namespace_package,
                 'qt_module_name': package_name,
@@ -267,6 +271,7 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
                 'get_qt_namespace': get_qt_namespace,
                 'needs_wrapper_type': needs_wrapper_type,
                 'get_single_field_type': get_single_field_type,
+            'qml_doc_type_name': qml_doc_type_name,
                 'get_single_field_include': get_single_field_include,
                 'msg_type_to_qt': msg_type_to_qt,
                 'msg_type_to_cpp': msg_type_to_cpp,
@@ -345,6 +350,7 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
                     ros_include_override=ros_action_include,
                 )
 
+            from .template_helpers import qml_doc_type_name
             action_context = {
                 'package_name': namespace_package,
                 'qt_module_name': package_name,
@@ -356,6 +362,7 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
                 'get_qt_namespace': get_qt_namespace,
                 'needs_wrapper_type': needs_wrapper_type,
                 'get_single_field_type': get_single_field_type,
+            'qml_doc_type_name': qml_doc_type_name,
                 'get_single_field_include': get_single_field_include,
                 'msg_type_to_qt': msg_type_to_qt,
                 'msg_type_to_cpp': msg_type_to_cpp,

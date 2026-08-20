@@ -51,6 +51,9 @@ namespace @(qt_namespace) {
     \inherits PublisherBase
 @[if msg_brief]@
     \brief Publishes \c @(ros_msg_type) messages — @(msg_brief)
+@[if msg_brief_continuation]@
+
+@[end if]@
 @[for line in msg_brief_continuation]@
     @(line)
 @[end for]@
@@ -104,7 +107,7 @@ namespace @(qt_namespace) {
     \qmlproperty @(fp['qml_doc_type']) @(qt_class_name)Publisher::@(fp['prop_name'])
 
     The \c @(fp['prop_name']) field value included in the next publish.
-    Setting this property emits \l @(fp['signal_name']) and, when
+    Setting this property emits \c @(fp['signal_name']) and, when
     \l {PublisherBase::autoPublish}{autoPublish} is \c true, requests a
     publish at the end of the current event-loop iteration.
 */
@@ -116,7 +119,7 @@ namespace @(qt_namespace) {
     \qmlproperty @(sf['qml_doc_type']) @(qt_class_name)Publisher::@(sf['prop_name'])
 
     The @(sf['qml_doc_type']) value included in the next publish.
-    Setting this property emits \l @(sf['signal_name']) and, when
+    Setting this property emits \c @(sf['signal_name']) and, when
     \l {PublisherBase::autoPublish}{autoPublish} is \c true, requests a
     publish at the end of the current event-loop iteration.
 */

@@ -30,6 +30,33 @@ from . import (
 )
 
 
+# Type names as they must appear in \qmlproperty documentation. qdoc validates
+# these against the QML type system and rejects C++ spellings outright
+# ("Invalid QML property type: float"), so the ones it refuses are mapped here.
+# Names it accepts -- int32_t, uint32_t, double, bool -- are deliberately left
+# alone so the docs keep showing the ROS-derived type the property carries.
+_QT_TO_QML_DOC: Dict[str, str] = {
+    'QString': 'string',
+    'QStringList': 'list<string>',
+    'float': 'real',
+}
+
+_LIST_OF_RE = re.compile(r'list<(.+)>\Z')
+
+
+def qml_doc_type_name(qt_type: str) -> str:
+    """Map a Qt/C++ type name to one qdoc accepts in \qmlproperty docs.
+
+    Recurses through list<...> so list<float> becomes list<real>.
+    """
+    if not qt_type:
+        return qt_type
+    match = _LIST_OF_RE.match(qt_type)
+    if match:
+        return 'list<{}>'.format(qml_doc_type_name(match.group(1)))
+    return _QT_TO_QML_DOC.get(qt_type, qt_type)
+
+
 def get_qml_module_uri(package_name: str) -> str:
     """Compute the QML module URI for a ROS package (e.g. QtRos2.BuiltinInterfaces)."""
     return 'QtRos2.' + ''.join(w.capitalize() for w in package_name.split('_') if w)
@@ -243,7 +270,8 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     "signature": "{vt} {se}::fromEulerAngles(vector3d eulerAngles)",
                     "brief": "Construct a quaternion from Euler angles in degrees.",
                     "body": [
-                        "Components are (\\c x = roll about X, \\c y = pitch about Y,",
+                        "Components of \\a eulerAngles are (\\c x = roll about X,",
+                        "\\c y = pitch about Y,",
                         "\\c z = yaw about Z), ROS axis convention. An overload",
                         "taking three \\c real arguments (\\c x, \\c y, \\c z) is also",
                         "available.",
@@ -312,7 +340,7 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     "signature": "{vt} {se}::fromRpy(vector3 rpy)",
                     "brief": "Construct a quaternion from roll/pitch/yaw in radians.",
                     "body": [
-                        "Equivalent to \\l fromEulerAngles but in radians.",
+                        "Equivalent to \\l fromEulerAngles, but \\a rpy is in radians.",
                     ],
                 },
             ],
@@ -433,6 +461,9 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     "static_factory": True,
                     "signature": "{vt} {se}::fromQuaternion(QQuaternion q)",
                     "brief": "Construct a quaternion from a \\l QQuaternion.",
+                    "body": [
+                        "Takes the components of \\a q in ROS order.",
+                    ],
                 },
             ],
             "extra_includes": ["<QQuaternion>"],
@@ -530,6 +561,9 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     "static_factory": True,
                     "signature": "{vt} {se}::fromVector3D(QVector3D v)",
                     "brief": "Construct from a single-precision \\l QVector3D.",
+                    "body": [
+                        "The components of \\a v are widened to double precision.",
+                    ],
                 },
             ],
             "extra_includes": ["<QVector3D>"],
@@ -573,6 +607,9 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     "static_factory": True,
                     "signature": "{vt} {se}::fromVector3D(QVector3D v)",
                     "brief": "Construct from a single-precision \\l QVector3D.",
+                    "body": [
+                        "The components of \\a v are widened to double precision.",
+                    ],
                 },
             ],
             "extra_includes": ["<QVector3D>"],
@@ -744,12 +781,11 @@ def build_single_field_info(package_name: str, message_spec) -> Dict[str, Any] |
         extra_inc = None
         const_ref = False
 
-    _QT_TO_QML: Dict[str, str] = {'QString': 'string', 'QStringList': 'list<string>'}
     if isinstance(resolved_type, NamespacedType):
         nested_pkg = resolved_type.namespaces[0] if resolved_type.namespaces else package_name
         qml_doc_type = get_qml_value_type_name(nested_pkg, resolved_type.name)
     else:
-        qml_doc_type = _QT_TO_QML.get(qt_type, qt_type)
+        qml_doc_type = qml_doc_type_name(qt_type)
 
     param_decl = f'const {qt_type}& {field_name}' if const_ref else f'{qt_type} {field_name}'
 
@@ -952,7 +988,6 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
             post_init_lines.append("        }")
 
         # QML-friendly type name used in \qmlproperty docs so qdoc can auto-link.
-        _QT_TO_QML: Dict[str, str] = {"QString": "string", "QStringList": "list<string>"}
         if info["is_sequence"]:
             if info["is_qbytearray"]:
                 info["qml_doc_type"] = "ArrayBuffer"
@@ -967,7 +1002,7 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
                     info["qml_doc_type"] = f"list<{get_qml_value_type_name(pkg, inner.name)}>"
             else:
                 inner_qt = info["sequence_inner_qt"] or ""
-                info["qml_doc_type"] = f"list<{inner_qt}>"
+                info["qml_doc_type"] = f"list<{qml_doc_type_name(inner_qt)}>"
         elif info["is_nested"]:
             if info["nested_mapping"]:
                 info["qml_doc_type"] = info["nested_mapping"]["qml_doc_type"]
@@ -976,7 +1011,7 @@ def build_value_type_descriptors(package_name: str, message_spec) -> Dict[str, A
                 pkg = t.namespaces[0] if t.namespaces else package_name
                 info["qml_doc_type"] = get_qml_value_type_name(pkg, t.name)
         else:
-            info["qml_doc_type"] = _QT_TO_QML.get(info["qt_type"], info["qt_type"])
+            info["qml_doc_type"] = qml_doc_type_name(info["qt_type"])
 
         field_infos.append(info)
 
@@ -1411,8 +1446,22 @@ def extract_doc_info(message_spec, *, interface_path: str | None = None) -> Dict
     brief_lines = msg_lines[:first_blank]
     details = _format_list_items(list(_strip_blank_edges(msg_lines[first_blank + 1:] if first_blank < len(msg_lines) else [])))
 
-    brief = brief_lines[0].strip() if brief_lines else ""
-    brief_continuation = brief_lines[1:] if len(brief_lines) > 1 else []
+    # qdoc wants \brief to be one sentence ending in a full stop, so take whole
+    # lines up to and including the first that ends in one, and leave the rest of
+    # the paragraph as body text. Splitting on "." inside the line would misfire
+    # on the URLs and abbreviations these ROS comments are full of.
+    brief = ""
+    brief_continuation: List[str] = []
+    if brief_lines:
+        taken = 0
+        for i, line in enumerate(brief_lines):
+            taken = i + 1
+            if line.strip().endswith("."):
+                break
+        brief = " ".join(l.strip() for l in brief_lines[:taken]).strip()
+        if brief and not brief.endswith("."):
+            brief += "."
+        brief_continuation = [l for l in brief_lines[taken:]]
 
     # Per-field overrides for built-in messages whose comments are thin or absent.
     msg_name = (
