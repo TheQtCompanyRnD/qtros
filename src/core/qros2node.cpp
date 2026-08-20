@@ -13,6 +13,23 @@
 #include <rcl/node.h>
 #include <rmw_fastrtps_cpp/get_participant.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
+
+#include <type_traits>
+
+namespace {
+// Fast DDS 2 (ROS 2 Jazzy and earlier) returns an eprosima::fastrtps::types::
+// ReturnCode_t class, which has to be called to get at its value; Fast DDS 3
+// (Kilted onwards) made ReturnCode_t a plain int32_t in another namespace.
+// The DDS-spec value of RETCODE_OK is 0 either way.
+template <typename Code>
+qint32 ddsReturnCodeValue(const Code &ret)
+{
+    if constexpr (std::is_class_v<Code>)
+        return qint32(ret());
+    else
+        return qint32(ret);
+}
+} // namespace
 #endif
 
 /*!
@@ -288,9 +305,9 @@ void QRos2Node::refreshNetworkInterfaces()
     if (!rmwNode)
         return;
     if (auto* participant = rmw_fastrtps_cpp::get_domain_participant(rmwNode)) {
-        const auto ret = participant->set_qos(participant->get_qos());
-        if (ret != eprosima::fastrtps::types::ReturnCode_t::RETCODE_OK)
-            qCWarning(lcNode) << "DDS network interface re-scan failed:" << ret();
+        const qint32 ret = ddsReturnCodeValue(participant->set_qos(participant->get_qos()));
+        if (ret != 0) // RETCODE_OK
+            qCWarning(lcNode) << "DDS network interface re-scan failed:" << ret;
         else
             qCDebug(lcNode) << "DDS network interfaces re-scanned";
     } else {
