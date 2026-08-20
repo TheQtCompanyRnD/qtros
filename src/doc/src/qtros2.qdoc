@@ -181,6 +181,11 @@
     service clients and servers, and action clients — all usable directly
     in QML.
 
+    \note This documentation was generated against \b{ROS 2 \rosdistro}. The
+    QML types below are generated from that distribution's interface
+    definitions, so a build against a different ROS 2 release may differ in the
+    message types available and in their fields. See the \rosdocslink.
+
     \section1 Guides
 
     \list

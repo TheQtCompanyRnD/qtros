@@ -78,6 +78,22 @@ if(rmw_fastrtps_cpp_FOUND)
     target_compile_definitions(Ros2Core PRIVATE QTROS2_HAVE_RMW_FASTRTPS)
 endif()
 
+# The generated QML API mirrors the ROS 2 interface definitions of whichever
+# distribution this was built against, so the docs have to say which one. Derive
+# it from the ROS 2 prefix FindWrapRos2 resolved (/opt/ros/<distro>) rather than
+# from $ROS_DISTRO, which need not be set when the docs are built.
+get_filename_component(_qtros2_ros_distro "${ROS2_PATH}" NAME)
+if(NOT _qtros2_ros_distro)
+    set(_qtros2_ros_distro "unknown")
+endif()
+string(SUBSTRING "${_qtros2_ros_distro}" 0 1 _qtros2_distro_initial)
+string(SUBSTRING "${_qtros2_ros_distro}" 1 -1 _qtros2_distro_rest)
+string(TOUPPER "${_qtros2_distro_initial}" _qtros2_distro_initial)
+set(_qtros2_ros_distro_title "${_qtros2_distro_initial}${_qtros2_distro_rest}")
+
 qt_internal_add_docs(Ros2Core
     ../doc/qtros2.qdocconf
+    DEFINES
+        "ROS_DISTRO=${_qtros2_ros_distro}"
+        "ROS_DISTRO_TITLE=${_qtros2_ros_distro_title}"
 )

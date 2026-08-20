@@ -38,6 +38,13 @@ exampledirs += ../../examples
 # our own landing page instead.
 navigation.homepage = "Qt ROS2"
 navigation.landingpage = "Qt ROS2"
+# Displayed breadcrumb text only -- the landing page keeps its "Qt ROS2" title,
+# so every \l{Qt ROS2} link in the sources still resolves.
+navigation.landingtitle = "Qt ROS2 for $ROS_DISTRO_TITLE"
+
+# For prose that needs to name the distribution or link to its documentation.
+macro.rosdistro = "$ROS_DISTRO_TITLE"
+macro.rosdocslink = "\\l{https://docs.ros.org/en/$ROS_DISTRO/index.html}{ROS 2 $ROS_DISTRO_TITLE documentation}"
 navigation.qmltypespage = "Qt ROS2 QML Types"
 
 tagfile = qtros2.tags
