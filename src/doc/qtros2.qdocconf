@@ -32,6 +32,11 @@ imagedirs += images
 imagedirs += ../../examples
 exampledirs += ../../examples
 
+# Qt's global config.qdocconf defaults navigation.homepage to index.html, which
+# is qtdoc's top-level page: it does not exist in a standalone module doc set,
+# so every generated page emitted "Can't link to 'index.html'". Point home at
+# our own landing page instead.
+navigation.homepage = "Qt ROS2"
 navigation.landingpage = "Qt ROS2"
 navigation.qmltypespage = "Qt ROS2 QML Types"
 
