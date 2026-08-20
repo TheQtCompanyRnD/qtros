@@ -35,6 +35,82 @@ Q_STATIC_LOGGING_CATEGORY(lcQoS, "qt.robotics.qos")
     \sa QualityOfService
 */
 
+/*!
+    \qmlproperty int qualityOfService::queueSize
+    The depth of the message queue, used when \c history is
+    \c QualityOfService.HistoryKeepLast. The default is 10.
+*/
+
+/*!
+    \qmlproperty enumeration qualityOfService::reliability
+    How hard the middleware works to deliver every sample.
+
+    \value QualityOfService.ReliabilitySystemDefault
+           Leave the policy to the RMW implementation. This is the default.
+    \value QualityOfService.ReliabilityReliable
+           Retransmit until every sample has been acknowledged.
+    \value QualityOfService.ReliabilityBestEffort
+           Send once and drop samples under load: the right choice for
+           high-rate sensor streams where the newest sample matters most.
+    \value QualityOfService.ReliabilityBestAvailable
+           Request the strongest policy that still matches every endpoint
+           discovered so far.
+*/
+
+/*!
+    \qmlproperty enumeration qualityOfService::durability
+    Whether the middleware keeps samples for subscribers that join late.
+
+    \value QualityOfService.DurabilitySystemDefault
+           Leave the policy to the RMW implementation. This is the default.
+    \value QualityOfService.DurabilityVolatile
+           Deliver only to subscribers that are already connected.
+    \value QualityOfService.DurabilityTransientLocal
+           Keep the last \c queueSize samples so a late subscriber still
+           receives them: how latched topics such as \c /tf_static work.
+    \value QualityOfService.DurabilityBestAvailable
+           Request the strongest policy that still matches every endpoint
+           discovered so far.
+*/
+
+/*!
+    \qmlproperty enumeration qualityOfService::history
+    How many samples the middleware buffers.
+
+    \value QualityOfService.HistorySystemDefault
+           Leave the policy to the RMW implementation. This is the default.
+    \value QualityOfService.HistoryKeepLast
+           Buffer at most \c queueSize samples, discarding the oldest.
+    \value QualityOfService.HistoryKeepAll
+           Buffer every sample, up to the middleware's resource limits.
+           \c queueSize is ignored.
+*/
+
+/*!
+    \qmlproperty enumeration qualityOfService::liveliness
+    How an endpoint reports that it is still alive. A publisher and a
+    subscriber match only if the publisher's policy is at least as strict as
+    the subscriber's, ordered \c Automatic, then \c ManualByTopic.
+
+    \value QualityOfService.LivelinessSystemDefault
+           Leave the policy to the RMW implementation. This is the default.
+    \value QualityOfService.LivelinessAutomatic
+           The middleware asserts liveliness on the application's behalf for
+           as long as the process is running.
+    \value QualityOfService.LivelinessManualByTopic
+           The publisher asserts its own liveliness per topic. Note that this
+           module exposes no lease duration and no way to assert liveliness,
+           so in practice this only affects which endpoints match.
+    \value QualityOfService.LivelinessBestAvailable
+           Request the strongest policy that still matches every endpoint
+           discovered so far.
+
+    \note ROS 2 also had a \c MANUAL_BY_NODE policy. It is deliberately not
+    exposed here: rmw deprecated it in Jazzy and removed it in Kilted. Use
+    \c LivelinessManualByTopic, which matches anything \c MANUAL_BY_NODE
+    would have matched.
+*/
+
 QRos2QoS::QRos2QoS(int queueSize)
     : m_queueSize(queueSize)
 {
