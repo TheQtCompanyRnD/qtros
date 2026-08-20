@@ -22,7 +22,11 @@ qhp.QtRos2.subprojects.examples.indexTitle = Qt ROS2 Examples
 qhp.QtRos2.subprojects.examples.selectors = example
 qhp.QtRos2.subprojects.examples.sortPages = true
 
-depends = qtcore qtdoc qtqml qtquick3d qtquick3dphysics
+# qtgui for QVector3D/QQuaternion, which the geometry value types convert to
+# and from; qtquick for the QtQuick::vector3d and QtQuick::quaternion QML
+# value types they are documented against. Without them qdoc cannot resolve
+# those links even when the index files are present.
+depends = qtcore qtdoc qtgui qtqml qtquick qtquick3d qtquick3dphysics
 
 moduleheader = QtRos2Core
 

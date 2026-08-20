@@ -137,7 +137,7 @@ _VALUE_TYPE_EXTRA_DOC: Dict[str, List[List[str]]] = {
             "Similar to QtQuick's \\l {QtQuick::}{quaternion} value type but",
             "stored as four \\c double components (\\c x, \\c y, \\c z, \\c w)",
             "rather than \\c float, matching the ROS 2 wire format. Use",
-            "\\l toQuaternion() / \\l fromQuaternion() to bridge to",
+            "\\l toQuaternion() / \\l {QtRos2.GeometryMsgs::Quaternion::}{fromQuaternion} to bridge to",
             "\\l QQuaternion when its math API (slerp, normalize, multiplication)",
             "is needed.",
         ],
@@ -155,7 +155,7 @@ _VALUE_TYPE_EXTRA_DOC: Dict[str, List[List[str]]] = {
         [
             "Similar to QtQuick's \\l {QtQuick::}{vector3d} value type but",
             "stored as three \\c double components, matching the ROS 2 wire",
-            "format. Use \\l toVector3D() / \\l fromVector3D() to bridge to",
+            "format. Use \\l toVector3D() / \\l {QtRos2.GeometryMsgs::Vector3::}{fromVector3D} to bridge to",
             "\\l QVector3D when its math API is needed.",
         ],
     ],
@@ -163,7 +163,7 @@ _VALUE_TYPE_EXTRA_DOC: Dict[str, List[List[str]]] = {
         [
             "Semantically a 3D point rather than a free vector, but stored",
             "identically to \\l vector3 (three \\c double components). Use",
-            "\\l toVector3D() / \\l fromVector3D() to bridge to \\l QVector3D.",
+            "\\l toVector3D() / \\l {QtRos2.GeometryMsgs::Point::}{fromVector3D} to bridge to \\l QVector3D.",
         ],
     ],
 }

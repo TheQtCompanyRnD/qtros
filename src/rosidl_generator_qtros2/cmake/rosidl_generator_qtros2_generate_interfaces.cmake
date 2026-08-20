@@ -443,7 +443,7 @@ endforeach()
 
 if(QT_BUILDING_QT)
     # qt_internal_add_qml_module records a CMake package dependency for each
-    # PUBLIC_LIBRARIES entry it recognises as a Qt module, and it recognises
+    # PUBLIC_LIBRARIES entry it recognizes as a Qt module, and it recognizes
     # them by the Qt6:: namespace. The generated variable names sibling wrapper
     # modules plainly ("QtRos2BuiltinInterfaces"), which links correctly but
     # leaves them out of this module's generated Dependencies.cmake, even
