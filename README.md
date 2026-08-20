@@ -161,7 +161,7 @@ Install Qt 6.8 or later using the official Qt online installer from [qt.io/downl
 The `urdfviewer` tool converts URDF robot descriptions into Qt Quick 3D scenes. It requires Python 3 with two additional packages:
 
 ```bash
-pip3 install urdf_parser_py jinja2
+sudo apt install ros-jazzy-urdfdom-py python3-jinja2
 ```
 
 If these packages are not available when `qt-configure-module` is run, the urdfviewer is silently skipped. You can check whether it was detected by looking for the `ros2-urdfviewer` line in the configure summary.
@@ -1177,7 +1177,7 @@ Note that the application is expected to provide its own scene and entry point.
 The exporter requires Python 3 with `urdf_parser_py` and `jinja2`:
 
 ```bash
-pip3 install urdf_parser_py jinja2
+sudo apt install ros-jazzy-urdfdom-py python3-jinja2
 ```
 
 **Example:**
