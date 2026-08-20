@@ -83,6 +83,7 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
 
     generated_files = []
     generated_headers: List[str] = []
+    qml_value_types: List[str] = []
     generated_sources: List[str] = []
     generated_parent_folders = set()
 
@@ -134,6 +135,12 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
         emit_wrapper = True
         if interface_type in ('srv', 'action'):
             emit_wrapper = needs_wrap
+        if emit_wrapper:
+            # A QML value type name has to be unique across every generated
+            # module, since qdoc names their pages without a module qualifier
+            # and QML users would otherwise need "import ... as" to tell two
+            # apart. Report them so cmake can fail the build on a collision.
+            qml_value_types.append(get_qml_value_type_name(namespace_package, msg_name))
 
         from .template_helpers import qml_doc_type_name
         context = {
@@ -418,6 +425,7 @@ def generate_qtros2(generator_arguments_file, qt_package_mapping=None, source_pa
     _emit_list("_qtros2_generated_headers", generated_headers)
     _emit_list("_qtros2_generated_sources", generated_sources)
     _emit_list("_qtros2_generated_parent_folders", generated_parent_folders_list)
+    _emit_list("_qtros2_qml_value_types", sorted(dict.fromkeys(qml_value_types)))
 
     manifest_path.write_text("\n".join(manifest_lines))
 
@@ -740,12 +748,21 @@ def to_snake_case(name: str) -> str:
     return s2.replace('__', '_').lower()
 
 
-# Override QML type names that would conflict with built-in QML value types.
+# Override QML type names that would otherwise collide -- with a built-in QML
+# value type, or with the same message name in another ROS package.
 # Keys are "package/MessageName"; values are the QML type name to use instead.
 _QML_NAME_OVERRIDES: dict = {
     # 'string' is a built-in QML value type; using it would prevent qdoc from
     # linking plain 'string' properties to the built-in type.
     "std_msgs/String": "rosString",
+    # Two packages define KeyValue. Registering both as 'keyValue' forced QML
+    # users to disambiguate with "import ... as", and qdoc drops the module
+    # qualifier from QML value type page names (qttools filebase.cpp), so both
+    # claimed qml-keyvalue.html and one lost its documentation entirely.
+    # diagnostic_msgs keeps the plain name: it is the one users meet, through
+    # DiagnosticStatus.values. The type_description_interfaces one is reachable
+    # only as GetTypeDescription's extra_information field.
+    "type_description_interfaces/KeyValue": "typeDescriptionKeyValue",
 }
 
 
@@ -753,10 +770,10 @@ def get_qml_value_type_name(package: str, message_name: str) -> str:
     """QML value type name for a ROS message, in lowercase camelCase.
 
     Qt's QML value-type convention uses a lowercase initial letter
-    (e.g. ``point``, ``rect``, ``color``). The QML module URI provides
-    package scoping; users alias with ``import ... as`` on the rare
-    collision (e.g. ``keyValue`` exists in both diagnostic_msgs and
-    type_description_interfaces).
+    (e.g. ``point``, ``rect``, ``color``). Names must be unique across all
+    generated modules, not just within one: see ``_QML_NAME_OVERRIDES``, and
+    the duplicate check in qtros2_generate_from_package.cmake that fails the
+    build when a new distribution introduces a clash.
 
     Examples::
 

@@ -322,6 +322,25 @@ if(EXISTS "${_qtros2_manifest}")
       list(APPEND _generated_parent_folders "${_iface}")
     endif()
   endforeach()
+
+  # QML value type names must be unique across every generated module, not just
+  # within one. qdoc names their pages without a module qualifier, so two
+  # modules registering the same name silently collapse into one page and one
+  # of the types loses its documentation; QML users also have to disambiguate
+  # them with "import ... as". Both failures are quiet, so fail loudly here
+  # instead and add an entry to _QML_NAME_OVERRIDES to resolve the clash.
+  foreach(_qtros2_vt ${_qtros2_qml_value_types})
+    get_property(_qtros2_vt_owner GLOBAL PROPERTY QTROS2_QML_VALUE_TYPE_${_qtros2_vt})
+    if(_qtros2_vt_owner AND NOT _qtros2_vt_owner STREQUAL "${rosidl_generate_interfaces_TARGET}")
+      message(FATAL_ERROR
+        "QtROS2: QML value type '${_qtros2_vt}' is registered by both "
+        "'${_qtros2_vt_owner}' and '${rosidl_generate_interfaces_TARGET}'.\n"
+        "Value type names share one namespace in the documentation and are "
+        "ambiguous in QML. Add an override to _QML_NAME_OVERRIDES in "
+        "rosidl_generator_qtros2/__init__.py to rename one of them.")
+    endif()
+    set_property(GLOBAL PROPERTY QTROS2_QML_VALUE_TYPE_${_qtros2_vt} "${rosidl_generate_interfaces_TARGET}")
+  endforeach()
 else()
   message(WARNING "QtROS2: Generated file manifest not found: ${_qtros2_manifest}")
 endif()
