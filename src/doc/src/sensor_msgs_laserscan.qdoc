@@ -17,5 +17,5 @@
 
     \brief Qt type wrapper for the LaserScan ROS 2 message, used with 2D lidar/laser range-finders.
 
-    \sa sensormsg_laserscan, {Choosing Sensor Message Types}
+    \sa laserScan, LaserScanSubscriber, {Choosing Sensor Message Types}
 */

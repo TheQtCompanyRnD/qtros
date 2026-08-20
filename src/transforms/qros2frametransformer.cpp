@@ -52,7 +52,7 @@ QtType transformStamped(const std::shared_ptr<tf2_ros::Buffer>& buffer,
                         ? tf.lookupTransform("map", "laser_frame") : null
     \endqml
 
-    Bindings that call \l lookupTransform re-evaluate on \l transformsChanged,
+    Bindings that call \l lookupTransform re-evaluate on \c transformsChanged,
     which fires whenever new transforms arrive.
 
     \sa TransformBroadcaster, StaticTransformBroadcaster
