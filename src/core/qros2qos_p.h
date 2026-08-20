@@ -98,16 +98,19 @@ class Q_ROS2CORE_EXPORT QRos2QualityOfService : public QObject
 public:
     explicit QRos2QualityOfService(QObject* parent = nullptr) : QObject(parent) {}
 
+    // The rmw *_UNKNOWN policy values are deliberately absent from these
+    // enums: rmw reports them when introspecting an endpoint whose policy it
+    // cannot express, so they are outputs, never something to request. An
+    // observed profile arrives as qoSProfile from QtRos2.RosgraphMsgs.
     enum class ReliabilityPolicy {
 #ifndef Q_QDOC
         ReliabilitySystemDefault = RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT,
         ReliabilityReliable = RMW_QOS_POLICY_RELIABILITY_RELIABLE,
         ReliabilityBestEffort = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
-        ReliabilityUnknown = RMW_QOS_POLICY_RELIABILITY_UNKNOWN,
         ReliabilityBestAvailable = RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE
 #else
         ReliabilitySystemDefault, ReliabilityReliable, ReliabilityBestEffort,
-        ReliabilityUnknown, ReliabilityBestAvailable
+        ReliabilityBestAvailable
 #endif
     };
     Q_ENUM(ReliabilityPolicy)
@@ -117,11 +120,10 @@ public:
         DurabilitySystemDefault = RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT,
         DurabilityTransientLocal = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL,
         DurabilityVolatile = RMW_QOS_POLICY_DURABILITY_VOLATILE,
-        DurabilityUnknown = RMW_QOS_POLICY_DURABILITY_UNKNOWN,
         DurabilityBestAvailable = RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE
 #else
         DurabilitySystemDefault, DurabilityTransientLocal, DurabilityVolatile,
-        DurabilityUnknown, DurabilityBestAvailable
+        DurabilityBestAvailable
 #endif
     };
     Q_ENUM(DurabilityPolicy)
@@ -130,10 +132,9 @@ public:
 #ifndef Q_QDOC
         HistorySystemDefault = RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT,
         HistoryKeepLast = RMW_QOS_POLICY_HISTORY_KEEP_LAST,
-        HistoryKeepAll = RMW_QOS_POLICY_HISTORY_KEEP_ALL,
-        HistoryUnknown = RMW_QOS_POLICY_HISTORY_UNKNOWN
+        HistoryKeepAll = RMW_QOS_POLICY_HISTORY_KEEP_ALL
 #else
-        HistorySystemDefault, HistoryKeepLast, HistoryKeepAll, HistoryUnknown
+        HistorySystemDefault, HistoryKeepLast, HistoryKeepAll
 #endif
     };
     Q_ENUM(HistoryPolicy)
@@ -142,12 +143,13 @@ public:
 #ifndef Q_QDOC
         LivelinessSystemDefault = RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
         LivelinessAutomatic = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC,
-        LivelinessManualByNode = 2,
+        // ManualByNode (2) is deliberately absent: rmw deprecated it in Jazzy
+        // and removed it in Kilted. Use ManualByTopic instead.
         LivelinessManualByTopic = RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC,
-        LivelinessUnknown = RMW_QOS_POLICY_LIVELINESS_UNKNOWN
+        LivelinessBestAvailable = RMW_QOS_POLICY_LIVELINESS_BEST_AVAILABLE
 #else
-        LivelinessSystemDefault, LivelinessAutomatic, LivelinessManualByNode,
-        LivelinessManualByTopic, LivelinessUnknown
+        LivelinessSystemDefault, LivelinessAutomatic, LivelinessManualByTopic,
+        LivelinessBestAvailable
 #endif
     };
     Q_ENUM(LivelinessPolicy)

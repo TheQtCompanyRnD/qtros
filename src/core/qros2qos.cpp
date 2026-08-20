@@ -3,7 +3,11 @@
 
 #include "qros2qos_p.h"
 
+#include <QLoggingCategory>
+
 QT_BEGIN_NAMESPACE
+
+Q_STATIC_LOGGING_CATEGORY(lcQoS, "qt.robotics.qos")
 
 /*!
     \qmlvaluetype qualityOfService
@@ -52,10 +56,11 @@ QRos2QoS::operator rclcpp::QoS() const
         // use reliability() with the RMW constant
         qos.reliability(static_cast<rmw_qos_reliability_policy_t>(m_reliability));
         break;
-    case RMW_QOS_POLICY_RELIABILITY_UNKNOWN:
-        qos.reliability(static_cast<rmw_qos_reliability_policy_t>(m_reliability));
-        break;
     case RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT:
+        break;
+    default:
+        qCWarning(lcQoS) << "ignoring unknown reliability policy" << m_reliability
+                         << "- use a QualityOfService.Reliability* value";
         break;
     }
 
@@ -70,10 +75,11 @@ QRos2QoS::operator rclcpp::QoS() const
         // Use durability() with the RMW constant
         qos.durability(static_cast<rmw_qos_durability_policy_t>(m_durability));
         break;
-    case RMW_QOS_POLICY_DURABILITY_UNKNOWN:
-        qos.durability(static_cast<rmw_qos_durability_policy_t>(m_durability));
-        break;
     case RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT:
+        break;
+    default:
+        qCWarning(lcQoS) << "ignoring unknown durability policy" << m_durability
+                         << "- use a QualityOfService.Durability* value";
         break;
     }
 
@@ -84,10 +90,11 @@ QRos2QoS::operator rclcpp::QoS() const
     case RMW_QOS_POLICY_HISTORY_KEEP_ALL:
         qos.keep_all();
         break;
-    case RMW_QOS_POLICY_HISTORY_UNKNOWN:
-        qos.history(static_cast<rmw_qos_history_policy_t>(m_history));
-        break;
     case RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT:
+        break;
+    default:
+        qCWarning(lcQoS) << "ignoring unknown history policy" << m_history
+                         << "- use a QualityOfService.History* value";
         break;
     }
 
@@ -95,16 +102,18 @@ QRos2QoS::operator rclcpp::QoS() const
     case RMW_QOS_POLICY_LIVELINESS_AUTOMATIC:
         qos.liveliness(RMW_QOS_POLICY_LIVELINESS_AUTOMATIC);
         break;
-    case RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_NODE:
-        qos.liveliness(RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_NODE);
-        break;
     case RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC:
         qos.liveliness(RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC);
         break;
-    case RMW_QOS_POLICY_LIVELINESS_UNKNOWN:
+    case RMW_QOS_POLICY_LIVELINESS_BEST_AVAILABLE:
+        // Use liveliness() with the RMW constant
         qos.liveliness(static_cast<rmw_qos_liveliness_policy_t>(m_liveliness));
         break;
     case RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT:
+        break;
+    default:
+        qCWarning(lcQoS) << "ignoring unknown liveliness policy" << m_liveliness
+                         << "- use a QualityOfService.Liveliness* value";
         break;
     }
 
