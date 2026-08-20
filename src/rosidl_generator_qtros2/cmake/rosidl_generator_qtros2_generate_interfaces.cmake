@@ -423,6 +423,26 @@ foreach(_src ${_qtros2_module_sources})
 endforeach()
 
 if(QT_BUILDING_QT)
+    # qt_internal_add_qml_module records a CMake package dependency for each
+    # PUBLIC_LIBRARIES entry it recognises as a Qt module, and it recognises
+    # them by the Qt6:: namespace. The generated variable names sibling wrapper
+    # modules plainly ("QtRos2BuiltinInterfaces"), which links correctly but
+    # leaves them out of this module's generated Dependencies.cmake, even
+    # though its Targets.cmake goes on to reference Qt6::QtRos2BuiltinInterfaces.
+    # A consumer that resolves this package before its siblings then reports
+    # "imported targets are referenced, but are missing" -- which is what every
+    # find_package(Qt6 ... Quick) does, since Qt6Qml pulls in the QmlPlugins
+    # configs alphabetically. Substitute the namespaced alias where one exists;
+    # modules are generated in topological order, so it already does by now.
+    set(_qtros2_module_public_libs_ns "")
+    foreach(_qtros2_public_lib ${_qtros2_module_public_libs})
+        if(NOT _qtros2_public_lib MATCHES "::" AND TARGET "Qt6::${_qtros2_public_lib}")
+            list(APPEND _qtros2_module_public_libs_ns "Qt6::${_qtros2_public_lib}")
+        else()
+            list(APPEND _qtros2_module_public_libs_ns "${_qtros2_public_lib}")
+        endif()
+    endforeach()
+
     # Inside the Qt build tree: use the full internal API (syncs headers, no private module, etc.)
     # Use ${PROJECT_VERSION_MAJOR}.0 so "auto" in IMPORTS resolves to the same Qt major version
     # as Core (which is also versioned at the Qt project version).
@@ -435,7 +455,7 @@ if(QT_BUILDING_QT)
         IMPORTS ${_qtros2_module_imports}
         SOURCES ${_qtros2_abs_sources}
         PUBLIC_INCLUDE_DIRECTORIES ${_qtros2_module_public_include_dirs}
-        PUBLIC_LIBRARIES ${_qtros2_module_public_libs}
+        PUBLIC_LIBRARIES ${_qtros2_module_public_libs_ns}
         LIBRARIES ${_qtros2_module_private_libs}
     )
 

@@ -17,9 +17,20 @@ qt_internal_add_module(Ros2Transforms
         qros2frametransformer_p.h qros2frametransformer.cpp
     LIBRARIES
         Qt::Qml
+        # Ros2CorePrivate gives the private node/entity headers (qros2entity_p.h).
+        # Private, not public: every header this module has is a _p.h, so no
+        # consumer includes them, and Qt rejects a public link to a private
+        # module anyway.
+        Qt6::Ros2CorePrivate
     PUBLIC_LIBRARIES
         Qt::Core
         Qt::Qml
+        # Declared here rather than in the target_link_libraries() below so that
+        # qt_internal_add_module records it as a package dependency: a Qt target
+        # only linked afterwards lands in INTERFACE_LINK_LIBRARIES, and then
+        # Qt6Ros2TransformsConfig.cmake references an imported target its own
+        # Dependencies.cmake never asked anyone to find.
+        Qt6::QtRos2GeometryMessages
 )
 
 qt_internal_add_qml_module(Ros2Transforms
@@ -35,11 +46,9 @@ qt_internal_add_qml_module(Ros2Transforms
     NO_PLUGIN_OPTIONAL
 )
 
-# Ros2CorePrivate gives the private node/entity headers (qros2entity_p.h etc.);
-# plus the geometry value-type module and tf2_ros.
+# The ROS packages are found through FindWrapRos2 rather than as Qt packages,
+# so they stay here; the Qt ones are declared above.
 target_link_libraries(Ros2Transforms PUBLIC
-    Qt6::Ros2CorePrivate
-    QtRos2GeometryMessages
     rclcpp::rclcpp
     tf2::tf2
     tf2_ros::tf2_ros
