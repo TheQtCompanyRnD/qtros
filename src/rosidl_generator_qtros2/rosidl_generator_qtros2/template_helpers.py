@@ -138,7 +138,7 @@ _VALUE_TYPE_EXTRA_DOC: Dict[str, List[List[str]]] = {
             "stored as four \\c double components (\\c x, \\c y, \\c z, \\c w)",
             "rather than \\c float, matching the ROS 2 wire format. Use",
             "\\l toQuaternion() / \\l {QtRos2.GeometryMsgs::Quaternion::}{fromQuaternion} to bridge to",
-            "\\l QQuaternion when its math API (slerp, normalize, multiplication)",
+            "\\l {QtQuick::}{quaternion} when its math API (slerp, normalize, multiplication)",
             "is needed.",
         ],
         [
@@ -451,16 +451,16 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
             "qml_methods": [
                 {
                     "signature": "QQuaternion {vt}::toQuaternion()",
-                    "brief": "Return a single-precision \\l QQuaternion with the same orientation.",
+                    "brief": "Return a single-precision \\l {QtQuick::}{quaternion} with the same orientation.",
                     "body": [
-                        "Useful for accessing \\l QQuaternion's math API",
+                        "Useful for accessing \\l {QtQuick::}{quaternion}'s math API",
                         "(slerp, normalize, multiplication).",
                     ],
                 },
                 {
                     "static_factory": True,
                     "signature": "{vt} {se}::fromQuaternion(QQuaternion q)",
-                    "brief": "Construct a quaternion from a \\l QQuaternion.",
+                    "brief": "Construct a quaternion from a \\l {QtQuick::}{quaternion}.",
                     "body": [
                         "Takes the components of \\a q in ROS order.",
                     ],
