@@ -91,9 +91,19 @@ string(SUBSTRING "${_qtros2_ros_distro}" 1 -1 _qtros2_distro_rest)
 string(TOUPPER "${_qtros2_distro_initial}" _qtros2_distro_initial)
 set(_qtros2_ros_distro_title "${_qtros2_distro_initial}${_qtros2_distro_rest}")
 
+# The distribution name alone does not pin the generated API: patch releases
+# within a distribution add message fields. FindWrapRos2 resolves the rclcpp
+# version, which is the closest thing to a version for the interface set, so
+# record that too. It is unset when rclcpp exports no version.
+set(_qtros2_rclcpp_version "${WrapRos2_VERSION}")
+if(NOT _qtros2_rclcpp_version)
+    set(_qtros2_rclcpp_version "unknown")
+endif()
+
 qt_internal_add_docs(Ros2Core
     ../doc/qtros2.qdocconf
     DEFINES
         "ROS_DISTRO=${_qtros2_ros_distro}"
         "ROS_DISTRO_TITLE=${_qtros2_ros_distro_title}"
+        "ROS_RCLCPP_VERSION=${_qtros2_rclcpp_version}"
 )
