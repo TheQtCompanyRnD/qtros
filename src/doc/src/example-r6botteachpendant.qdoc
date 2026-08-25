@@ -21,7 +21,7 @@
 
     \image r6botteachpendant/r6botteachpendant.jpg "The R6 Robot Teach Pendant: a TF-driven 3D model of the arm with joint-axis triads, and the Jog panel with per-joint controls and a speed profile."
 
-    \section1 Running the Example
+    \section1 Running the example
 
     \list 1
         \li Build the \c ros2_control demos in a workspace, in a ROS-sourced
@@ -43,7 +43,7 @@
             \endcode
     \endlist
 
-    \section1 Forwarding Command-Line Arguments to ROS
+    \section1 Forwarding command-line arguments to ROS
 
     Because a teach pendant may be launched with ROS arguments (for remapping or
     parameters), \c main.cpp initializes the ROS 2 context explicitly, forwarding
@@ -62,7 +62,7 @@
     }
     \endcode
 
-    \section1 The View Model
+    \section1 The view model
 
     All ROS logic is centralized in \c R6BotViewModel.qml — no other QML file
     imports the bridge — which keeps the UI files purely presentational. It
@@ -99,7 +99,7 @@
     )
     \endcode
 
-    \section1 Reading Joint State
+    \section1 Reading joint state
 
     The \c JointStateSubscriber's message drives the numeric panels. The view
     model derives a few convenient properties from it, including a \c moving flag
@@ -111,7 +111,7 @@
         jointStateSubscriber.message.velocity.some(vel => vel !== 0.0)
     \endqml
 
-    \section1 Commanding the Arm
+    \section1 Commanding the arm
 
     Motion commands are \c trajectory_msgs/JointTrajectory messages. The view
     model echoes the joint names from \c /joint_states, then builds a list of
@@ -129,7 +129,7 @@
     single-point trajectory; the jog step sizes (Fine/Normal/Fast) are 0.02, 0.1,
     and 0.2 radians.
 
-    \section1 Driving the 3D Model from TF
+    \section1 Driving the 3D model from TF
 
     The 3D robot is driven entirely by TF, not by joint angles directly — the
     \c robot_state_publisher in the r6bot stack turns \c /joint_states into \c /tf,
@@ -172,7 +172,7 @@
     A \c transformsReady flag (set once every edge resolves) gates the model's
     visibility, so nothing renders until the whole chain is available.
 
-    \section1 Waypoints and Replay
+    \section1 Waypoints and replay
 
     Waypoints capture the \e joint positions (from \c /joint_states), not TF, and
     are held in memory for the session. Replay is velocity-driven rather than
@@ -198,7 +198,7 @@
     \e stopping publishes the current position with zeroed velocities to halt
     smoothly.
 
-    \section1 The UI at a Glance
+    \section1 The UI at a glance
 
     \list
         \li A status bar shows the live joint readout from \c /joint_states.

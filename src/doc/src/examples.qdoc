@@ -19,7 +19,7 @@
     Qt Creator (from a shell that has sourced your ROS 2 environment) to build
     and run it.
 
-    \section1 Before You Start
+    \section1 Before you start
 
     All of the examples need a running ROS 2 environment. Source it in every
     terminal you use — the one that launches Qt Creator or the application, and
@@ -36,7 +36,7 @@
     the same node name, topics, or TF frames will interfere with each other and
     produce confusing results such as jumping poses or missing data.
 
-    \section1 The Examples
+    \section1 The examples
 
     The list below is ordered roughly from simplest to most complete. If you are
     new to the bridge, start with \l{Simple Publisher} and \l{Simple Subscriber},
@@ -47,7 +47,7 @@
 
     \annotatedlist qtros2-examples
 
-    \section1 Where To Go Next
+    \section1 Where to go next
 
     \list
         \li For the message types the examples publish and subscribe to, see the

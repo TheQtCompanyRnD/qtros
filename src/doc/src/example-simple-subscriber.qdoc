@@ -17,7 +17,7 @@
 
     \image simple_subscriber/simple_subscriber.png "The Simple Subscriber window showing the latest received pose, its frame and timestamp, and the orientation as both a quaternion and Euler angles."
 
-    \section1 Running the Example
+    \section1 Running the example
 
     \list 1
         \li Source your ROS 2 environment and launch Qt Creator from that shell.
@@ -28,7 +28,7 @@
             is something to receive.
     \endlist
 
-    \section1 Declaring a Subscriber
+    \section1 Declaring a subscriber
 
     As with a publisher, a subscriber is a child of a \c Node. It can be given an
     explicit \c node and its \c topic can be edited live:
@@ -62,7 +62,7 @@
             arrives — no handler required.
     \endlist
 
-    \section1 Reactive Bindings and Convenience Accessors
+    \section1 Reactive bindings and convenience accessors
 
     The subscriber exposes the last message as \c message, and a stamped
     subscriber also surfaces shortcut accessors so common paths read cleanly. For
@@ -79,7 +79,7 @@
     Label { text: `frame: ${poseSubscriber.message.header.frameId}` }
     \endqml
 
-    \section2 Euler Angles for Free
+    \section2 Euler angles for free
 
     A \c geometry_msgs/Quaternion value type also exposes its orientation as
     Euler angles, so you do not have to convert by hand. \c rpyDegrees gives
@@ -93,7 +93,7 @@
     }
     \endqml
 
-    \section1 Connection Status
+    \section1 Connection status
 
     Alongside \c{rosNode.initialized}, a subscriber reports whether a publisher
     is present on its topic through the \c connected property. The example uses it

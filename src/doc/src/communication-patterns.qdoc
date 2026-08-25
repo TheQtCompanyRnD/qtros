@@ -26,7 +26,7 @@
     about the data itself. This guide describes each pattern, when it fits, and
     the QML types that implement it.
 
-    \section1 At a Glance
+    \section1 At a glance
 
     \table
     \header
@@ -66,7 +66,7 @@
     progress updates or a cancel button, use an \b action. If you are describing
     \e how a node should behave rather than sending it data, use a \b parameter.
 
-    \section1 Topics: One-Way Streams
+    \section1 Topics: one-way streams
 
     A topic is an anonymous, many-to-many channel. Any number of publishers can
     write to it and any number of subscribers can read from it; neither side
@@ -106,7 +106,7 @@
 
     \b{See:} \l{Simple Publisher}, \l{Simple Subscriber}.
 
-    \section1 Services: Request and Response
+    \section1 Services: request and response
 
     A service is a one-to-one call: the client sends a request and receives
     exactly one response. Use it when the caller genuinely needs the answer and
@@ -143,7 +143,7 @@
     \b{See:} \l{Simple Service}, \l{Simple Service Client},
     \l{Qt ROS2 std_srvs QML Types}.
 
-    \section1 Actions: Long-Running Goals
+    \section1 Actions: long-running goals
 
     An action is built on top of topics and services to manage a task that takes
     time. The client sends a \e goal; the server accepts or rejects it, streams
@@ -172,7 +172,7 @@
 
     \b{See:} \l{TurtleSim Controller}.
 
-    \section1 Parameters: Node Configuration
+    \section1 Parameters: node configuration
 
     Parameters are named, typed values that configure a node — thresholds,
     frame names, gains, feature switches. They are not a data channel: they
@@ -205,7 +205,7 @@
     }
     \endqml
 
-    \section1 Combining Patterns
+    \section1 Combining patterns
 
     Real applications use several patterns at once, and a single logical feature
     often spans more than one. A navigation panel might set a planner's tuning
@@ -225,7 +225,7 @@
             your topics is expressed in.
     \endlist
 
-    \section1 Where To Go Next
+    \section1 Where to go next
 
     \list
         \li Work through the \l{Qt ROS2 Examples}, which introduce the patterns

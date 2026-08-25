@@ -19,7 +19,7 @@
 
     \image turtlesim_controller/turtlesim_controller.png "The TurtleSim Controller (top) driving turtlesim (bottom), which has drawn the Qt logo using the Draw Qt button."
 
-    \section1 Running the Example
+    \section1 Running the example
 
     \list 1
         \li Source your ROS 2 environment and launch Qt Creator from that shell.
@@ -31,7 +31,7 @@
             \endcode
     \endlist
 
-    \section1 Wrapping a Third-Party Package
+    \section1 Wrapping a third-party package
 
     \c turtlesim is not one of the built-in message modules, so the example wraps
     it on demand. In \c CMakeLists.txt, \c qt_ros2_configure_target enables the
@@ -56,7 +56,7 @@
     import QtRos2.GeometryMsgs as Geom
     \endqml
 
-    \section1 One Node per Turtle
+    \section1 One node per turtle
 
     All of a turtle's ROS entities are collected in \c TurtleControllerNode.qml,
     a reusable component parameterized by a \c baseName. Because \c turtlesim
@@ -82,7 +82,7 @@
     switches the panel between them with a combo box, so the same declarative
     block scales from one turtle to many.
 
-    \section1 Services: Spawn, Kill, and Pen Control
+    \section1 Services: spawn, kill, and pen control
 
     Service clients call a service and return a JavaScript \e promise that
     resolves with the response. Spawning a turtle is a single call whose result
@@ -104,7 +104,7 @@
     \c isServiceReady turns true — a small illustration of driving UI and startup
     logic from service-client state.
 
-    \section2 Chaining Promises: the "Draw Qt" Button
+    \section2 Chaining promises: the "Draw Qt" button
 
     Because each service call returns a promise, sequential motions compose
     naturally with \c{.then()}. The \e{Draw Qt} button traces the Qt logo by
@@ -118,7 +118,7 @@
     promise.then(() => console.log("drawing complete"))
     \endqml
 
-    \section1 An Action: Rotate to an Absolute Heading
+    \section1 An action: rotate to an absolute heading
 
     Rotating the turtle to a heading is a long-running operation with feedback, so
     it is an \e action. \c RotateAbsoluteActionClient.sendGoal() returns a promise
@@ -152,7 +152,7 @@
     }
     \endqml
 
-    \section1 The UI at a Glance
+    \section1 The UI at a glance
 
     The window is organized around the currently selected turtle:
 
