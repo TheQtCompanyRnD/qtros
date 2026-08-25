@@ -149,26 +149,32 @@
     by publishing and subscribing to topics, calling and providing services,
     and sending action goals — all from C++ or QML.
 
-    \section1 Getting Started
+    \section1 Getting started
 
-    Include the core module in your CMakeLists.txt:
+    Link the module and declare what your application does:
 
     \code
-    find_package(QtRos2 REQUIRED COMPONENTS Core)
-    target_link_libraries(my_target QtRos2::Core)
+    find_package(Qt6 REQUIRED COMPONENTS Quick Ros2Core)
+
+    qt_ros2_configure_target(my_target
+        CAPABILITIES PUBLISHER
+        MODULES QtRos2GeometryMessages
+    )
     \endcode
 
-    Declare a ROS 2 context and nodes in QML:
+    Declare a node in QML. Declaring a \c Node initializes the process-wide
+    ROS 2 context on demand, so most applications never declare a \c Context
+    of their own:
 
     \qml
     import QtRos2.Core
-
-    Context {}
 
     Node {
         nodeName: "my_qt_node"
     }
     \endqml
+
+    For a full walkthrough, see \l{Getting Started with Qt ROS2}.
 */
 
 /*!
@@ -181,14 +187,36 @@
     service clients and servers, and action clients — all usable directly
     in QML.
 
-    \note This documentation was generated against \b{ROS 2 \rosdistro}. The
-    QML types below are generated from that distribution's interface
-    definitions, so a build against a different ROS 2 release may differ in the
-    message types available and in their fields. See the \rosdocslink.
+    \image qtros2-architecture.webp {Layer diagram: a QML application uses the
+           generated QML modules, which use Ros2Core, all on the Qt GUI
+           thread. Ros2Core reaches the rclcpp executor on the ROS 2 executor
+           thread through invokeMethod, and results return as a QPromise
+           converted to a JavaScript Promise. Below the executor, rclcpp
+           reaches other ROS 2 nodes through rmw and Fast DDS}
+
+    The bridge owns the boundary between the two threads. Your QML stays on
+    the Qt GUI thread and never blocks: calls cross to the ROS 2 executor
+    through \c QMetaObject::invokeMethod, and asynchronous results come back
+    as a \c QPromise that QML consumes as an ordinary JavaScript promise.
+
+    \note This documentation was generated against \b{ROS 2 \rosdistro}
+    (rclcpp \rclcppversion). The QML types below are generated from that
+    distribution's interface definitions, so a build against a different ROS 2
+    release may differ in the message types available and in their fields. See
+    the \rosdocslink.
+
+    The hand-written pages — the guides, the examples, and the
+    \l{Qt ROS2 Core QML Types} — apply to every distribution. The per-message
+    types under the other QML modules are generated, so they describe
+    \rosdistro specifically. One known difference between releases:
+    \c lifecycle_msgs/TransitionEvent carries a \c uint64 \c timestamp up to
+    Jazzy and a \c builtin_interfaces/Time \c stamp from Lyrical on, which is
+    a change of both name and type.
 
     \section1 Guides
 
     \list
+        \li \l{Getting Started with Qt ROS2}
         \li \l{Choosing a Communication Pattern}
         \li \l{Choosing Sensor Message Types}
         \li \l{Teleoperation and Remote Control}
