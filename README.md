@@ -174,11 +174,11 @@ The QML Language Server (`qmlls`) needs to recognize the QtROS2 modules through 
 
 1. Rename the original `qmlls` executable:
    ```bash
-   mv ~/Qt/6.8.3/gcc_64/bin/qmlls ~/Qt/6.8.3/gcc_64/bin/qmlls2
+   mv ~/Qt/6.12.0/gcc_64/bin/qmlls ~/Qt/6.12.0/gcc_64/bin/qmlls2
    ```
    *(Adjust the path to match your Qt installation)*
 
-2. Create a new wrapper script at `~/Qt/6.8.3/gcc_64/bin/qmlls`:
+2. Create a new wrapper script at `~/Qt/6.12.0/gcc_64/bin/qmlls`:
    ```bash
    #!/bin/bash
 
@@ -198,7 +198,7 @@ The QML Language Server (`qmlls`) needs to recognize the QtROS2 modules through 
 
 3. Make the wrapper executable:
    ```bash
-   chmod +x ~/Qt/6.8.3/gcc_64/bin/qmlls
+   chmod +x ~/Qt/6.12.0/gcc_64/bin/qmlls
    ```
 
 This enables `qmlls` to see the `QML_IMPORT_PATH`, providing proper code completion and type checking for `import QtRos2.GeometryMsgs` and other generated modules.
@@ -213,7 +213,7 @@ QtROS2 is built as a Qt module using `qt-configure-module`. CMake needs to locat
 source /opt/ros/jazzy/setup.bash
 
 mkdir -p ~/ros2bridge_build && cd ~/ros2bridge_build
-~/Qt/6.10.1/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge/src
+~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge
 
 cmake --build . --parallel
 
@@ -225,7 +225,7 @@ cmake --install .
 
 ```bash
 mkdir -p ~/ros2bridge_build && cd ~/ros2bridge_build
-~/Qt/6.10.1/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge/src \
+~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge \
     -DROS2_PATH=/opt/ros/jazzy
 
 cmake --build . --parallel
