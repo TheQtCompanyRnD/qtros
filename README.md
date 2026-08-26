@@ -166,43 +166,6 @@ sudo apt install ros-jazzy-urdfdom-py python3-jinja2
 
 If these packages are not available when `qt-configure-module` is run, the urdfviewer is silently skipped. You can check whether it was detected by looking for the `ros2-urdfviewer` line in the configure summary.
 
-#### Configure qmlls for QtROS2 Module Recognition
-
-The QML Language Server (`qmlls`) needs to recognize the QtROS2 modules through the `QML_IMPORT_PATH` environment variable. By default, Qt Creator launches `qmlls` without preserving environment variables, which prevents it from finding the QtROS2 modules.
-
-**POC Solution:** Create a wrapper script that launches `qmlls` with the `-E` flag (preserve environment):
-
-1. Rename the original `qmlls` executable:
-   ```bash
-   mv ~/Qt/6.12.0/gcc_64/bin/qmlls ~/Qt/6.12.0/gcc_64/bin/qmlls2
-   ```
-   *(Adjust the path to match your Qt installation)*
-
-2. Create a new wrapper script at `~/Qt/6.12.0/gcc_64/bin/qmlls`:
-   ```bash
-   #!/bin/bash
-
-   # Get the directory of this script and construct the executable path
-   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-   executable="$script_dir/qmlls2"
-
-   # Check if executable exists
-   if [[ ! -x "$executable" ]]; then
-       echo "Error: Executable not found or not executable: $executable" >&2
-       exit 1
-   fi
-
-   # Run the executable with -E flag to preserve environment variables
-   "$executable" -E "$@"
-   ```
-
-3. Make the wrapper executable:
-   ```bash
-   chmod +x ~/Qt/6.12.0/gcc_64/bin/qmlls
-   ```
-
-This enables `qmlls` to see the `QML_IMPORT_PATH`, providing proper code completion and type checking for `import QtRos2.GeometryMsgs` and other generated modules.
-
 ## Building the Workspace
 
 QtROS2 is built as a Qt module using `qt-configure-module`. CMake needs to locate the ROS 2 libraries; there are two ways to achieve this.
