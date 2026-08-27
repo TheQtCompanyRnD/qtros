@@ -18,7 +18,7 @@
 
     \image robotarmcollision/robotarmcollision.png "The Robot Arm Collision example: while the arm sweeps into the obstacle, the box turns red and a Collision detected banner appears."
 
-    \section1 Running the Example
+    \section1 Running the example
 
     \list 1
         \li Source your ROS 2 environment and launch Qt Creator from that shell.
@@ -35,7 +35,7 @@
             \endcode
     \endlist
 
-    \section1 Importing a URDF at Build Time
+    \section1 Importing a URDF at build time
 
     Unlike the other examples, this one does not import a ROS \e message package —
     it imports a \e robot. \c qt_ros2_import_urdf() converts \c simple_arm.urdf
@@ -57,7 +57,7 @@
     automatically whenever the URDF file changes — so a plain \c{cmake --build}
     picks up edits to the robot description.
 
-    \section1 Assembling the Scene
+    \section1 Assembling the scene
 
     The generated module provides three cooperating types:
 
@@ -98,7 +98,7 @@
     built-in animation is running the bridge ignores ROS messages so the two drive
     sources never fight, and when it is off the arm follows \c /joint_states.
 
-    \section1 Detecting Collisions
+    \section1 Detecting collisions
 
     The obstacle is a \c TriggerBody, which does not physically block the
     kinematic arm — it only reports overlaps. An \c overlaps counter is

@@ -36,7 +36,7 @@
     or it can bypass \c Joy entirely and publish \c Twist directly from an on-screen
     virtual joystick.
 
-    \section1 Velocity Commands: the Twist Message
+    \section1 Velocity commands: the Twist message
 
     \l twist (Twist) carries two three-dimensional vectors:
 
@@ -61,7 +61,7 @@
     and frame ID.  Check your robot's documentation or the value of the
     \c robot_description parameter to see which topic type it expects.
 
-    \section1 Subscribing to a Physical Joystick
+    \section1 Subscribing to a physical joystick
 
     The \c joy package (installed separately from the Qt ROS2 Bridge) provides
     \c joy_node, which reads a Linux input device and publishes on \c /joy:
@@ -129,7 +129,7 @@
     }
     \endqml
 
-    \section1 On-Screen Virtual Joystick
+    \section1 On-screen virtual joystick
 
     When no physical gamepad is available, a \c MultiPointTouchArea (or \c MouseArea on
     desktop) can act as a virtual joystick.  The principle is the same: map a normalised
@@ -201,14 +201,14 @@
     }
     \endqml
 
-    \section2 Split-axis Layout
+    \section2 Split-axis layout
 
     Many teleoperation UIs place two separate one-axis sliders: one for throttle
     (forward/back, \c linear.x) and one for steering (turn, \c angular.z), matching the
     feel of a radio-control car transmitter.  The same \c TwistPublisher approach applies;
     only the axis mapping changes.
 
-    \section1 Safety: the Deadman Switch
+    \section1 Safety: the deadman switch
 
     A robot receiving a sustained non-zero \c Twist will keep moving if the
     controlling application crashes, loses network connectivity, or its window loses focus.
@@ -229,7 +229,7 @@
             and network outages regardless of what the UI does.
     \endlist
 
-    \section1 Navigation Goals (Click-to-Navigate)
+    \section1 Navigation goals (click-to-navigate)
 
     Sending a single goal pose to an autonomous navigation stack — rather than continuously
     streaming velocity — uses a different message type:
@@ -246,7 +246,7 @@
     user switch between "manual drive" mode (Twist) and "click destination on the map"
     mode (PoseStamped).
 
-    \section1 Haptic Feedback
+    \section1 Haptic feedback
 
     Physical gamepads that support rumble or LED colour can receive feedback via
     \l joyFeedbackArray (JoyFeedbackArray).  Publish an array of

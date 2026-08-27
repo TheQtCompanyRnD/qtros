@@ -19,7 +19,7 @@
 
     \image simple_service/simple_service.png "The Simple Service window: an editable topic, the lamp that requests switch on and off, bulb wear, a deferred-reply switch, and the last request."
 
-    \section1 Running the Example
+    \section1 Running the example
 
     \list 1
         \li Source your ROS 2 environment, then launch Qt Creator from the same
@@ -35,7 +35,7 @@
     Pair this example with \l{Simple Service Client} to see both ends of a
     service in two Qt windows.
 
-    \section1 A Declarative Service Server
+    \section1 A declarative service server
 
     Like publishers and subscribers, a service server is declared as a child of
     a \c Node; the node owns the underlying \c rclcpp service and tears it down
@@ -80,7 +80,7 @@
     with the response fields (here \c success and \c message) converts to the
     \c SetBool response automatically.
 
-    \section1 Failure Is In-Band
+    \section1 Failure is in-band
 
     ROS 2 services have no separate error channel — a server that cannot
     comply still answers, encoding failure in the response. That is exactly
@@ -88,7 +88,7 @@
     failure needs no special API here: it is just another branch of the
     \c response binding.
 
-    \section1 Handlers and Deferred Replies
+    \section1 Handlers and deferred replies
 
     When producing the response requires running code per request — or when
     honoring the request takes time — set the

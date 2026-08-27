@@ -35,6 +35,11 @@ sourcedirs += ../
 imagedirs += images
 imagedirs += ../../examples
 exampledirs += ../../examples
+exampledirs += snippets
+
+# Snippets are resolved through exampledirs, not parsed as documentation
+# sources: sourcedirs covers all of src/, which would otherwise pull them in.
+excludedirs += snippets
 
 # Qt's global config.qdocconf defaults navigation.homepage to index.html, which
 # is qtdoc's top-level page: it does not exist in a standalone module doc set,
@@ -47,7 +52,10 @@ navigation.landingpage = "Qt ROS2"
 navigation.landingtitle = "Qt ROS2 for $ROS_DISTRO_TITLE"
 
 # For prose that needs to name the distribution or link to its documentation.
+# rclcppversion pins the interface set more tightly than the distribution name:
+# patch releases within a distribution add message fields.
 macro.rosdistro = "$ROS_DISTRO_TITLE"
+macro.rclcppversion = "$ROS_RCLCPP_VERSION"
 macro.rosdocslink = "\\l{https://docs.ros.org/en/$ROS_DISTRO/index.html}{ROS 2 $ROS_DISTRO_TITLE documentation}"
 navigation.qmltypespage = "Qt ROS2 QML Types"
 

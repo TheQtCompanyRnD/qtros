@@ -35,9 +35,9 @@
 
     \note All message types listed here are from \c sensor_msgs, \c nav_msgs, or
     \c geometry_msgs unless stated otherwise.  Audio is a known gap — see
-    \l{Audio Sensors and Speech}.
+    \l{Audio sensors and speech}.
 
-    \section1 Distance and Ranging Sensors
+    \section1 Distance and ranging sensors
 
     \table
     \header
@@ -64,7 +64,7 @@
             (ultrasound, infrared).
     \endtable
 
-    \section1 Camera Sensors
+    \section1 Camera sensors
 
     \table
     \header
@@ -91,7 +91,7 @@
         \li Embedded in CameraInfo; also used standalone to flag a crop window.
     \endtable
 
-    \section1 Inertial and Navigation Sensors
+    \section1 Inertial and navigation sensors
 
     \table
     \header
@@ -119,7 +119,7 @@
             system time.  Useful for hardware-synchronised camera rigs and lidar sweeps.
     \endtable
 
-    \section1 Power and Battery
+    \section1 Power and battery
 
     \table
     \header
@@ -135,7 +135,7 @@
             full, …).  Multi-cell packs can report per-cell voltage and temperature arrays.
     \endtable
 
-    \section1 Environmental Sensors
+    \section1 Environmental sensors
 
     \table
     \header
@@ -160,7 +160,7 @@
         \li Illuminance in lux with variance.
     \endtable
 
-    \section1 Actuators and Kinematics
+    \section1 Actuators and kinematics
 
     These messages describe the state of joints and limbs rather than sensors in the
     traditional sense, but they flow through the same sensor pipeline.
@@ -183,13 +183,13 @@
             joint carries a full Transform, Twist, and Wrench.
     \endtable
 
-    \section1 SLAM and Navigation
+    \section1 SLAM and navigation
 
     SLAM (Simultaneous Localization and Mapping) algorithms consume sensor data and publish
     map and pose estimates.  A Qt dashboard typically subscribes to SLAM outputs to display
     a live map and robot position.
 
-    \section2 SLAM Inputs
+    \section2 SLAM inputs
 
     Feed at least one ranging source and optionally an IMU into a SLAM node:
 
@@ -211,7 +211,7 @@
         \li \l imu (Imu) on \c /imu
     \endtable
 
-    \section2 SLAM Outputs
+    \section2 SLAM outputs
 
     \table
     \header
@@ -242,7 +242,7 @@
     not currently wrap \c tf2_msgs, so transforms must be read through a bridging node or
     a dedicated C++ subscriber if your application needs them directly.
 
-    \section1 Audio Sensors and Speech
+    \section1 Audio sensors and speech
 
     Standard ROS 2 (and the Qt ROS2 Bridge) does not include a message type for raw audio
     data.  The community package \c audio_common_msgs (from the \c audio_common stack)
@@ -276,7 +276,7 @@
             display and can publish user text input to inject into the chain.
     \endtable
 
-    \section1 Remote Control and Teleoperation
+    \section1 Remote control and teleoperation
 
     Sending velocity or steering commands to a robot is covered separately.
     See \l{Teleoperation and Remote Control} for \l joy (Joy),

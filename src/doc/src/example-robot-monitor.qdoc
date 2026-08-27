@@ -19,7 +19,7 @@
 
     \image RobotMonitor/robotmonitor-idle.png "The Robot Monitor dashboard (bottom) running against a simulated TurtleBot4 in Gazebo (top): connection counters and action status, a live camera feed, the laser scan, local costmap, and robot footprint in the 3D scene, and the Layers panel."
 
-    \section1 Running the Example
+    \section1 Running the example
 
     \list 1
         \li Install the TurtleBot4 simulation (this pulls in \c nav2_msgs,
@@ -40,7 +40,7 @@
     \note You can add \c{rviz:=true} to compare the Robot Monitor scene with
     RViz, but running both may strain simulation performance on some systems.
 
-    \section1 Modules and Imported Packages
+    \section1 Modules and imported packages
 
     The example links the built-in \c NavMsgs, \c GeometryMsgs, and \c SensorMsgs
     modules, and additionally wraps distribution packages on demand. Its
@@ -60,10 +60,10 @@
     \c QtRos2.Imported.Nav2Msgs (Nav2 actions) and
     \c QtRos2.Imported.IrobotCreateMsgs (dock/undock actions). Because those
     types may be absent, the example isolates them in a separate QML file loaded
-    through a \c Loader (see \l{Actions and Reactive State} below), so the app
+    through a \c Loader (see \l{Actions and reactive state} below), so the app
     degrades gracefully rather than failing to load.
 
-    \section1 One Node, Many Entities
+    \section1 One node, many entities
 
     All ROS entities are declared as children of a single
     \c{Node { nodeName: "qt_robot_monitor" }} in \c MainViewModel.qml. The node
@@ -72,7 +72,7 @@
     \c Ros2PublisherBase, \c Ros2ActionClientBase) — which is what drives the
     "connected vs total" counters in the status row.
 
-    \section1 Subscribers and QoS Presets
+    \section1 Subscribers and QoS presets
 
     Different ROS topics need different Quality of Service, and the example
     deliberately picks a preset to match each one via the \c QualityOfService
@@ -112,7 +112,7 @@
     path (\c nav_msgs/Path) and footprint (\c geometry_msgs/PolygonStamped) as
     polylines.
 
-    \section1 The 3D Scene as a TF Tree
+    \section1 The 3D scene as a TF tree
 
     The scene mirrors the robot's TF tree: nested Qt Quick 3D \c Node items whose
     \c position and \c rotation are bound to live transforms. Transforms come from
@@ -137,7 +137,7 @@
     Each \c lookupTransform(parent, child) returns the child frame expressed in
     its parent — exactly the local transform a nested scene-graph node needs.
 
-    \section1 Bridging the Camera Image
+    \section1 Bridging the camera image
 
     The camera feed shows how a C++ item can consume a ROS message value type
     directly. \c RosImageItem is a \c QQuickItem with a single property typed as
@@ -168,7 +168,7 @@
     a texture. This is the general pattern for high-throughput data: let C++
     consume the strongly-typed message value, not a raw ROS subscription.
 
-    \section1 Actions and Reactive State
+    \section1 Actions and reactive state
 
     Driving the robot and commanding navigation use a publisher and three action
     clients. Direct driving publishes \c geometry_msgs/TwistStamped:
@@ -203,7 +203,7 @@
     \c cancelGoal(). This "bind to state" style is often the cleanest way to keep
     a dashboard in sync with several concurrent operations.
 
-    \section1 The UI at a Glance
+    \section1 The UI at a glance
 
     \list
         \li A top status row shows connection counters and live action status

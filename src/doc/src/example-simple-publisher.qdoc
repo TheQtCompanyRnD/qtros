@@ -17,7 +17,7 @@
 
     \image simple_publisher/simple_publisher.png "The Simple Publisher window: an editable topic, a Publish Random Pose button, a subscriber counter, and the last published message."
 
-    \section1 Running the Example
+    \section1 Running the example
 
     \list 1
         \li Source your ROS 2 environment, then launch Qt Creator from the same
@@ -33,7 +33,7 @@
     Pair this example with \l{Simple Subscriber} to see both ends of a topic in
     two Qt windows.
 
-    \section1 Declaring a Node and a Publisher
+    \section1 Declaring a Node and a publisher
 
     Everything ROS-facing lives inside a \c Node. A publisher is declared as a
     child of the node; the node owns the underlying \c rclcpp publisher and tears
@@ -68,7 +68,7 @@
             up before you publish.
     \endlist
 
-    \section1 Publishing With a JavaScript Object Literal
+    \section1 Publishing with a JavaScript object literal
 
     Message value types are constructible from plain JavaScript objects, so you
     never have to build a message imperatively. Nested fields map directly to
@@ -88,7 +88,7 @@
     })
     \endqml
 
-    \section1 Automatic Timestamps
+    \section1 Automatic timestamps
 
     \c PoseStampedPublisher is a \e stamped publisher, which means its message
     carries a \c std_msgs/Header. When \c autoStamp is enabled (the default), the

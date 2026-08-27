@@ -17,7 +17,7 @@
 
     \image simple_service_client/simple_service_client.png "The Simple Service Client window: an editable topic, the lamp switch, and the last response."
 
-    \section1 Running the Example
+    \section1 Running the example
 
     \list 1
         \li Source your ROS 2 environment, then launch Qt Creator from the same
@@ -28,7 +28,7 @@
             the same topic.
     \endlist
 
-    \section1 Calling a Service by Binding
+    \section1 Calling a service by binding
 
     A service client is declared as a child of a \c Node. Binding the
     \c request property is all it takes to call the service: every change of
@@ -70,7 +70,7 @@
     failure is in-band, part of the response value, so it is bindable state
     like everything else.
 
-    \section1 Imperative Calls
+    \section1 Imperative calls
 
     \c callService() remains for one-shot, imperative calls; it returns a
     JavaScript promise:
