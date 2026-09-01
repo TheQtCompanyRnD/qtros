@@ -1,0 +1,39 @@
+%% Copyright (C) 2026 The Qt Company Ltd.
+%% SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+%%
+%% Source for images/qtros2-architecture.webp. Render with:
+%%   npx -y @mermaid-js/mermaid-cli -i qtros2-architecture.mmd -o out.png -w 1600
+%% then convert to WebP. Keep this file and the image in step.
+flowchart TB
+    subgraph qt["Qt GUI thread"]
+        direction TB
+        app["QML application<br/>bindings and signal handlers"]
+        gen["Generated QML modules<br/>QtRos2.GeometryMsgs, QtRos2.SensorMsgs, ...<br/>publishers, subscribers, clients, value types"]
+        core["Ros2Core<br/>Node, Context, QoS, JsFutureWrapper"]
+        app --> gen --> core
+    end
+
+    subgraph ros["ROS 2 executor thread(s)"]
+        direction TB
+        exec["rclcpp executor<br/>spun by QRos2Context"]
+        rcl["rclcpp / rclcpp_action"]
+        exec --> rcl
+    end
+
+    idl["*.idl definitions<br/>from the installed<br/>ROS 2 distribution"]
+    dds["rmw and Fast DDS"]
+    net["Other ROS 2 nodes"]
+
+    idl -.->|"generated at build time"| gen
+    core -->|"invokeMethod"| exec
+    exec -->|"QPromise to JS Promise"| core
+    rcl --> dds --> net
+
+    classDef qtbox fill:#41cd52,stroke:#2e8b3d,color:#0d1b0f
+    classDef rosbox fill:#cfe3f7,stroke:#5b87b5,color:#12283d
+    classDef plain fill:#f4f4f4,stroke:#9a9a9a,color:#222
+    class app,gen,core qtbox
+    class exec,rcl rosbox
+    class idl,dds,net plain
+    style qt fill:#ffffff,stroke:#41cd52,stroke-width:2px
+    style ros fill:#ffffff,stroke:#5b87b5,stroke-width:2px

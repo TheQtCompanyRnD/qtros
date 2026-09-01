@@ -1,0 +1,265 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \page qtros2-teleoperation.html
+    \title Teleoperation and Remote Control
+    \ingroup qtros2-guides
+
+    \keyword joystick
+    \keyword gamepad
+    \keyword remote control
+    \keyword teleoperation
+    \keyword velocity command
+    \keyword cmd_vel
+    \keyword twist
+    \keyword on-screen joystick
+    \keyword virtual joystick
+    \keyword differential drive
+    \keyword holonomic
+    \keyword deadman switch
+    \keyword deadman button
+
+    \brief How to read joystick input and publish velocity commands from QML.
+
+    Remote control of a robot from a Qt application involves two message types:
+
+    \list
+        \li \l joy (Joy) — raw axis and button state from a physical gamepad or
+            joystick, published by the \c joy_node driver.
+        \li \l twist (Twist) — a linear and angular velocity command sent to
+            the robot, typically on the \c /cmd_vel topic.
+    \endlist
+
+    A Qt application can sit anywhere in this chain:
+    it can subscribe to \c Joy and re-publish \c Twist after applying your own mapping,
+    or it can bypass \c Joy entirely and publish \c Twist directly from an on-screen
+    virtual joystick.
+
+    \section1 Velocity commands: the Twist message
+
+    \l twist (Twist) carries two three-dimensional vectors:
+
+    \table
+    \header \li Field \li Type \li Meaning
+    \row \li \c linear.x \li m/s \li Forward (+) / backward (−)
+    \row \li \c linear.y \li m/s \li Strafe left (+) / right (−) — holonomic robots only
+    \row \li \c linear.z \li m/s \li Up (+) / down (−) — aerial vehicles only
+    \row \li \c angular.x \li rad/s \li Roll — aerial vehicles only
+    \row \li \c angular.y \li rad/s \li Pitch — aerial vehicles only
+    \row \li \c angular.z \li rad/s \li Turn left (+) / right (−)
+    \endtable
+
+    For a typical differential-drive robot, only \c linear.x (drive forward/back) and
+    \c angular.z (steer) are used.  All other components should be zero.
+
+    \section2 TwistStamped
+
+    Some robot drivers — in particular the ROS 2 Nav2 stack and many newer hardware
+    interfaces — require \l twistStamped (TwistStamped) instead of plain
+    \c Twist.  The only difference is a \c std_msgs/Header field that carries a timestamp
+    and frame ID.  Check your robot's documentation or the value of the
+    \c robot_description parameter to see which topic type it expects.
+
+    \section1 Subscribing to a physical joystick
+
+    The \c joy package (installed separately from the Qt ROS2 Bridge) provides
+    \c joy_node, which reads a Linux input device and publishes on \c /joy:
+
+    \qml
+    import QtRos2.Core
+    import QtRos2.SensorMsgs
+
+    JoySubscriber {
+        id: joyInput
+        topic: "/joy"
+        node: myNode
+        onMessageReceived: (msg) => handleJoy(msg)
+    }
+    \endqml
+
+    The \l joy (Joy) message contains:
+
+    \list
+        \li \c axes — \c float32[] normalised to −1.0…+1.0.  The mapping from array
+            index to physical stick axis is controller-dependent; most gamepads follow the
+            convention left-stick-X=0, left-stick-Y=1, triggers=2/5,
+            right-stick-X=3, right-stick-Y=4.
+        \li \c buttons — \c int32[] with 0 (released) or 1 (pressed).
+    \endlist
+
+    \section2 Mapping Joy to Twist
+
+    Translate axis values into a \c Twist and publish on \c /cmd_vel:
+
+    \qml
+    import QtRos2.Core
+    import QtRos2.GeometryMsgs
+    import QtRos2.SensorMsgs
+
+    Node { id: myNode; nodeName: "qt_teleop" }
+
+    JoySubscriber {
+        topic: "/joy"
+        node: myNode
+        onMessageReceived: (joy) => {
+            // Axis 1: left stick Y — forward/back.  Axis 0: left stick X — turn.
+            // Invert Y because stick-up is typically negative on most gamepads.
+            const deadman = joy.buttons[4] === 1  // left shoulder button
+            const vx = deadman ? -joy.axes[1] * maxLinear  : 0
+            const wz = deadman ?  joy.axes[0] * maxAngular : 0
+            drivePublisher.publishVelocity(vx, wz)
+        }
+    }
+
+    TwistPublisher {
+        id: drivePublisher
+        topic: "/cmd_vel"
+        node: myNode
+
+        property real maxLinear:  0.5  // m/s
+        property real maxAngular: 1.0  // rad/s
+
+        function publishVelocity(vx, wz) {
+            var msg = Qt.createQmlObject("import QtRos2.GeometryMsgs; Twist {}", this)
+            msg.linear.x  = vx
+            msg.angular.z = wz
+            publish(msg)
+        }
+    }
+    \endqml
+
+    \section1 On-screen virtual joystick
+
+    When no physical gamepad is available, a \c MultiPointTouchArea (or \c MouseArea on
+    desktop) can act as a virtual joystick.  The principle is the same: map a normalised
+    2D offset into \c Twist fields and publish while the user is touching the control.
+
+    \qml
+    import QtQuick
+    import QtRos2.Core
+    import QtRos2.GeometryMsgs
+
+    Node { id: myNode; nodeName: "qt_teleop" }
+
+    TwistPublisher {
+        id: cmdVel
+        topic: "/cmd_vel"
+        node: myNode
+    }
+
+    // Joystick pad: a fixed circle with a movable thumb indicator
+    Rectangle {
+        id: pad
+        width: 160; height: 160
+        radius: 80
+        color: "#44ffffff"
+
+        property real thumbX: 0  // −1.0 … +1.0
+        property real thumbY: 0  // −1.0 … +1.0
+
+        // Thumb indicator
+        Rectangle {
+            width: 40; height: 40; radius: 20
+            color: "white"
+            x: (pad.width  - width)  / 2 + pad.thumbX * (pad.width  / 2 - 20)
+            y: (pad.height - height) / 2 - pad.thumbY * (pad.height / 2 - 20)
+        }
+
+        MultiPointTouchArea {
+            anchors.fill: parent
+            maximumTouchPoints: 1
+
+            touchPoints: [ TouchPoint { id: tp } ]
+
+            onUpdated: {
+                const cx = pad.width  / 2
+                const cy = pad.height / 2
+                const dx = (tp.x - cx) / cx
+                const dy = (cy - tp.y) / cy  // invert: up is positive
+                // Clamp to unit circle
+                const len = Math.min(1.0, Math.sqrt(dx*dx + dy*dy))
+                const angle = Math.atan2(dy, dx)
+                pad.thumbX = len * Math.cos(angle)
+                pad.thumbY = len * Math.sin(angle)
+                publishFromThumb()
+            }
+
+            onReleased: {
+                pad.thumbX = 0
+                pad.thumbY = 0
+                publishFromThumb()  // send zero — see Safety note below
+            }
+        }
+
+        function publishFromThumb() {
+            var msg = Qt.createQmlObject("import QtRos2.GeometryMsgs; Twist {}", pad)
+            msg.linear.x  = thumbY * 0.5   // forward/back, max 0.5 m/s
+            msg.angular.z = -thumbX * 1.0  // turn, max 1.0 rad/s
+            cmdVel.publish(msg)
+        }
+    }
+    \endqml
+
+    \section2 Split-axis layout
+
+    Many teleoperation UIs place two separate one-axis sliders: one for throttle
+    (forward/back, \c linear.x) and one for steering (turn, \c angular.z), matching the
+    feel of a radio-control car transmitter.  The same \c TwistPublisher approach applies;
+    only the axis mapping changes.
+
+    \section1 Safety: the deadman switch
+
+    A robot receiving a sustained non-zero \c Twist will keep moving if the
+    controlling application crashes, loses network connectivity, or its window loses focus.
+    Always implement a deadman mechanism:
+
+    \list
+        \li \b{Physical gamepad}: only publish non-zero velocity while a designated button
+            (the "deadman button") is held.  On button release, publish one explicit zero
+            Twist before stopping publication.
+        \li \b{On-screen joystick}: publish a zero Twist in the \c onReleased handler, as
+            shown above.  Also publish zero in \c Component.onDestruction and whenever the
+            enclosing \c Window loses \c activeFocus.
+        \li \b{Velocity limits}: clamp \c Twist values to safe maximums before publishing.
+            Never pass raw axis values multiplied by an arbitrarily large scale factor.
+        \li \b{Watchdog on the robot}: ideally the robot firmware or base driver should
+            apply its own timeout — stopping automatically if no \c Twist arrives within
+            a configured interval (e.g. 500 ms).  This guards against application crashes
+            and network outages regardless of what the UI does.
+    \endlist
+
+    \section1 Navigation goals (click-to-navigate)
+
+    Sending a single goal pose to an autonomous navigation stack — rather than continuously
+    streaming velocity — uses a different message type:
+
+    \list
+        \li Publish a \l poseStamped (PoseStamped) on \c /goal_pose.
+            Nav2 picks this up, plans a path, and drives the robot autonomously.
+        \li The pose's \c header.frame_id must match the map frame (typically \c "map").
+        \li The orientation quaternion encodes the desired heading at the goal; leave it as
+            the identity quaternion if the final heading does not matter.
+    \endlist
+
+    This approach is complementary to direct velocity teleoperation: a Qt UI can let the
+    user switch between "manual drive" mode (Twist) and "click destination on the map"
+    mode (PoseStamped).
+
+    \section1 Haptic feedback
+
+    Physical gamepads that support rumble or LED colour can receive feedback via
+    \l joyFeedbackArray (JoyFeedbackArray).  Publish an array of
+    \l joyFeedback (JoyFeedback) entries on \c /joy/set_feedback:
+
+    \list
+        \li \c type: 0 = LED, 1 = rumble, 2 = buzzer
+        \li \c id: selects which LED or motor when the device has several
+        \li \c intensity: 0.0 (off) … 1.0 (full)
+    \endlist
+
+    This is useful for alerting the operator when the robot reaches a goal, encounters
+    an obstacle, or the battery is low.
+
+    \sa {Choosing Sensor Message Types}
+*/

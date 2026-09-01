@@ -1,7 +1,27 @@
-# Copyright (C) 2022 The Qt Company Ltd.
-# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+# Copyright (C) 2026 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
 
 # Generate Qt/QML bindings for a ROS interface package
+
+# Helper: convert snake_case or any underscore-separated name to CamelCase.
+# E.g. qt_ros2_builtin_interfaces → QtRos2BuiltinInterfaces
+# If the input is already CamelCase (starts with uppercase), it is returned unchanged.
+function(_qtros2_to_camel_case input output_var)
+    if(input MATCHES "^[A-Z]")
+        # Already CamelCase
+        set(${output_var} "${input}" PARENT_SCOPE)
+        return()
+    endif()
+    string(REPLACE "_" ";" _parts "${input}")
+    set(_result "")
+    foreach(_part ${_parts})
+        string(SUBSTRING "${_part}" 0 1 _first)
+        string(TOUPPER "${_first}" _first)
+        string(SUBSTRING "${_part}" 1 -1 _rest)
+        string(APPEND _result "${_first}${_rest}")
+    endforeach()
+    set(${output_var} "${_result}" PARENT_SCOPE)
+endfunction()
 
 macro(qtros2_generate_from_package)
   cmake_parse_arguments(
@@ -21,8 +41,16 @@ macro(qtros2_generate_from_package)
   endif()
 
   find_package(rosidl_cmake REQUIRED)
-  find_package(qtros2_core REQUIRED)
-  find_package(Qt6 REQUIRED COMPONENTS Core Qml)
+  # When building as a CMake sub-project, Ros2Core is brought in via
+  # add_subdirectory(core) before this macro is called, so the target already
+  # exists. As a Qt6 component, use find_package(Qt6 COMPONENTS Ros2Core).
+  if(NOT TARGET Qt6::Ros2Core AND NOT TARGET Ros2Core)
+    find_package(Qt6 REQUIRED COMPONENTS Ros2Core)
+  endif()
+  set(qtros2_core_FOUND TRUE)
+  # Note: Qt6 Core/Qml targets are already available in the Qt internal build context.
+  # find_package(Qt6 Core Qml) would re-trigger loading of Qt6QmlPlugins.cmake for each
+  # new directory scope, causing duplicate plugin alias errors. Omit it here.
 
   if(NOT COMMAND qtros2_analyze_idl_dependencies)
     include("${rosidl_generator_qtros2_DIR}/analyze_idl_dependencies.cmake")
@@ -92,22 +120,25 @@ macro(qtros2_generate_from_package)
   endif()
 
   # Use the explicit TARGET name (required parameter)
-  set(_qtros2_generator_target "${ARG_TARGET}")
+  # If TARGET is snake_case (ament naming convention), convert to CamelCase for the Qt cmake target.
+  _qtros2_to_camel_case("${ARG_TARGET}" _qtros2_generator_target)
 
   set(_qtros2_pkg_dependencies ${_dependencies})
 
-  set(_qtros2_interface_deps_var "_qtros2_interface_deps_${_qtros2_generator_target}_qtcpp")
+  set(_qtros2_interface_deps_var "_qtros2_interface_deps_${_qtros2_generator_target}")
   set(${_qtros2_interface_deps_var} "${_interface_package_deps}")
-  set(_qtros2_source_package_var "_qtros2_source_package_${_qtros2_generator_target}_qtcpp")
+  set(_qtros2_source_package_var "_qtros2_source_package_${_qtros2_generator_target}")
   set(${_qtros2_source_package_var} "${ARG_SOURCE_PACKAGE}")
 
   # Always set QML module URI (required parameter)
-  set(${_qtros2_generator_target}_qtros2_qml_module_uri_qtcpp "${ARG_QML_MODULE_URI}")
+  set(${_qtros2_generator_target}_qtros2_qml_module_uri "${ARG_QML_MODULE_URI}")
   set_property(GLOBAL APPEND PROPERTY QTROS2_URI_REGISTRY
     "${ARG_SOURCE_PACKAGE}=${ARG_QML_MODULE_URI}")
+  # Register source-package → Qt target mapping for dependency lookup
+  set_property(GLOBAL PROPERTY QTROS2_SOURCE_PKG_${ARG_SOURCE_PACKAGE} "${_qtros2_generator_target}")
 
   if(ARG_QML_OUTPUT_DIRECTORY)
-    set(${_qtros2_generator_target}_qtros2_qml_output_dir_qtcpp "${ARG_QML_OUTPUT_DIRECTORY}")
+    set(${_qtros2_generator_target}_qtros2_qml_output_dir "${ARG_QML_OUTPUT_DIRECTORY}")
   endif()
 
   set(rosidl_generate_interfaces_TARGET "${_qtros2_generator_target}")
@@ -122,20 +153,18 @@ macro(qtros2_generate_from_package)
 
   if(ARG_DEPENDS)
     foreach(_dep_target ${ARG_DEPENDS})
-      if(TARGET ${_dep_target}_qtcpp)
-        add_dependencies(${_qtros2_generator_target}_qtcpp ${_dep_target}_qtcpp)
-      elseif(TARGET ${_dep_target})
-        add_dependencies(${_qtros2_generator_target}_qtcpp ${_dep_target})
+      if(TARGET ${_dep_target})
+        add_dependencies(${_qtros2_generator_target} ${_dep_target})
       else()
         message(WARNING "QtROS2: DEPENDS target '${_dep_target}' not found. CMake will determine build order automatically.")
       endif()
     endforeach()
   endif()
 
-  unset(${_qtros2_generator_target}_qtros2_qml_module_uri_qtcpp)
+  unset(${_qtros2_generator_target}_qtros2_qml_module_uri)
 
   if(ARG_QML_OUTPUT_DIRECTORY)
-    unset(${_qtros2_generator_target}_qtros2_qml_output_dir_qtcpp)
+    unset(${_qtros2_generator_target}_qtros2_qml_output_dir)
   endif()
 
   unset(rosidl_generate_interfaces_TARGET)
@@ -144,31 +173,32 @@ macro(qtros2_generate_from_package)
   unset(rosidl_generate_interfaces_DEPENDENCY_PACKAGE_NAMES)
 
   set(_qt_wrapper_packages "")
-  get_property(_qtros2_local_wrappers GLOBAL PROPERTY QTROS2_LOCAL_WRAPPER_PACKAGES)
-  if(NOT _qtros2_local_wrappers)
-    set(_qtros2_local_wrappers "")
-  endif()
-  list(APPEND _qtros2_local_wrappers "${_qtros2_generator_target}")
-  set_property(GLOBAL PROPERTY QTROS2_LOCAL_WRAPPER_PACKAGES "${_qtros2_local_wrappers}")
+  # Register this target in the local wrapper registry
+  set_property(GLOBAL APPEND PROPERTY QTROS2_LOCAL_WRAPPER_PACKAGES "${_qtros2_generator_target}")
 
-  if(TARGET ${_qtros2_generator_target}_qtcpp)
+  if(TARGET ${_qtros2_generator_target})
     # Link against the source ROS package typesupport target
-    # This target includes all dependencies transitively via INTERFACE_LINK_LIBRARIES
-    target_link_libraries(${_qtros2_generator_target}_qtcpp
+    target_link_libraries(${_qtros2_generator_target}
       PUBLIC ${ARG_SOURCE_PACKAGE}::${ARG_SOURCE_PACKAGE}__rosidl_typesupport_cpp
     )
 
     foreach(_qt_dep ${_interface_package_deps})
-      set(_qt_wrapper_pkg "qtros2_${_qt_dep}")
+      # Look up the Qt module name registered when that dependency was generated
+      get_property(_dep_qt_target GLOBAL PROPERTY QTROS2_SOURCE_PKG_${_qt_dep})
 
-      get_property(_qtros2_local_wrappers GLOBAL PROPERTY QTROS2_LOCAL_WRAPPER_PACKAGES)
-      list(FIND _qtros2_local_wrappers "${_qt_wrapper_pkg}" _qt_wrapper_local_index)
-      set(_qtros2_wrapper_local FALSE)
-      if(_qt_wrapper_local_index GREATER -1)
-        set(_qtros2_wrapper_local TRUE)
-      endif()
-
-      if(NOT _qtros2_wrapper_local)
+      if(_dep_qt_target)
+        # Locally generated wrapper with Qt-style name
+        if(TARGET ${_dep_qt_target})
+          target_link_libraries(${_qtros2_generator_target} PUBLIC ${_dep_qt_target})
+          list(APPEND _qt_wrapper_packages ${_dep_qt_target})
+        else()
+          message(FATAL_ERROR
+            "QtROS2: Locally registered wrapper '${_dep_qt_target}' for '${_qt_dep}' not found as a target.\n"
+            "Ensure it is added via qtros2_generate_from_package() before '${ARG_SOURCE_PACKAGE}'.")
+        endif()
+      else()
+        # Not locally generated — try an installed ament wrapper package (old-style naming)
+        set(_qt_wrapper_pkg "qtros2_${_qt_dep}")
         find_package(${_qt_wrapper_pkg} QUIET)
         if(NOT ${_qt_wrapper_pkg}_FOUND)
           message(FATAL_ERROR
@@ -177,68 +207,38 @@ macro(qtros2_generate_from_package)
             "QtROS2 Dependency Error\n"
             "========================================\n"
             "Package '${ARG_SOURCE_PACKAGE}' depends on '${_qt_dep}' (found in IDL files),\n"
-            "but Qt wrapper '${_qt_wrapper_pkg}' is not available.\n"
+            "but Qt wrapper for '${_qt_dep}' is not available.\n"
             "\n"
             "Solution:\n"
             "  1. Generate Qt wrappers for '${_qt_dep}' BEFORE '${ARG_SOURCE_PACKAGE}':\n"
             "     \n"
             "     qtros2_generate_from_package(\n"
-            "         TARGET ${_qt_wrapper_pkg}\n"
+            "         TARGET QtRos2<Name>\n"
             "         SOURCE_PACKAGE ${_qt_dep}\n"
             "     )\n"
             "     \n"
-            "  2. OR specify dependency order explicitly:\n"
-            "     \n"
-            "     qtros2_generate_from_package(\n"
-            "         TARGET ${_qtros2_generator_target}\n"
-            "         SOURCE_PACKAGE ${ARG_SOURCE_PACKAGE}\n"
-            "         DEPENDS ${_qt_wrapper_pkg}  # Ensures correct order\n"
-            "     )\n"
-            "     \n"
-            "  3. OR install ${_qt_wrapper_pkg} to your workspace\n"
+            "  2. OR install the Qt wrapper for '${_qt_dep}' to your workspace\n"
             "\n"
             "========================================\n")
         endif()
-      endif()
-
-      set(_qtros2_wrapper_target "${_qt_wrapper_pkg}::${_qt_wrapper_pkg}_qtcpp")
-      set(_qtros2_wrapper_alt_target "${_qt_wrapper_pkg}_qtcpp")
-
-      if(_qtros2_wrapper_local)
-        if(TARGET ${_qtros2_wrapper_alt_target})
-          target_link_libraries(${_qtros2_generator_target}_qtcpp PUBLIC ${_qtros2_wrapper_alt_target})
-          list(APPEND _qt_wrapper_packages ${_qt_wrapper_pkg})
-        else()
-          message(FATAL_ERROR
-            "QtROS2: Locally generated wrapper ${_qt_wrapper_pkg}_qtcpp not found for interface dependency ${_qt_dep}.
-            This package is referenced in the IDL files of ${ARG_SOURCE_PACKAGE}.")
-        endif()
-      elseif(${_qt_wrapper_pkg}_FOUND)
-        # Link against the installed Qt wrapper package
+        set(_qtros2_wrapper_target "${_qt_wrapper_pkg}::${_qt_wrapper_pkg}_qtcpp")
+        set(_qtros2_wrapper_alt_target "${_qt_wrapper_pkg}_qtcpp")
         if(TARGET "${_qtros2_wrapper_target}")
-          target_link_libraries(${_qtros2_generator_target}_qtcpp PUBLIC ${_qtros2_wrapper_target})
+          target_link_libraries(${_qtros2_generator_target} PUBLIC ${_qtros2_wrapper_target})
           list(APPEND _qt_wrapper_packages ${_qt_wrapper_pkg})
         elseif(TARGET ${_qtros2_wrapper_alt_target})
-          target_link_libraries(${_qtros2_generator_target}_qtcpp PUBLIC ${_qtros2_wrapper_alt_target})
+          target_link_libraries(${_qtros2_generator_target} PUBLIC ${_qtros2_wrapper_alt_target})
           list(APPEND _qt_wrapper_packages ${_qt_wrapper_pkg})
         else()
           message(FATAL_ERROR
-            "QtROS2: Expected target ${_qt_wrapper_pkg}_qtcpp for interface dependency ${_qt_dep} but it was not found.
-            This package is referenced in the IDL files of ${ARG_SOURCE_PACKAGE}.")
+            "QtROS2: Expected target for wrapper '${_qt_wrapper_pkg}' (dep '${_qt_dep}') not found.")
         endif()
-      else()
-        message(FATAL_ERROR
-          "QtROS2: Missing required Qt wrapper package ${_qt_wrapper_pkg} for interface dependency ${_qt_dep}.
-          This package is referenced in the IDL files of ${ARG_SOURCE_PACKAGE}.
-          Make sure to generate Qt wrappers for ${_qt_dep} before ${ARG_SOURCE_PACKAGE}.")
       endif()
     endforeach()
 
     # Export Qt wrapper dependencies for the wrapper package to use
-    # Only export: qtros2_core, Qt6, source package, and Qt wrapper packages
-    # Do NOT export ROS infrastructure packages (rosidl_*, fastcdr, etc.)
     set(_qtros2_export_deps
-      qtros2_core
+      Ros2Core
       Qt6
       ${ARG_SOURCE_PACKAGE}
       ${_qt_wrapper_packages}
@@ -247,7 +247,28 @@ macro(qtros2_generate_from_package)
     set(${_qtros2_generator_target}_QTROS2_DEPENDENCIES "${_qtros2_export_deps}")
 
   else()
-    message(WARNING "QtROS2: ${_qtros2_generator_target}_qtcpp target not found after generation")
+    message(WARNING "QtROS2: target '${_qtros2_generator_target}' not found after generation")
   endif()
 
 endmacro()
+
+# qt_ros2_configure_target() is defined in QtRos2Macros.cmake (cmake/ directory of the source tree,
+# installed alongside Qt6Ros2Core). Include it from the source tree if not already loaded.
+if(NOT COMMAND qt_ros2_configure_target)
+  get_filename_component(_qtros2_macros_dir "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
+  set(_qtros2_macros_candidates
+    "${_qtros2_macros_dir}/../../../cmake/QtRos2Macros.cmake"  # source tree
+    "${_qtros2_macros_dir}/QtRos2Macros.cmake"                 # installed alongside
+  )
+  foreach(_qtros2_macros_candidate ${_qtros2_macros_candidates})
+    get_filename_component(_qtros2_macros_candidate "${_qtros2_macros_candidate}" ABSOLUTE)
+    if(EXISTS "${_qtros2_macros_candidate}")
+      include("${_qtros2_macros_candidate}")
+      break()
+    endif()
+  endforeach()
+  unset(_qtros2_macros_dir)
+  unset(_qtros2_macros_candidates)
+  unset(_qtros2_macros_candidate)
+endif()
+

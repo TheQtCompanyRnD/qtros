@@ -1,0 +1,207 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \page qtros2-getting-started.html
+    \title Getting Started with Qt ROS2
+    \brief Installing ROS 2 and Qt, building the module, and writing your
+    first publisher.
+
+    Qt ROS2 Bridge lets a Qt application join a ROS 2 graph and exchange
+    messages directly from QML. This page takes you from a clean machine to a
+    running application that publishes a topic.
+
+    \note This documentation describes a build against \b{ROS 2 \rosdistro}.
+    The commands below name that distribution explicitly. If you install a
+    different one, substitute its name. See the \rosdocslink.
+
+    \section1 Prerequisites
+
+    \list
+        \li Ubuntu 24.04 or 26.04.
+        \li ROS 2 \rosdistro.
+        \li Qt 6.8 or later, including the Qt Quick and Qt Qml modules.
+        \li A C++ toolchain, CMake, Git, and Ninja.
+    \endlist
+
+    Install the toolchain packages first:
+
+    \badcode
+    sudo apt update
+    sudo apt install -y build-essential cmake git ninja-build
+    \endcode
+
+    \section1 Installing ROS 2
+
+    Add the ROS 2 apt repository by following the installation instructions in
+    the \rosdocslink, then install the desktop and development packages:
+
+    \badcode
+    sudo apt install -y ros-jazzy-desktop ros-dev-tools
+    \endcode
+
+    Source the ROS 2 environment in every shell that builds or runs Qt ROS2:
+
+    \badcode
+    source /opt/ros/jazzy/setup.bash
+    \endcode
+
+    \section1 Installing Qt
+
+    Install Qt 6.8 or later with the online installer from
+    \l{https://www.qt.io/download-qt-installer}{qt.io}. Select the
+    \e{Desktop gcc 64-bit} component together with the Qt Quick and Qt Qml
+    modules.
+
+    \section1 Building the module
+
+    Qt ROS2 builds as a Qt module with \c qt-configure-module. CMake has to
+    find the ROS 2 libraries, and there are two ways to arrange that.
+
+    The first way sources the ROS 2 environment, which is the option to prefer
+    for day-to-day development:
+
+    \badcode
+    source /opt/ros/jazzy/setup.bash
+
+    mkdir -p ~/ros2bridge_build && cd ~/ros2bridge_build
+    ~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge
+
+    cmake --build . --parallel
+    cmake --install .
+    \endcode
+
+    The second way passes the path explicitly, which suits continuous
+    integration and any environment where sourcing a shell script is awkward:
+
+    \badcode
+    mkdir -p ~/ros2bridge_build && cd ~/ros2bridge_build
+    ~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge \
+        -DROS2_PATH=/opt/ros/jazzy
+
+    cmake --build . --parallel
+    cmake --install .
+    \endcode
+
+    Adjust the Qt path to match your installation.
+
+    \note \c{cmake --install .} applies to prefix builds, which means any build
+    against an installed Qt. An in-tree build, where this module builds as part
+    of a Qt source tree, needs no install step because the files land in the
+    build tree already.
+
+    \section1 Setting up an application project
+
+    An application links the \c Ros2Core module and declares which ROS 2
+    capabilities and message modules it needs:
+
+    \code
+    find_package(Qt6 REQUIRED COMPONENTS Quick Ros2Core)
+
+    qt_standard_project_setup(REQUIRES 6.8)
+
+    qt_add_executable(apphello main.cpp)
+
+    qt_add_qml_module(apphello
+        URI hello
+        QML_FILES
+            Main.qml
+    )
+
+    qt_ros2_configure_target(apphello
+        CAPABILITIES PUBLISHER
+        MODULES QtRos2GeometryMessages
+    )
+
+    target_link_libraries(apphello PRIVATE Qt6::Quick)
+    \endcode
+
+    \c qt_ros2_configure_target takes three lists:
+
+    \list
+        \li \c CAPABILITIES declares what the application does. Valid values
+            are \c MESSAGES, \c PUBLISHER, \c SUBSCRIBER, \c SERVICE,
+            \c SERVER, and \c ACTION.
+        \li \c MODULES names the generated message modules to link, such as
+            \c QtRos2GeometryMessages or \c QtRos2StandardServices.
+        \li \c IMPORT_PACKAGES names third-party ROS 2 interface packages to
+            wrap, for packages that Qt ROS2 does not ship a module for.
+    \endlist
+
+    \section1 Writing your first publisher
+
+    Everything that faces ROS 2 lives inside a \c Node. A publisher is a child
+    of the node, and the node owns the underlying \c rclcpp publisher and tears
+    it down for you:
+
+    \snippet qml/publisher.qml 0
+
+    Three details matter here:
+
+    \list
+        \li Message value types are constructible from plain JavaScript
+            objects, so you never build a message imperatively. Field names use
+            Qt's \c camelCase spelling, so \c frameId rather than \c frame_id.
+        \li \c{rosNode.initialized} guards the button, so the application
+            cannot publish before the ROS 2 context is ready.
+        \li \c PoseStampedPublisher is a stamped publisher, so it fills
+            \c header.stamp from the ROS 2 node clock at publish time. That is
+            why the snippet leaves the stamp unset.
+    \endlist
+
+    A QML application does not declare a context. Declaring a \c Node
+    initializes the process-wide context on demand. A C++ application that
+    creates entities before loading any QML, or that forwards ROS 2
+    command-line arguments, calls \l{QRos2Context::init()} from \c main()
+    instead.
+
+    \section1 Running the application
+
+    \list 1
+        \li Source the ROS 2 environment in the shell you run from.
+        \li Build and run the application.
+        \li Watch the topic from a second, ROS-sourced terminal:
+            \badcode
+            ros2 topic echo /hello_pose
+            \endcode
+    \endlist
+
+    Each press of the button prints one message in the second terminal.
+
+    \section1 Developing with Qt Creator
+
+    Launch Qt Creator from a shell that has already sourced the ROS 2
+    environment, so it inherits the paths to the ROS 2 libraries and the
+    generated QML modules:
+
+    \badcode
+    source /opt/ros/jazzy/setup.bash
+    ~/Qt/Tools/QtCreator/bin/qtcreator
+    \endcode
+
+    Rebuild the module after you change \c Ros2Core, change a generator
+    template, or wrap a new message package. Application development against
+    the generated types needs no rebuild of the module.
+
+    \section1 Next steps
+
+    \l{Simple Publisher} is the next step up from the snippet above: the same
+    publisher, wrapped in a UI that lets you edit the topic and frame, watch
+    the subscriber count, and see each message as you send it.
+
+    \image simple-publisher-startup.webp {The Simple Publisher example at
+           startup, showing an editable topic and frame, a Publish Random Pose
+           button, an Automatic time stamp switch, and a prompt to press the
+           button to publish a PoseStamped message}
+
+    \list
+        \li \l{Simple Publisher} and \l{Simple Subscriber} show both ends of a
+            topic in two windows.
+        \li \l{Choosing a Communication Pattern} explains when to reach for a
+            topic, a service, an action, or a parameter.
+        \li \l{Qt ROS2 Examples} lists every example.
+        \li \l{Qt ROS2 QML Types} is the API reference.
+    \endlist
+
+    \sa {Qt ROS2 Examples}, {Choosing a Communication Pattern}
+*/

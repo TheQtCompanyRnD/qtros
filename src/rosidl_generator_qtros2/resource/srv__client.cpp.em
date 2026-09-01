@@ -1,10 +1,11 @@
-// Copyright (C) 2022 The Qt Company Ltd.
+// Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 @# Generation template for Qt service client implementation
 @{
-from rosidl_generator_qtros2 import get_qt_class_name, get_qt_class_name_full, msg_type_to_qt, msg_type_to_cpp, to_snake_case
+from rosidl_generator_qtros2 import get_qml_value_type_name, get_qt_class_name, get_qt_class_name_full, msg_type_to_qt, msg_type_to_cpp, to_snake_case
 from rosidl_generator_qtros2 import get_qt_namespace
+from rosidl_generator_qtros2.template_helpers import get_qml_module_uri
 from rosidl_parser.definition import (
     NamespacedType,
     AbstractNestedType,
@@ -37,10 +38,14 @@ resp_needs_wrap = needs_wrapper_type(response_msg)
 if req_needs_wrap:
     req_class = get_qt_class_name(package_name, request_msg.structure.namespaced_type.name)
     req_class_full = get_qt_class_name_full(package_name, request_msg.structure.namespaced_type.name)
+    req_class_qml = get_qml_value_type_name(package_name, request_msg.structure.namespaced_type.name)
     req_param = 'const ' + req_class_full + '& request'
 else:
     req_class = get_single_field_type(request_msg, package_name)
     req_class_full = req_class
+    # A single-field request/response collapses to its Qt type, which is a
+    # C++ spelling qdoc rejects in \qmlproperty (QStringList, float, ...).
+    req_class_qml = qml_doc_type_name(req_class)
     if req_class != 'void':
         req_param = 'const ' + req_class_full + '& request'
     else:
@@ -49,9 +54,13 @@ else:
 if resp_needs_wrap:
     resp_class = get_qt_class_name(package_name, response_msg.structure.namespaced_type.name)
     resp_class_full = get_qt_class_name_full(package_name, response_msg.structure.namespaced_type.name)
+    resp_class_qml = get_qml_value_type_name(package_name, response_msg.structure.namespaced_type.name)
 else:
     resp_class = get_single_field_type(response_msg, package_name)
     resp_class_full = resp_class
+    # A single-field request/response collapses to its Qt type, which is a
+    # C++ spelling qdoc rejects in \qmlproperty (QStringList, float, ...).
+    resp_class_qml = qml_doc_type_name(resp_class)
 
 # Determine template type for QFuture/QPromise
 if resp_class == 'void':
@@ -71,11 +80,18 @@ if hasattr(request_msg, 'structure') and hasattr(request_msg.structure, 'members
 resp_members = []
 if hasattr(response_msg, 'structure') and hasattr(response_msg.structure, 'members'):
     resp_members = [m for m in response_msg.structure.members if m.name != 'structure_needs_at_least_one_member']
+qml_module_uri = get_qml_module_uri(package_name)
+req_param_qml = ('const ' + req_class_qml + '& request') if req_param else ''
+resp_param_doc = resp_class_qml + ' response' if resp_class != 'void' else ''
+req_l_type = ('\\l ' + req_class_qml) if req_needs_wrap else req_class_qml
+resp_l_type = ('\\l ' + resp_class_qml) if resp_needs_wrap else resp_class_qml
+with_request_phrase = (' with ' + req_l_type + ' \\a request') if req_param_qml else ''
+resp_resolves_phrase = ('resolves with a ' + resp_l_type + ' response') if resp_class != 'void' else 'resolves'
 }@
 #include "@(service_header)_service_client.hpp"
-#include <qtros2_core/qros2_node.hpp>
+#include <QtRos2Core/private/qros2node_p.h>
 #if !defined(QTROS2_EXPERIMENTAL_FUTURE)
-#include <qtros2_core/js_future_wrapper.hpp>
+#include <QtRos2Core/private/jsfuturewrapper_p.h>
 #include <QQmlEngine>
 #endif
 #include <QCoreApplication>
@@ -86,10 +102,97 @@ if hasattr(response_msg, 'structure') and hasattr(response_msg.structure, 'membe
 
 namespace @(qt_namespace) {
 
+/*!
+    \qmltype @(qt_class_name)ServiceClient
+    \inqmlmodule @(qml_module_uri)
+    \inherits ServiceClientBase
+    \brief Qt service client for the @(service_name) ROS 2 service.
+
+    @(qt_class_name)ServiceClient calls a ROS 2 service.
+    Set the \c topic and \c node properties, then call \c callService() to invoke the service.
+@[if req_param]@
+    Alternatively, bind the \l request property: whenever the bound value
+    changes, the service is called automatically and \l response is updated
+    with the result.
+@[end if]@
+*/
+
+/*!
+    \qmlmethod QJSValue @(qt_class_name)ServiceClient::callService(@(req_param_qml))
+
+    Calls the \c @(service_name) ROS 2 service@(with_request_phrase).
+    Returns a JS promise that @(resp_resolves_phrase) or rejects with an error string.
+    \l isServiceReady must be \c true before calling.
+*/
+
+@[if resp_param_doc]@
+/*!
+    \qmlsignal @(qt_class_name)ServiceClient::responseReceived(@(resp_param_doc))
+
+    Emitted when the service call completes successfully.
+    \a response is a @(resp_l_type) value.
+*/
+@[else]@
+/*!
+    \qmlsignal @(qt_class_name)ServiceClient::responseReceived()
+
+    Emitted when the service call completes successfully.
+*/
+@[end if]@
+
+/*!
+    \qmlsignal @(qt_class_name)ServiceClient::callFailed(string error)
+
+    Emitted when the service call fails. \a error contains the error message.
+*/
+
+@[if req_param]@
+/*!
+    \qmlproperty @(req_class_qml) @(qt_class_name)ServiceClient::request
+
+    The request value for declarative service calls. When
+    \l {ServiceClientBase::autoCall}{autoCall} is \c true (the default),
+    each change of this property schedules a service call at the end of
+    the current event-loop iteration; changes made while the service is
+    unavailable or a call is in flight are remembered and the latest
+    value is dispatched as soon as possible. The result arrives in
+    \l response.
+*/
+
+@[end if]@
+@[if resp_class != 'void']@
+/*!
+    \qmlproperty @(resp_class_qml) @(qt_class_name)ServiceClient::response
+
+    The most recent response received from the service, whether the call
+    was made via @[if req_param]\l request or @[end if]\c callService(). Holds a
+    default-constructed value until the first response arrives. Updated
+    just before \l responseReceived is emitted.
+*/
+
+@[end if]@
 @(qt_class_name)ServiceClient::@(qt_class_name)ServiceClient(QObject* parent)
     : QRos2ServiceClientBase(parent)
 {
 }
+
+@[if req_param]@
+void @(qt_class_name)ServiceClient::setRequest(@(req_param))
+{
+    if (m_request == request) {
+        return;
+    }
+    m_request = request;
+    emit requestChanged();
+    requestCall();
+}
+
+void @(qt_class_name)ServiceClient::callStoredRequest()
+{
+    callServiceFuture(m_request);
+}
+
+@[end if]@
 
 @(qt_class_name)ServiceClient::~@(qt_class_name)ServiceClient()
 {
@@ -282,10 +385,11 @@ request_is_qlist = qt_type.startswith('QList<')
         if (weakThis) {
             QMetaObject::invokeMethod(
                 qApp,
-                [weakThis] {
+                [weakThis, msg] {
                     if (!weakThis)
                         return;
                     weakThis->setCallPending(false);
+                    emit weakThis->callFailed(msg);
                 },
                 Qt::QueuedConnection);
         }
@@ -362,6 +466,8 @@ resp_result_is_list = resp_is_qlist or resp_is_qstringlist
                         if (!weakThis)
                             return;
                         weakThis->setCallPending(false);
+                        weakThis->m_response = result;
+                        emit weakThis->responseChanged();
                         emit weakThis->responseReceived(result);
                     },
                     Qt::QueuedConnection);

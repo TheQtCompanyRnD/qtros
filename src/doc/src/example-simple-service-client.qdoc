@@ -1,0 +1,92 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example simple_service_client
+    \title Simple Service Client
+    \ingroup qtros2-examples
+    \meta sortkey {40}
+    \brief Calling a std_srvs/SetBool service declaratively from QML by
+    binding the request property.
+
+    \c{Simple Service Client} is the calling side of the \l{Simple Service}
+    example: it wraps one \l{Qt ROS2 std_srvs QML Types}{SetBoolServiceClient}
+    in a \l{Qt ROS2 Core QML Types}{Node} and keeps a \c std_srvs/SetBool
+    service in sync with a switch — the switch expresses the \e desired lamp
+    state, and the service response reports what the server actually did.
+
+    \image simple_service_client/simple_service_client.png "The Simple Service Client window: an editable topic, the lamp switch, and the last response."
+
+    \section1 Running the example
+
+    \list 1
+        \li Source your ROS 2 environment, then launch Qt Creator from the same
+            shell so it can find the generated QML modules.
+        \li Open \c examples/simple_service_client/CMakeLists.txt in Qt Creator,
+            then build and run.
+        \li Provide the service by running the \l{Simple Service} example with
+            the same topic.
+    \endlist
+
+    \section1 Calling a service by binding
+
+    A service client is declared as a child of a \c Node. Binding the
+    \c request property is all it takes to call the service: every change of
+    the bound value schedules a call (multiple changes per event-loop
+    iteration coalesce into one), and the result lands in the read-only
+    \c response property:
+
+    \qml
+    import QtRos2.StdSrvs
+
+    Node {
+        id: rosNode
+        nodeName: "simple_service_client_node"
+
+        SetBoolServiceClient {
+            id: lampClient
+            topic: topicField.text
+            request: lampSwitch.checked
+        }
+    }
+    \endqml
+
+    \qml
+    Label {
+        text: lampClient.response.message
+    }
+    \endqml
+
+    The \c request binding behaves like desired state that is reconciled with
+    the server: if the service is not available yet, or a call is still in
+    flight, the latest value is remembered and dispatched as soon as possible.
+    Flip the switch before starting the server and the state is applied the
+    moment the server appears. This behavior is controlled by
+    \l {ServiceClientBase::autoCall}{autoCall} (on by default; auto-calls only
+    happen when \c request is actually written).
+
+    Run it against \l{Simple Service} and burn the bulb out: the response
+    switches to \c{success: false} with an explanatory message — service
+    failure is in-band, part of the response value, so it is bindable state
+    like everything else.
+
+    \section1 Imperative calls
+
+    \c callService() remains for one-shot, imperative calls; it returns a
+    JavaScript promise:
+
+    \qml
+    lampClient.callService(true).then(response => {
+        console.log(response.success, response.message)
+    }, error => {
+        console.log("call failed:", error)
+    })
+    \endqml
+
+    Either way, \c isServiceReady reports whether a server was discovered on
+    the graph, \c isCallPending is \c true while a response is awaited, and
+    transport-level failures (the server disappearing mid-call) are reported
+    through the \c callFailed signal and the promise rejection.
+
+    \sa {Simple Service}, {Qt ROS2 std_srvs QML Types}
+*/

@@ -1,5 +1,5 @@
-# Copyright (C) 2022 The Qt Company Ltd.
-# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+# Copyright (C) 2026 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
 
 # CMake helper function to analyze IDL dependencies
 #
@@ -28,15 +28,11 @@ function(qtros2_analyze_idl_dependencies)
   # Find Python interpreter
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-  # Find the dependency analyzer script
-  # It should be in the rosidl_generator_qtros2 package
-  set(_analyzer_script "${rosidl_generator_qtros2_DIR}/../../../lib/python3.12/site-packages/rosidl_generator_qtros2/dependency_analyzer.py")
-
-  # Also try installed location
-  if(NOT EXISTS "${_analyzer_script}")
-    # Try to find it in the source tree (for development)
-    set(_analyzer_script "${CMAKE_CURRENT_LIST_DIR}/../rosidl_generator_qtros2/dependency_analyzer.py")
-  endif()
+  # Find the dependency analyzer script.
+  # rosidl_generator_qtros2_BIN is always set to an absolute path by the Config file,
+  # pointing to the generator __init__.py; dependency_analyzer.py lives in the same directory.
+  get_filename_component(_analyzer_script "${rosidl_generator_qtros2_BIN}" DIRECTORY)
+  set(_analyzer_script "${_analyzer_script}/dependency_analyzer.py")
 
   if(NOT EXISTS "${_analyzer_script}")
     message(WARNING "qtros2_analyze_idl_dependencies: Could not find dependency_analyzer.py, returning empty dependency list")

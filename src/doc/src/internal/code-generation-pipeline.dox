@@ -1,0 +1,168 @@
+/*! \internal
+    \page qtros2-code-generation Qt ROS 2 Code Generation Pipeline
+    \tableofcontents
+
+    Every Qt ROS 2 interface module (\c qtros2_std_msgs, \c qtros2_geometry_msgs,
+    \c qtros2_sensor_msgs, ...) is mostly generated code. This page documents what
+    feeds the generator, what comes out, and how the pieces fit together.
+
+    \section qtros2-codegen-why Why generate at all
+
+    The headers in \c /opt/ros/.../include — produced by \c rosidl_generator_cpp —
+    expose ROS-native C++ types (\c std::string, \c std::vector, allocator-templated
+    structs). Those don't satisfy the requirements of a Qt module:
+
+    - QML needs \c Q_GADGET value types with \c Q_PROPERTY fields, not bare structs.
+    - Publishers/subscribers/service-clients/action-clients need to be \c QObject
+      subclasses with signals so they integrate with the Qt event loop and QML
+      bindings.
+    - Qt has its own container vocabulary (\c QString, \c QList, \c QByteArray,
+      \c QStringList) that's more ergonomic than \c std::* on the QML side.
+    - We need conversion shims (\c toRos / \c fromRos) between the two type systems
+      at the publisher/subscriber boundary.
+
+    No stock OMG IDL compiler or rosidl generator emits that shape, so we ship our
+    own \c rosidl_generator_* plugin. It parses the same IDL the rest of ROS 2 uses
+    and emits Qt-flavored wrappers around the \c rosidl_generator_cpp types.
+
+    \section qtros2-codegen-inputs Inputs: .msg, .srv, .action — but really .idl
+
+    Authors write \c .msg, \c .srv, or \c .action files in the historical ROS
+    format. Upstream \c rosidl_adapter converts each one to an equivalent \c .idl
+    (OMG IDL) during the interface package's build. Pre-built packages in
+    \c /opt/ros/jazzy ship both side-by-side (e.g.
+    \c std_msgs/msg/ColorRGBA.msg and \c std_msgs/msg/ColorRGBA.idl); the \c .idl
+    header literally says <em>"generated from rosidl_adapter ... with input from
+    std_msgs/msg/ColorRGBA.msg"</em>.
+
+    \c rosidl_generator_qtros2 reads only the \c .idl. All generators in the ROS 2
+    ecosystem do — \c rosidl_parser.parse_idl_file() is the single canonical entry
+    point.
+
+    \section qtros2-codegen-pipeline The pipeline
+
+    \startuml
+    !include code-generation-pipeline.puml
+    \enduml
+
+    ① Upstream \c rosidl_adapter converts \c .msg / \c .srv / \c .action to \c .idl
+    (or the package ships pre-adapted \c .idl, as the ROS 2 core interfaces do).
+
+    ② \c rosidl_parser parses each \c .idl into an in-memory IR — \c Message,
+    \c Service, \c Action objects from \c rosidl_parser.definition.
+
+    ③ The user (or the Qt build system for the built-in modules) calls
+    \c qtros2_generate_from_package(SOURCE_PACKAGE pkg TARGET Foo ...).
+    This macro is <b>not</b> registered in the rosidl plugin registry — it is
+    explicitly invoked and is the only entry point to the generator.
+    The macro collects the source package's IDL tuples and dependency lists,
+    sets the same \c rosidl_generate_interfaces_* variables that
+    \c rosidl_generate_interfaces() would set, then does
+    \c include(rosidl_generator_qtros2_generate_interfaces.cmake) directly.
+
+    ④ \c rosidl_generator_qtros2_generate_interfaces.cmake writes a JSON
+    arguments file (IDL tuples, output dir, template dir, dependency packages)
+    and invokes the generator at <b>CMake configure time</b> via
+    \c execute_process — early enough that IDEs and \c qmllint see the files.
+
+    ⑤ \c python3 -m \c rosidl_generator_qtros2 calls
+    \c generate_qtros2() in \c rosidl_generator_qtros2/__init__.py. For each
+    \c idl_tuple it parses the IDL, walks messages/services/actions, builds a
+    context dict (the message IR plus helper callables like \c msg_type_to_qt,
+    \c get_qt_class_name, \c needs_wrapper_type), and runs an \c em.Interpreter
+    over each EmPy template in \c resource/\c *.em.
+
+    ⑥ The generator writes a manifest of every file it produced —
+    \c qtros2_generated_files.cmake — listing headers and sources for CMake to
+    pick up.
+
+    ⑦ The CMake hook then calls \c generate_cmake_vars() in the same Python
+    module to emit \c qtros2_module_vars.cmake, which packages everything
+    \c qt_add_qml_module() needs (\c SOURCES, \c IMPORTS, \c PUBLIC_INCLUDE_DIRECTORIES,
+    \c PUBLIC_LIBRARIES, \c LIBRARIES). The hook \c include()s that file and calls
+    \c qt_internal_add_qml_module() (in-tree Qt build) or \c qt_add_library +
+    \c qt_add_qml_module() (external app build).
+
+    \section qtros2-codegen-artifacts Per-IDL artifacts
+
+    \startuml
+    !include code-generation-artifacts.puml
+    \enduml
+
+    For every \c msg/Foo.idl with ≥ 2 fields, four \c .{hpp,cpp} pairs are
+    emitted (from \c msg__value_type, \c msg__publisher, \c msg__subscriber
+    templates):
+
+    \li \c foo.hpp / \c foo.cpp — \c Q_GADGET value type. \c Q_PROPERTY for each
+        field; \c toRos() / \c fromRos() convert to/from the
+        \c rosidl_generator_cpp type. Registered as a QML value type with the
+        name derived by \c get_qml_value_type_name().
+    \li \c foo_publisher.hpp / \c foo_publisher.cpp — \c QObject subclass with
+        a \c publish() method.
+    \li \c foo_subscriber.hpp / \c foo_subscriber.cpp — \c QObject subclass
+        emitting a \c received() signal whenever a message arrives on the
+        subscribed topic.
+
+    Single-field and empty messages skip the wrapper value type
+    (\c needs_wrapper_type() returns false): the inner type appears directly
+    in the publisher/subscriber API.
+
+    For \c srv/Foo.idl, \c srv__client templates emit a \c FooServiceClient
+    \c QObject. The request and response messages are then run back through
+    \c _generate_message_artifacts() to produce \c Foo_Request and
+    \c Foo_Response value types (no publisher/subscriber pair — they're not
+    independently transportable).
+
+    For \c action/Foo.idl, \c action__client templates emit a
+    \c FooActionClient \c QObject; goal, result, and feedback are emitted as
+    value types via the same shared helper.
+
+    \section qtros2-codegen-naming Naming and namespaces
+
+    Three name transformations matter:
+
+    \li <b>Qt namespace</b> — \c get_qt_namespace(package_name) strips a leading
+        \c qtros2_ and a trailing \c _msgs, then CamelCases the remainder and
+        prepends \c Qtros2 and appends \c Msgs. So \c geometry_msgs becomes
+        \c Qtros2GeometryMsgs. The C++ namespace.
+    \li <b>Qt class name</b> — \c get_qt_class_name(package, message_name)
+        strips underscores from the message name. \c BatteryState stays
+        \c BatteryState; \c Time_Source becomes \c TimeSource. The QML value
+        type uses the same name (no package prefix); the QML URI
+        (\c QtRos2.GeometryMsgs, etc.) provides scoping.
+    \li <b>File naming</b> — \c to_snake_case() converts the message name to
+        \c snake_case for filenames, matching \c rosidl_generator_cpp's
+        conventions so the same string can be used to \c #include the upstream
+        header.
+
+    Type mapping happens in \c MSG_TYPE_TO_QT / \c MSG_TYPE_TO_CPP plus
+    \c msg_type_to_qt_full(), which lifts \c Array / \c BoundedSequence /
+    \c UnboundedSequence into \c QList, \c QByteArray, or \c QStringList per
+    inner type.
+
+    \section qtros2-codegen-build-time When generation runs
+
+    Generation runs at <b>configure time</b>, not build time. The hook compares
+    \c mtime on every IDL file and on every template + Python source against
+    a stamp file (\c .${target}_qtros2_last_gen); if all are older, it skips
+    the Python invocation. Building from a clean tree always generates; editing
+    a template or an \c .idl triggers a single regeneration on the next CMake
+    reconfigure.
+
+    Why configure-time and not a \c add_custom_command at build time? Qt
+    Creator, \c qmllint, and other tooling read the source list during CMake
+    configuration. If the generated files don't exist at that point, headers
+    show up as missing in the IDE even though \c make would later succeed.
+
+    \section qtros2-codegen-empy A note on EmPy
+
+    The rest of the \c rosidl_generator_* ecosystem
+    (\c rosidl_generator_cpp, \c rosidl_generator_c, \c rosidl_generator_py)
+    uses EmPy templates; we follow suit for consistency, not because it's the
+    template engine we'd pick today. \c rosidl_pycommon provides a unified
+    helper for expanding templates with EmPy 3 / EmPy 4 compatibility shims,
+    but this generator currently drives \c em.Interpreter directly (see
+    \c _generate_message_artifacts() in \c __init__.py). If upstream ever
+    migrates off EmPy, the natural replacement would be Jinja2 — but no such
+    migration is scheduled at time of writing.
+*/

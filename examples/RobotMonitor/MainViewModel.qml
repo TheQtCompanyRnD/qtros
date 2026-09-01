@@ -1,9 +1,11 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
-import QtROS2.NavMsgs
-import QtROS2.Tf2Msgs
-import QtROS2.SensorMsgs
-import Nav2Msgs
-import IRobotCreateMsgs
+import QtRos2.Core as Ros2
+import QtRos2.NavMsgs
+import QtRos2.Transforms
+import QtRos2.SensorMsgs
+import QtRos2.GeometryMsgs as Geom
 import QtQuick3D
 
 QtObject {
@@ -16,25 +18,30 @@ QtObject {
     readonly property int totalActionClients: rosNode.statistics.totalActionClients
     readonly property int connectedActionClients: rosNode.statistics.connectedActionClients
 
-    readonly property alias navigationStatus: navigateToPoseAction.state
-    readonly property alias navigationFeedback: navigateToPoseAction.feedback
+    readonly property var navigationStatus: _actions.item ? _actions.item.navigationStatus : 0
+    readonly property var navigationFeedback: _actions.item ? _actions.item.navigationFeedback : null
 
-    readonly property alias dockStatus: dockActionClient.state
-    readonly property alias dockFeedback: dockActionClient.feedback
+    readonly property var dockStatus: _actions.item ? _actions.item.dockStatus : 0
+    readonly property var dockFeedback: _actions.item ? _actions.item.dockFeedback : null
 
-    readonly property alias undockStatus: undockActionClient.state
+    readonly property var undockStatus: _actions.item ? _actions.item.undockStatus : 0
+
+    property Loader _actions: Loader {
+        source: "Nav2IrobotActions.qml"
+        onLoaded: item.node = rosNode
+    }
 
     readonly property alias videoFeed: imageSubscriber.message
-    readonly property qtros2navmsgs_occupancygrid mapGrid: mapSubscriber.connected ? mapSubscriber.message : ({})
+    readonly property occupancyGrid mapGrid: mapSubscriber.connected ? mapSubscriber.message : ({})
     readonly property MapVisualSettings mapSettings: MapVisualSettings {}
 
-    readonly property qtros2navmsgs_occupancygrid localCostmapGrid: localCostmapSubscriber.connected ? localCostmapSubscriber.message : ({})
+    readonly property occupancyGrid localCostmapGrid: localCostmapSubscriber.connected ? localCostmapSubscriber.message : ({})
     readonly property MapVisualSettings localCostmapSettings: MapVisualSettings {
         colorScheme: GridPalette.CostmapHot
         opacity: 0.6
     }
 
-    readonly property qtros2navmsgs_occupancygrid globalCostmapGrid: globalCostmapSubscriber.connected ? globalCostmapSubscriber.message : ({})
+    readonly property occupancyGrid globalCostmapGrid: globalCostmapSubscriber.connected ? globalCostmapSubscriber.message : ({})
     readonly property MapVisualSettings globalCostmapSettings: MapVisualSettings {
         colorScheme: GridPalette.CostmapCool
         opacity: 0.4
@@ -83,6 +90,7 @@ QtObject {
 
         readonly property TFManager tfManager: TFManager {
             id: tfManager
+            frameTransformer: tfXform
         }
 
         readonly property Component instanceListEntryComponent: Component {
@@ -92,24 +100,22 @@ QtObject {
 
         readonly property list<InstanceListEntry> instancePool: []
 
-        readonly property ROS2Node node: ROS2Node {
+        readonly property Ros2.Node node: Ros2.Node {
             id: rosNode
             nodeName: "qt_robot_monitor"
 
-            property ROS2ActionClientBase currentActionClient: null
-
             readonly property var statistics: entities.reduce((acc, ce) => {
-                                                                  if (ce instanceof ROS2SubscriberBase) {
+                                                                  if (ce instanceof Ros2.SubscriberBase) {
                                                                       acc.totalSubscribers++
                                                                       if (ce.connected) {
                                                                           acc.connectedSubscribers++
                                                                       }
-                                                                  } else if (ce instanceof ROS2PublisherBase) {
+                                                                  } else if (ce instanceof Ros2.PublisherBase) {
                                                                       acc.totalPublishers++
                                                                       if (ce.subscriberCount > 0) {
                                                                           acc.connectedPublishers++
                                                                       }
-                                                                  } else if (ce instanceof ROS2ActionClientBase) {
+                                                                  } else if (ce instanceof Ros2.ActionClientBase) {
                                                                       acc.totalActionClients++
                                                                       if (ce.isServerReady) {
                                                                           acc.connectedActionClients++
@@ -128,6 +134,9 @@ QtObject {
             OccupancyGridSubscriber {
                 id: mapSubscriber
                 topic: "map"
+                // The map is latched (transient-local) by SLAM/Nav2, so request
+                // transient-local to receive the current map on connect.
+                qos: Ros2.QualityOfService.transientLocal()
             }
 
             OccupancyGridSubscriber {
@@ -143,27 +152,19 @@ QtObject {
             LaserScanSubscriber {
                 id: laserScanSubscriber
                 topic: "scan"
+                // High-rate sensor stream: best-effort so a monitor stays
+                // responsive on a lossy link.
+                qos: Ros2.QualityOfService.sensorData()
 
                 onMessageReceived: {
                     _d.updateInstanceList(message)
                 }
             }
 
-            TFMessageSubscriber {
-                id: tfSubscriber
-                topic: "tf"
-                onMessageReceived: {
-                    tfManager.updateTransforms(message)
-                }
-            }
-
-            TFMessageSubscriber {
-                id: tfStaticSubscriber
-                topic: "tf_static"
-                qos.durability: TFMessageSubscriber.DurabilityTransientLocal
-                onMessageReceived: {
-                    tfManager.updateTransforms(message)
-                }
+            // Maintains the TF tree from /tf and /tf_static; TFManager reads
+            // per-edge transforms from it via lookupTransform().
+            FrameTransformer {
+                id: tfXform
             }
 
             PolygonStampedSubscriber {
@@ -189,14 +190,11 @@ QtObject {
                 }
             }
 
-            NavigateToPoseActionClient {
-                id: navigateToPoseAction
-                topic: "navigate_to_pose"
-            }
-
             ImageSubscriber {
                 id: imageSubscriber
                 topic: "oakd/rgb/preview/image_raw"
+                // Camera stream: best-effort, drop frames rather than clog the link.
+                qos: Ros2.QualityOfService.sensorData()
             }
 
             TwistStampedPublisher {
@@ -204,27 +202,12 @@ QtObject {
                 topic: "cmd_vel"
             }
 
-            DockActionClient {
-                id: dockActionClient
-                topic: "dock"
-            }
-
-            UndockActionClient {
-                id: undockActionClient
-                topic: "undock"
-            }
-
             function cancelCurrentAction() {
-                let actionClientState = currentActionClient?.state
-                    ?? ROS2ActionClientBase.Idle
-                if (actionClientState === ROS2ActionClientBase.Requested
-                        || actionClientState === ROS2ActionClientBase.Accepted) {
-                    currentActionClient?.cancelGoal()
-                }
+                if (_actions.item) _actions.item._navigateToPoseAction?.cancelGoal?.()
             }
         }
 
-        function updateInstanceList(laserScan: qtros2sensormsgs_laserscan): void {
+        function updateInstanceList(laserScan: laserScan): void {
             let validCount = 0
             const angleMin = laserScan.angleMin
             const angleIncrement = laserScan.angleIncrement
@@ -264,7 +247,7 @@ QtObject {
         }
     }
 
-    function publishVelocity(vel: qtros2geometrymsgs_twist) {
+    function publishVelocity(vel: Geom.twist) {
         rosNode.cancelCurrentAction()
         cmdVelPublisher.publish({
                                     "twist": vel
@@ -272,41 +255,17 @@ QtObject {
     }
 
     function navigateToPose(p: vector3d, yaw: real) {
-        const q = Quaternion.fromEulerAngles(0, 0, yaw)
         rosNode.cancelCurrentAction()
-        rosNode.currentActionClient = navigateToPoseAction
-        navigateToPoseAction.sendGoal({
-                                          "pose": {
-                                              "header": {
-                                                  "frameId": "map",
-                                                  "stamp": {
-                                                      "sec": 0,
-                                                      "nanosec": 0
-                                                  }
-                                              },
-                                              "pose": {
-                                                  "position": p,
-                                                  "orientation": {
-                                                      "w": q.scalar,
-                                                      "x": q.x,
-                                                      "y": q.y,
-                                                      "z": q.z
-                                                  }
-                                              },
-                                              "behaviorTree": ""
-                                          }
-                                      })
+        _actions.item?.navigateToPose(p, yaw)
     }
 
     function dock() {
         rosNode.cancelCurrentAction()
-        rosNode.currentActionClient = dockActionClient
-        dockActionClient.sendGoal()
+        _actions.item?.dock()
     }
 
     function undock() {
         rosNode.cancelCurrentAction()
-        rosNode.currentActionClient = undockActionClient
-        undockActionClient.sendGoal()
+        _actions.item?.undock()
     }
 }

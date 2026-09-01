@@ -1,7 +1,9 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import QtROS2.Core
+import QtRos2.Core
 
 Rectangle {
     id: root
@@ -163,19 +165,19 @@ Rectangle {
 
             function distanceText() {
                 return root.mainViewModel.navigationStatus
-                        === ROS2ActionClientBase.Accepted ? root.mainViewModel.navigationFeedback.distanceRemaining.toFixed(
+                        === ActionClientBase.Accepted ? root.mainViewModel.navigationFeedback.distanceRemaining.toFixed(
                                                                 2) + " m" : "---"
             }
 
             function navigationTimeText() {
                 return root.mainViewModel.navigationStatus
-                        === ROS2ActionClientBase.Accepted ? formatSeconds(
+                        === ActionClientBase.Accepted ? formatSeconds(
                                                                 root.mainViewModel.navigationFeedback.navigationTime) : "--"
             }
 
             function etaText() {
                 return root.mainViewModel.navigationStatus
-                        === ROS2ActionClientBase.Accepted ? formatSeconds(
+                        === ActionClientBase.Accepted ? formatSeconds(
                                                                 root.mainViewModel.navigationFeedback.estimatedTimeRemaining) : "--"
             }
 
@@ -315,7 +317,7 @@ Rectangle {
 
                     Label {
                         text: `Sees dock: ${root.mainViewModel.dockStatus
-                              === ROS2ActionClientBase.Accepted ? root.mainViewModel.dockFeedback : "---"}`
+                              === ActionClientBase.Accepted ? root.mainViewModel.dockFeedback : "---"}`
                         color: Theme.foreground
                         font.pixelSize: 14
                         font.bold: true

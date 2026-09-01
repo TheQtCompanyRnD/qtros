@@ -1,8 +1,10 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
-import QtROS2.Core
-import QtROS2.SensorMsgs as SensorMsgs
-import QtROS2.Tf2Msgs
-import QtROS2.TrajectoryMsgs as TrajectoryMsgs
+import QtRos2.Core
+import QtRos2.SensorMsgs as SensorMsgs
+import QtRos2.Transforms
+import QtRos2.TrajectoryMsgs as TrajectoryMsgs
 
 QtObject {
     id: root
@@ -27,9 +29,10 @@ QtObject {
 
     readonly property TFBufferManager tfBuffer: TFBufferManager {
         id: tfBuffer
+        frameTransformer: tfXform
     }
 
-    readonly property ROS2Node ros2Node: ROS2Node {
+    readonly property Node ros2Node: Node {
         id: ros2Node
 
         property string jointStateTopic: "/joint_states"
@@ -41,8 +44,6 @@ QtObject {
         nodeName: nodeNamePrefix
 
         readonly property alias jointStateSubscriber: jointStateSubscriber
-        readonly property alias tfSubscriber: tfSubscriber
-        readonly property alias tfStaticSubscriber: tfStaticSubscriber
         readonly property alias trajectoryPublisher: trajectoryPublisher
 
         SensorMsgs.JointStateSubscriber {
@@ -50,22 +51,10 @@ QtObject {
             topic: ros2Node.jointStateTopic
         }
 
-        TFMessageSubscriber {
-            id: tfSubscriber
-            topic: ros2Node.tfTopic
-            onMessageReceived: {
-                tfBuffer.updateTransforms(tfSubscriber.message)
-            }
-        }
-
-        TFMessageSubscriber {
-            id: tfStaticSubscriber
-            topic: ros2Node.tfStaticTopic
-            qos.durability: TFMessageSubscriber.DurabilityTransientLocal
-
-            onMessageReceived: {
-                tfBuffer.updateTransforms(tfStaticSubscriber.message)
-            }
+        // Maintains the TF tree from /tf and /tf_static; TFBufferManager reads
+        // the kinematic-chain edges from it via lookupTransform().
+        FrameTransformer {
+            id: tfXform
         }
 
         TrajectoryMsgs.JointTrajectoryPublisher {

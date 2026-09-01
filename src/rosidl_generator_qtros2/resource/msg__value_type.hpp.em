@@ -1,4 +1,4 @@
-// Copyright (C) 2022 The Qt Company Ltd.
+// Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 @# Generation template for Qt value type (Q_GADGET) header
@@ -39,59 +39,74 @@ qml_value_type_name = get_qml_value_type_name(package_name, message.structure.na
 emit_wrapper_flag = emit_wrapper if 'emit_wrapper' in locals() else True
 single_field_qt_type = get_single_field_type(message, package_name)
 header_guard = build_include_guard(package_name, 'msg', context['header_file'])
+qt_export_macro = f'Q_{qt_module_name.upper()}_EXPORT'
+qt_build_define = f'QT_BUILD_{qt_module_name.upper()}_LIB'
 }@
 #ifndef @(header_guard)
 #define @(header_guard)
+
+#include <QtCore/qglobal.h>
+#if defined(@(qt_build_define))
+#  define @(qt_export_macro) Q_DECL_EXPORT
+#else
+#  define @(qt_export_macro) Q_DECL_IMPORT
+#endif
 
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
 #include <QList>
 #include <QByteArray>
+#ifndef Q_QDOC
 #include <@(ros_include)>
+#endif
 @[for pkg, msg_name, is_cross in nested_includes]@
 @[  if is_cross]@
-#include <qtros2_@(pkg)/msg/@(to_snake_case(msg_name)).hpp>
+#include <@(qt_package_mapping.get(pkg, f'qtros2_{pkg}'))/msg/@(to_snake_case(msg_name)).hpp>
 @[  else]@
 #include "@(to_snake_case(msg_name)).hpp"
+@[  end if]@
+@[end for]@
+@[for info in field_infos]@
+@[  if info.get('extra_includes')]@
+@[    for inc in info['extra_includes']]@
+#include @(inc)
+@[    end for]@
 @[  end if]@
 @[end for]@
 
 namespace @(qt_namespace) {
 
 @[if emit_wrapper_flag]@
-/**
+/*!
  * @@brief Qt wrapper for @(ros_msg_type)
  *
  * This is a Q_GADGET value type that can be used in QML.
  * It provides bidirectional conversion with the ROS message type.
  */
-class @(qt_class_name)
+class @(qt_export_macro) @(qt_class_name)
 {
     Q_GADGET
     QML_VALUE_TYPE(@(qml_value_type_name))
     QML_STRUCTURED_VALUE
 
 @[for info in field_infos]@
+@[  if info.get('is_computed')]@
+@[    if info.get('property_spec')]@
+    @(info['property_spec'])
+@[    end if]@
+@[  else]@
     Q_PROPERTY(@(info['qt_type']) @(info['qt_prop_name']) MEMBER m_@(info['name']))
+@[  end if]@
 @[end for]@
 
 public:
     @(qt_class_name)() = default;
 
-    /**
-     * @@brief Implicit conversion FROM ROS message
-     *
-     * Allows automatic conversion from ROS messages to Qt types.
-     */
+#ifndef Q_QDOC
     @(qt_class_name)(const @(ros_msg_type)& ros);
-
-    /**
-     * @@brief Explicit conversion TO ROS message
-     *
-     * Converts this Qt type back to a ROS message.
-     */
     explicit operator @(ros_msg_type)() const;
+#endif
 
     // Equality operators
 @{
@@ -126,27 +141,51 @@ setter_name = 'set' + qt_prop_name[0].upper() + qt_prop_name[1:]
 }@
     void @(setter_name)(const @(qt_type)& @(field.name)) { m_@(field.name) = @(field.name); }
 @[end for]@
+@{_computed = [i for i in field_infos if i.get('is_computed')]}@
+@[if _computed]@
+
+    // Computed Qt properties (not part of the ROS message)
+@[  for info in _computed]@
+@[    if info.get('getter_decl')]@
+    @(info['getter_decl'])
+@[    end if]@
+@[    if info.get('setter_decl')]@
+    @(info['setter_decl'])
+@[    end if]@
+@[    for decl in info.get('extra_decls') or []]@
+    @(decl)
+@[    end for]@
+@[  end for]@
+@[end if]@
 
 private:
 @[for info in field_infos]@
+@[  if not info.get('is_computed')]@
 @{
 qt_type = info['qt_type']
 default_val = ''
 if not info['is_sequence']:
-    field_type_inner = info['field'].type
+    field = info['field']
+    field_type_inner = field.type
     if isinstance(field_type_inner, BasicType):
+        # Honor the ROS IDL @default(value=...) annotation when present so that
+        # e.g. geometry_msgs/Quaternion.w defaults to 1.0 (identity) rather than
+        # 0.0. Fall back to the zero/false default when no annotation is given.
+        idl_default = (field.get_annotation_value('default')['value']
+                       if field.has_annotation('default') else None)
         if field_type_inner.typename == 'boolean':
-            default_val = ' = false'
+            default_val = ' = false' if idl_default is None else (' = true' if idl_default else ' = false')
         elif field_type_inner.typename in ['float', 'double', 'long double']:
-            default_val = ' = 0.0'
+            default_val = ' = ' + (repr(float(idl_default)) if idl_default is not None else '0.0')
         elif 'int' in field_type_inner.typename:
-            default_val = ' = 0'
+            default_val = ' = ' + (str(int(idl_default)) if idl_default is not None else '0')
 }@
     @(qt_type) m_@(info['name'])@(default_val);
+@[  end if]@
 @[end for]@
 };
 @[else]@
-/**
+/*!
  * @@brief No Qt wrapper generated for @(ros_msg_type)
  *
  * This service/action interface carries a single field, so the direct Qt type

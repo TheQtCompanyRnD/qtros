@@ -1,19 +1,17 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
 import QtQml
-import QtROS2.Tf2Msgs
-import QtROS2.GeometryMsgs
+import QtRos2.GeometryMsgs
 
-// TFBufferManager is a specialized component that caches the local transforms
-// for the TurtleBot4 navigation stack as explicit, typed properties.
-// Only the transforms needed for navigation visualization are cached.
+// Exposes the per-edge transforms the 3D scene binds to, sourced from a
+// FrameTransformer (QtRos2.Transforms) instead of a hand-rolled /tf + /tf_static
+// cache. Set `frameTransformer` to the scene's FrameTransformer instance; the
+// edge properties are refreshed on its transformsChanged signal.
 QtObject {
     id: root
 
-    // List of transforms we care about (parent_child format)
-    readonly property list<string> observedTransforms: ["map_odom", "odom_base_link", "base_link_shell_link", "shell_link_rplidar_link", "rplidar_link_turtlebot4_rplidar_link_rplidar"]
-
-    // --- Public, Bindable Transform Properties ---
-    property var cachedTransforms: new Map()
+    property var frameTransformer: null
 
     // map -> odom
     property vector3d map_odom_p: Qt.vector3d(0, 0, 0)
@@ -32,59 +30,30 @@ QtObject {
     property quaternion shell_link_rplidar_link_q: Qt.quaternion(1, 0, 0, 0)
 
     // rplidar_link -> turtlebot4/rplidar_link/rplidar
-    property vector3d rplidar_link_turtlebot4_rplidar_link_rplidar_p: Qt.vector3d(
-                                                                          0, 0,
-                                                                          0)
-    property quaternion rplidar_link_turtlebot4_rplidar_link_rplidar_q: Qt.quaternion(
-                                                                            1,
-                                                                            0,
-                                                                            0,
-                                                                            0)
+    property vector3d rplidar_link_turtlebot4_rplidar_link_rplidar_p: Qt.vector3d(0, 0, 0)
+    property quaternion rplidar_link_turtlebot4_rplidar_link_rplidar_q: Qt.quaternion(1, 0, 0, 0)
 
-    function normalizeName(name: string): string {
-        name.replace("/", "_")
-
-        return !name.startsWith("_") ? name : name.substr(1)
+    // Refresh every edge whenever the TF tree updates.
+    property Connections _conn: Connections {
+        target: root.frameTransformer
+        function onTransformsChanged() { root._refresh() }
     }
 
-    // Called by the ROS2 subscriber with incoming TF messages.
-    function updateTransforms(tfMessage: qtros2tf2msgs_tfmessage) {
-        if (!tfMessage || !tfMessage.transforms)
+    function _refresh() {
+        root._setEdge("map", "odom", "map_odom")
+        root._setEdge("odom", "base_link", "odom_base_link")
+        root._setEdge("base_link", "shell_link", "base_link_shell_link")
+        root._setEdge("shell_link", "rplidar_link", "shell_link_rplidar_link")
+        root._setEdge("rplidar_link", "turtlebot4/rplidar_link/rplidar",
+                      "rplidar_link_turtlebot4_rplidar_link_rplidar")
+    }
+
+    // Look up parent->child and push it into the <prefix>_p / <prefix>_q properties.
+    function _setEdge(parent: string, child: string, prefix: string) {
+        if (!root.frameTransformer || !root.frameTransformer.canTransform(parent, child))
             return
-
-        let dirtyTransforms = []
-
-        // Qt 6.10 handles that properly - although qmlls still reports the warning
-        tfMessage.transforms.forEach(
-                    function (tfm/*: qtros2geometrymsgs_transformstamped*/ ) {
-                        const frameId = normalizeName(tfm.header.frameId)
-                        const childId = normalizeName(tfm.childFrameId)
-                        const key = frameId + "_" + childId
-
-                        // Skip transforms we don't care about
-                        if (!observedTransforms.includes(key)) {
-                            return
-                        }
-
-                        let val = cachedTransforms[key]
-                        if (!!!val || val.transform !== tfm.transform) {
-                            cachedTransforms[key] = tfm
-                            dirtyTransforms.push(tfm)
-                        }
-                    })
-
-        dirtyTransforms.forEach(
-                    // Qt 6.10 handles that properly - although qmlls still reports the warning
-                    function (tfm/*: qtros2geometrymsgs_transformstamped*/ ) {
-                        const frameId = normalizeName(tfm.header.frameId)
-                        const childId = normalizeName(tfm.childFrameId)
-
-                        const base_prop_name = frameId + "_" + childId
-
-                        root[base_prop_name + "_p"] = GeometryHeleper.toVector3d(
-                                    tfm.transform.translation)
-                        root[base_prop_name + "_q"] = GeometryHeleper.toQuaternion(
-                                    tfm.transform.rotation)
-                    })
+        const tr = root.frameTransformer.lookupTransform(parent, child).transform
+        root[prefix + "_p"] = GeometryHeleper.toVector3d(tr.translation)
+        root[prefix + "_q"] = GeometryHeleper.toQuaternion(tr.rotation)
     }
 }

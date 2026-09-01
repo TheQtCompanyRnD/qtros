@@ -1,9 +1,10 @@
-// Copyright (C) 2022 The Qt Company Ltd.
+// Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 @# Generation template for Qt action client implementation
 @{
 from rosidl_generator_qtros2 import (
+    get_qml_value_type_name,
     get_qt_class_name,
     get_qt_class_name_full,
     get_qt_namespace,
@@ -11,6 +12,7 @@ from rosidl_generator_qtros2 import (
     msg_type_to_cpp,
     to_snake_case,
 )
+from rosidl_generator_qtros2.template_helpers import get_qml_module_uri
 from rosidl_parser.definition import (
     NamespacedType,
     AbstractNestedType,
@@ -44,28 +46,37 @@ feedback_needs_wrap = needs_wrapper_type(feedback_msg)
 if goal_needs_wrap:
     goal_class = get_qt_class_name(package_name, goal_msg.structure.namespaced_type.name)
     goal_class_full = get_qt_class_name_full(package_name, goal_msg.structure.namespaced_type.name)
+    goal_class_qml = get_qml_value_type_name(package_name, goal_msg.structure.namespaced_type.name)
     goal_param = 'const ' + goal_class_full + '& goal'
+    goal_param_qml = goal_class_qml + ' goal'
 else:
     goal_class = get_single_field_type(goal_msg, package_name)
     goal_class_full = goal_class
+    goal_class_qml = goal_class
     if goal_class != 'void':
         goal_param = goal_class + ' goal'
+        goal_param_qml = goal_class + ' goal'
     else:
         goal_param = ''
+        goal_param_qml = ''
 
 if result_needs_wrap:
     result_class = get_qt_class_name(package_name, result_msg.structure.namespaced_type.name)
     result_class_full = get_qt_class_name_full(package_name, result_msg.structure.namespaced_type.name)
+    result_class_qml = get_qml_value_type_name(package_name, result_msg.structure.namespaced_type.name)
 else:
     result_class = get_single_field_type(result_msg, package_name)
     result_class_full = result_class
+    result_class_qml = result_class
 
 if feedback_needs_wrap:
     feedback_class = get_qt_class_name(package_name, feedback_msg.structure.namespaced_type.name)
     feedback_class_full = get_qt_class_name_full(package_name, feedback_msg.structure.namespaced_type.name)
+    feedback_class_qml = get_qml_value_type_name(package_name, feedback_msg.structure.namespaced_type.name)
 else:
     feedback_class = get_single_field_type(feedback_msg, package_name)
     feedback_class_full = feedback_class
+    feedback_class_qml = feedback_class
 
 # Get members for conversion
 goal_members = []
@@ -124,11 +135,18 @@ ns_list = action.namespaced_type.namespaces
 name_list = ns_list + [action.namespaced_type.name]
 ros_action_type = '::'.join(name_list)
 header_file = to_snake_case(action_name)
+qml_module_uri = get_qml_module_uri(package_name)
+feedback_param_doc = feedback_class_qml + ' feedback' if feedback_class != 'void' else ''
+goal_l_type = ('\\l ' + goal_class_qml) if goal_needs_wrap else goal_class_qml
+result_l_type = ('\\l ' + result_class_qml) if result_needs_wrap else result_class_qml
+feedback_l_type = ('\\l ' + feedback_class_qml) if feedback_needs_wrap else feedback_class_qml
+sends_goal_phrase = (goal_l_type + ' \\a goal to') if goal_param_qml else 'a goal to'
+result_resolves_phrase = ('resolves with a ' + result_l_type + ' result') if result_class != 'void' else 'resolves'
 }@
 #include "@(header_file)_action_client.hpp"
-#include <qtros2_core/qros2_node.hpp>
+#include <QtRos2Core/private/qros2node_p.h>
 #if !defined(QTROS2_EXPERIMENTAL_FUTURE)
-#include <qtros2_core/js_future_wrapper.hpp>
+#include <QtRos2Core/private/jsfuturewrapper_p.h>
 #include <QQmlEngine>
 #endif
 #include <QCoreApplication>
@@ -138,6 +156,48 @@ header_file = to_snake_case(action_name)
 #include <rcl_action/rcl_action.h>
 
 namespace @(qt_namespace) {
+
+/*!
+    \qmltype @(qt_class_name)ActionClient
+    \inqmlmodule @(qml_module_uri)
+    \inherits ActionClientBase
+    \brief Qt action client for the @(action_name) ROS 2 action.
+
+    @(qt_class_name)ActionClient sends goals to a ROS 2 action server.
+    Set the \c topic and \c node properties, then call \c sendGoal() to start an action.
+*/
+
+@[if feedback_param_doc]@
+/*!
+    \qmlproperty @(feedback_class_qml) @(qt_class_name)ActionClient::feedback
+
+    The most recently received feedback from the action server.
+    Updated during goal execution; emits \c feedbackChanged when new feedback arrives.
+*/
+@[end if]@
+
+/*!
+    \qmlmethod QJSValue @(qt_class_name)ActionClient::sendGoal(@(goal_param_qml))
+
+    Sends @(sends_goal_phrase) the \c @(action_name) action server.
+    Returns a JS promise that @(result_resolves_phrase) or rejects on failure or cancellation.
+    \l isServerReady must be \c true before calling.
+*/
+
+@[if feedback_param_doc]@
+/*!
+    \qmlsignal @(qt_class_name)ActionClient::feedbackChanged(@(feedback_param_doc))
+
+    Emitted when feedback is received from the action server.
+    \a feedback is a @(feedback_l_type) value.
+*/
+@[else]@
+/*!
+    \qmlsignal @(qt_class_name)ActionClient::feedbackChanged()
+
+    Emitted when the action server sends feedback.
+*/
+@[end if]@
 
 @(qt_class_name)ActionClient::@(qt_class_name)ActionClient(QObject* parent)
     : QRos2ActionClientBase(parent)

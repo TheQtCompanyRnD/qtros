@@ -1,0 +1,55 @@
+\startuml
+    skinparam shadowing false
+
+    package "msg / ColorRGBA.idl" as msg_idl {
+        class "ColorRGBA\n<<value type, Q_GADGET>>" as vt_msg {
+            float r
+            float g
+            float b
+            float a
+            +operator==
+            +toRos() / fromRos()
+        }
+        class "ColorRGBAPublisher\n<<QObject>>" as pub {
+            +publish(value)
+        }
+        class "ColorRGBASubscriber\n<<QObject>>" as sub {
+            +signal received(value)
+        }
+    }
+
+    package "srv / AddTwoInts.idl" as srv_idl {
+        class "AddTwoIntsServiceClient\n<<QObject>>" as svc_client {
+            +sendRequest(...)
+            +signal responseReceived(...)
+        }
+        class "AddTwoInts_Request\n<<value type>>" as svc_req
+        class "AddTwoInts_Response\n<<value type>>" as svc_resp
+    }
+
+    package "action / Fibonacci.idl" as act_idl {
+        class "FibonacciActionClient\n<<QObject>>" as act_client {
+            +sendGoal(...)
+            +signal feedback(...)
+            +signal result(...)
+        }
+        class "Fibonacci_Goal\n<<value type>>" as act_goal
+        class "Fibonacci_Feedback\n<<value type>>" as act_fb
+        class "Fibonacci_Result\n<<value type>>" as act_res
+    }
+
+    note bottom of vt_msg
+      Wrapper Q_GADGET emitted when
+      <i>needs_wrapper_type()</i> is true
+      (≥ 2 fields). Single-field / empty
+      messages collapse to the inner type.
+    end note
+
+    pub ..> vt_msg : carries
+    sub ..> vt_msg : carries
+    svc_client ..> svc_req
+    svc_client ..> svc_resp
+    act_client ..> act_goal
+    act_client ..> act_fb
+    act_client ..> act_res
+\enduml

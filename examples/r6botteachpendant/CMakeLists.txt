@@ -5,17 +5,7 @@ project(r6botteachpendant VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick Quick3D)
-find_package(rosidl_generator_qtros2 REQUIRED)
-find_package(tf2_msgs REQUIRED)
-find_package(qtros2_trajectory_msgs REQUIRED)
-
-qtros2_generate_from_package(
-    TARGET qtros2_tf2_msgs
-    SOURCE_PACKAGE tf2_msgs
-    QML_MODULE_URI QtROS2.Tf2Msgs
-    QML_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/QtROS2/Tf2Msgs
-)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Quick3D Ros2Core)
 
 qt_standard_project_setup()
 
@@ -26,7 +16,6 @@ qt_add_executable(r6botteachpendant
 
 file(GLOB_RECURSE LINK_QML_FILES_ABS "${CMAKE_CURRENT_SOURCE_DIR}/Link_*/*.qml")
 file(GLOB_RECURSE LINK_MESH_FILES_ABS "${CMAKE_CURRENT_SOURCE_DIR}/Link_*/meshes/*.mesh")
-
 
 # Mark Theme.qml as singleton
 set_source_files_properties(Theme.qml PROPERTIES
@@ -72,12 +61,16 @@ qt_add_qml_module(r6botteachpendant
 
 )
 
+# TF is consumed through QtRos2.Transforms (FrameTransformer), which wraps
+# tf2_ros in C++, so no tf2_msgs QML module import is needed here.
+qt_ros2_configure_target(r6botteachpendant
+    CAPABILITIES PUBLISHER SUBSCRIBER
+    MODULES QtRos2TrajectoryMessages
+)
+
 target_link_libraries(r6botteachpendant PRIVATE
     Qt6::Quick
     Qt6::Quick3D
-    qtros2_core::qtros2_core
-    qtros2_trajectory_msgs::qtros2_trajectory_msgs_qtcpp
-    qtros2_tf2_msgs_qtcpp
 )
 
 install(TARGETS r6botteachpendant

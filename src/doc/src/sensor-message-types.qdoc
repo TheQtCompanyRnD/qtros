@@ -1,0 +1,286 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \page qtros2-sensor-message-types.html
+    \title Choosing Sensor Message Types
+    \ingroup qtros2-guides
+
+    \keyword lidar
+    \keyword LiDAR
+    \keyword LIDAR
+    \keyword laser scanner
+    \keyword point cloud
+    \keyword depth camera
+    \keyword IMU
+    \keyword camera
+    \keyword inertial measurement unit
+    \keyword battery
+    \keyword battery level
+    \keyword state of charge
+    \keyword SLAM
+    \keyword simultaneous localization and mapping
+    \keyword occupancy grid
+    \keyword odometry
+    \keyword joint state
+    \keyword audio
+    \keyword microphone
+    \keyword speech recognition
+
+    \brief A guide to selecting the right ROS 2 sensor message type for common robot hardware.
+
+    Qt ROS2 provides QML-friendly wrappers for the standard \c sensor_msgs and \c nav_msgs
+    message types.  This page helps you pick the right message type for your hardware and
+    explains which messages SLAM and navigation stacks expect or produce.
+
+    \note All message types listed here are from \c sensor_msgs, \c nav_msgs, or
+    \c geometry_msgs unless stated otherwise.  Audio is a known gap — see
+    \l{Audio sensors and speech}.
+
+    \section1 Distance and ranging sensors
+
+    \table
+    \header
+        \li Sensor Type
+        \li Message Type
+        \li Notes
+    \row
+        \li 2D lidar / laser range-finder
+        \li \l laserScan (LaserScan)
+        \li Single planar sweep; provides ranges and optional intensities.
+    \row
+        \li Multi-echo 2D lidar
+        \li \l multiEchoLaserScan (MultiEchoLaserScan)
+        \li Like LaserScan but each range bin can report multiple return distances.
+            Useful for glass, vegetation, or fog detection.
+    \row
+        \li 3D lidar / depth camera (unordered or 2D-organized)
+        \li \l pointCloud2 (PointCloud2)
+        \li Flexible binary blob; supports arbitrary per-point fields (x, y, z, intensity, …).
+    \row
+        \li Ultrasonic / infrared range sensor
+        \li \l range (Range)
+        \li Single-beam measurement with min/max range bounds and radiation type field
+            (ultrasound, infrared).
+    \endtable
+
+    \section1 Camera sensors
+
+    \table
+    \header
+        \li Sensor Type
+        \li Message Type
+        \li Notes
+    \row
+        \li RGB or mono camera
+        \li \l image (Image)
+        \li Uncompressed; the Qt wrapper exposes a \c QImage property for direct use in QML.
+            Encoding field selects colour format (rgb8, rgba8, bgr8, mono8, mono16, …).
+    \row
+        \li Compressed camera stream (JPEG / PNG)
+        \li \l compressedImage (CompressedImage)
+        \li Smaller over-the-wire size; the Qt wrapper decodes to a \c QImage on demand.
+    \row
+        \li Camera calibration parameters
+        \li \l cameraInfo (CameraInfo)
+        \li Accompanies Image messages; carries intrinsics, distortion, and projection matrices.
+            Subscribe alongside Image on a synchronised pair of topics.
+    \row
+        \li Region of interest within a camera image
+        \li \l regionOfInterest (RegionOfInterest)
+        \li Embedded in CameraInfo; also used standalone to flag a crop window.
+    \endtable
+
+    \section1 Inertial and navigation sensors
+
+    \table
+    \header
+        \li Sensor Type
+        \li Message Type
+        \li Notes
+    \row
+        \li IMU (accelerometer + gyroscope ± magnetometer)
+        \li \l imu (Imu)
+        \li Reports orientation, angular velocity, and linear acceleration each with a 3×3
+            covariance matrix.  Set covariance diagonal to -1 if a field is not measured.
+    \row
+        \li GPS / GNSS receiver
+        \li \l navSatFix (NavSatFix)
+        \li Latitude, longitude, altitude and position covariance; \c status field indicates
+            fix quality (no fix, fix, SBAS fix, GBAS fix).
+    \row
+        \li Magnetic compass
+        \li \l magneticField (MagneticField)
+        \li 3-axis field vector in Tesla with covariance.
+    \row
+        \li External time reference (GPS PPS, NTP, PTP)
+        \li \l timeReference (TimeReference)
+        \li Stamps a measurement from an external clock so the ROS graph can correlate it with
+            system time.  Useful for hardware-synchronised camera rigs and lidar sweeps.
+    \endtable
+
+    \section1 Power and battery
+
+    \table
+    \header
+        \li Sensor Type
+        \li Message Type
+        \li Notes
+    \row
+        \li Battery or power supply
+        \li \l batteryState (BatteryState)
+        \li Covers voltage, current, temperature, charge, capacity, and state-of-charge
+            percentage (0.0–1.0).  Enum constants identify chemistry (LiPo, NiMH, …),
+            health (good, overheat, dead, …), and charging status (charging, discharging,
+            full, …).  Multi-cell packs can report per-cell voltage and temperature arrays.
+    \endtable
+
+    \section1 Environmental sensors
+
+    \table
+    \header
+        \li Sensor Type
+        \li Message Type
+        \li Notes
+    \row
+        \li Barometer / pressure sensor
+        \li \l fluidPressure (FluidPressure)
+        \li Absolute pressure in Pascals with variance.
+    \row
+        \li Temperature sensor
+        \li \l temperature (Temperature)
+        \li Temperature in degrees Celsius with variance.
+    \row
+        \li Humidity sensor
+        \li \l relativeHumidity (RelativeHumidity)
+        \li Relative humidity as a ratio (0.0–1.0) with variance.
+    \row
+        \li Illuminance / ambient light
+        \li \l illuminance (Illuminance)
+        \li Illuminance in lux with variance.
+    \endtable
+
+    \section1 Actuators and kinematics
+
+    These messages describe the state of joints and limbs rather than sensors in the
+    traditional sense, but they flow through the same sensor pipeline.
+
+    \table
+    \header
+        \li Use Case
+        \li Message Type
+        \li Notes
+    \row
+        \li Robot arm or wheeled-robot joint positions
+        \li \l jointState (JointState)
+        \li Reports position (rad or m), velocity, and effort per named joint.  Any of the
+            three arrays may be left empty if not measured.  Subscribe to \c /joint_states
+            to drive a 3D model or display telemetry.
+    \row
+        \li Floating-base or multi-DOF joints
+        \li \l multiDOFJointState (MultiDOFJointState)
+        \li Generalises JointState to joints with more than one degree of freedom; each
+            joint carries a full Transform, Twist, and Wrench.
+    \endtable
+
+    \section1 SLAM and navigation
+
+    SLAM (Simultaneous Localization and Mapping) algorithms consume sensor data and publish
+    map and pose estimates.  A Qt dashboard typically subscribes to SLAM outputs to display
+    a live map and robot position.
+
+    \section2 SLAM inputs
+
+    Feed at least one ranging source and optionally an IMU into a SLAM node:
+
+    \table
+    \header
+        \li Input
+        \li Message Type
+    \row
+        \li 2D lidar sweep
+        \li \l laserScan (LaserScan) on \c /scan
+    \row
+        \li 3D lidar or depth cloud
+        \li \l pointCloud2 (PointCloud2) on \c /points
+    \row
+        \li Wheel odometry (pre-SLAM estimate)
+        \li \l odometry (Odometry) on \c /odom
+    \row
+        \li Inertial measurement
+        \li \l imu (Imu) on \c /imu
+    \endtable
+
+    \section2 SLAM outputs
+
+    \table
+    \header
+        \li Output
+        \li Message Type
+        \li Notes
+    \row
+        \li Occupancy grid map
+        \li \l occupancyGrid (OccupancyGrid) on \c /map
+        \li 2D grid where each cell is free (0), occupied (100), or unknown (-1).
+            Subscribe to render a live floor plan.
+    \row
+        \li Corrected robot pose
+        \li \l poseWithCovarianceStamped (PoseWithCovarianceStamped)
+        \li SLAM-corrected pose with uncertainty ellipse; broadcast on \c /pose.
+    \row
+        \li Odometry estimate
+        \li \l odometry (Odometry) on \c /odom
+        \li Combines pose and twist with covariances; used by the navigation stack.
+    \row
+        \li Planned path
+        \li \l path (Path) on \c /plan
+        \li Sequence of poses from the current position to the navigation goal.
+    \endtable
+
+    \note SLAM and navigation stacks also broadcast coordinate-frame transforms on the
+    \c /tf and \c /tf_static topics using the \c tf2_msgs/TFMessage type.  Qt ROS2 does
+    not currently wrap \c tf2_msgs, so transforms must be read through a bridging node or
+    a dedicated C++ subscriber if your application needs them directly.
+
+    \section1 Audio sensors and speech
+
+    Standard ROS 2 (and the Qt ROS2 Bridge) does not include a message type for raw audio
+    data.  The community package \c audio_common_msgs (from the \c audio_common stack)
+    provides \c AudioData and \c AudioStamped messages and is widely used, but it is not
+    part of the core ROS 2 distribution and is not currently wrapped by Qt ROS2.
+
+    Typical approaches for audio in a ROS 2 system:
+
+    \table
+    \header
+        \li Task
+        \li Common approach
+    \row
+        \li Capture microphone audio
+        \li A dedicated ROS node streams \c audio_common_msgs/AudioData; outside ROS,
+            use Qt Multimedia (\c QAudioSource) and bridge results into ROS via a publisher.
+    \row
+        \li Speech-to-text transcription
+        \li A Whisper- or cloud-ASR-based node publishes the transcript as
+            \c std_msgs/String on a topic such as \c /speech_recognition/result.
+            Subscribe with \l string (String) in QML.
+    \row
+        \li Text-to-speech output
+        \li Send a \c std_msgs/String command to a TTS node; audio playback happens inside
+            that node or via Qt Multimedia on the Qt side.
+    \row
+        \li LLM response piped to speech
+        \li Publish the LLM text output as \c std_msgs/String; a downstream TTS node
+            converts it to speech.  The full pipeline (mic → ASR → LLM → TTS → speaker)
+            runs as ROS nodes; the Qt UI subscribes to the intermediate text topics for
+            display and can publish user text input to inject into the chain.
+    \endtable
+
+    \section1 Remote control and teleoperation
+
+    Sending velocity or steering commands to a robot is covered separately.
+    See \l{Teleoperation and Remote Control} for \l joy (Joy),
+    \l twist (Twist), and on-screen joystick patterns.
+
+    \sa {Qt ROS2 QML Types}
+*/

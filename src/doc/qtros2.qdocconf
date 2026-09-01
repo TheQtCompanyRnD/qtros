@@ -1,0 +1,63 @@
+include($QT_INSTALL_DOCS/global/qt-module-defaults.qdocconf)
+
+project = QtRos2
+description = Qt ROS2 Bridge Reference Documentation
+version = $QT_VERSION
+
+qhp.projects = QtRos2
+
+qhp.QtRos2.file = qtros2.qhp
+qhp.QtRos2.namespace = org.qt-project.qtros2.$QT_VERSION_TAG
+qhp.QtRos2.virtualFolder = qtros2
+qhp.QtRos2.indexTitle = Qt ROS2
+qhp.QtRos2.indexRoot =
+
+qhp.QtRos2.subprojects = qmltypes examples
+qhp.QtRos2.subprojects.qmltypes.title = QML Types
+qhp.QtRos2.subprojects.qmltypes.indexTitle = Qt ROS2 QML Types
+qhp.QtRos2.subprojects.qmltypes.selectors = qmlclass
+qhp.QtRos2.subprojects.qmltypes.sortPages = true
+qhp.QtRos2.subprojects.examples.title = Examples
+qhp.QtRos2.subprojects.examples.indexTitle = Qt ROS2 Examples
+qhp.QtRos2.subprojects.examples.selectors = example
+qhp.QtRos2.subprojects.examples.sortPages = true
+
+# qtgui for QVector3D/QQuaternion, which the geometry value types convert to
+# and from; qtquick for the QtQuick::vector3d and QtQuick::quaternion QML
+# value types they are documented against. Without them qdoc cannot resolve
+# those links even when the index files are present.
+depends = qtcore qtdoc qtgui qtqml qtquick qtquick3d qtquick3dphysics
+
+moduleheader = QtRos2Core
+
+headerdirs += ../
+sourcedirs += ../
+imagedirs += images
+imagedirs += ../../examples
+exampledirs += ../../examples
+exampledirs += snippets
+
+# Snippets are resolved through exampledirs, not parsed as documentation
+# sources: sourcedirs covers all of src/, which would otherwise pull them in.
+excludedirs += snippets
+
+# Qt's global config.qdocconf defaults navigation.homepage to index.html, which
+# is qtdoc's top-level page: it does not exist in a standalone module doc set,
+# so every generated page emitted "Can't link to 'index.html'". Point home at
+# our own landing page instead.
+navigation.homepage = "Qt ROS2"
+navigation.landingpage = "Qt ROS2"
+# Displayed breadcrumb text only -- the landing page keeps its "Qt ROS2" title,
+# so every \l{Qt ROS2} link in the sources still resolves.
+navigation.landingtitle = "Qt ROS2 for $ROS_DISTRO_TITLE"
+
+# For prose that needs to name the distribution or link to its documentation.
+# rclcppversion pins the interface set more tightly than the distribution name:
+# patch releases within a distribution add message fields.
+macro.rosdistro = "$ROS_DISTRO_TITLE"
+macro.rclcppversion = "$ROS_RCLCPP_VERSION"
+macro.rosdocslink = "\\l{https://docs.ros.org/en/$ROS_DISTRO/index.html}{ROS 2 $ROS_DISTRO_TITLE documentation}"
+navigation.qmltypespage = "Qt ROS2 QML Types"
+
+tagfile = qtros2.tags
+

@@ -1,0 +1,102 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example simple_publisher
+    \title Simple Publisher
+    \ingroup qtros2-examples
+    \meta sortkey {10}
+    \brief Publishing a geometry_msgs/PoseStamped message from QML with a
+    single publisher.
+
+    \c{Simple Publisher} is the smallest useful Qt ROS2 application: it wraps one
+    \l{Qt ROS2 geometry_msgs QML Types}{PoseStampedPublisher} in a \l{Qt ROS2 Core
+    QML Types}{Node} and publishes a randomly generated
+    \c geometry_msgs/PoseStamped every time you press a button. It is the natural
+    starting point for learning how the bridge turns ROS 2 topics into QML types.
+
+    \image simple_publisher/simple_publisher.png "The Simple Publisher window: an editable topic, a Publish Random Pose button, a subscriber counter, and the last published message."
+
+    \section1 Running the example
+
+    \list 1
+        \li Source your ROS 2 environment, then launch Qt Creator from the same
+            shell so it can find the generated QML modules.
+        \li Open \c examples/simple_publisher/CMakeLists.txt in Qt Creator, then
+            build and run.
+        \li Watch the published messages from a separate, ROS-sourced terminal:
+            \badcode
+            ros2 topic echo /simple_publisher_pose
+            \endcode
+    \endlist
+
+    Pair this example with \l{Simple Subscriber} to see both ends of a topic in
+    two Qt windows.
+
+    \section1 Declaring a Node and a publisher
+
+    Everything ROS-facing lives inside a \c Node. A publisher is declared as a
+    child of the node; the node owns the underlying \c rclcpp publisher and tears
+    it down automatically:
+
+    \qml
+    import QtRos2.GeometryMsgs
+
+    Node {
+        id: rosNode
+        nodeName: "simple_publisher_node"
+
+        PoseStampedPublisher {
+            id: posePublisher
+            topic: topicField.text
+            autoStamp: autoStampSwitch.checked
+        }
+    }
+    \endqml
+
+    A few things worth noting:
+
+    \list
+        \li The \c topic is bound to a text field, so it can be edited live — the
+            publisher re-advertises on the new topic when the binding changes.
+        \li \c Node exposes an \c initialized property. The example keeps the
+            \e Publish button disabled until \c{rosNode.initialized} is true, so
+            the application never tries to publish before the ROS 2 context is
+            ready.
+        \li \c{posePublisher.subscriberCount} reports how many subscribers are
+            currently connected — a convenient way to confirm the topic is wired
+            up before you publish.
+    \endlist
+
+    \section1 Publishing with a JavaScript object literal
+
+    Message value types are constructible from plain JavaScript objects, so you
+    never have to build a message imperatively. Nested fields map directly to
+    nested objects, and field names use Qt's \c camelCase spelling
+    (\c frameId, not \c frame_id):
+
+    \qml
+    posePublisher.publish({
+        header: {
+            frameId: frameField.text
+            // header.stamp is intentionally omitted — see below
+        },
+        pose: {
+            position:    { x: 1.0, y: 2.0, z: 0.5 },
+            orientation: { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+        }
+    })
+    \endqml
+
+    \section1 Automatic timestamps
+
+    \c PoseStampedPublisher is a \e stamped publisher, which means its message
+    carries a \c std_msgs/Header. When \c autoStamp is enabled (the default), the
+    publisher fills \c header.stamp from the ROS 2 \e node clock at publish time —
+    not from Qt's clock — so downstream nodes and TF see a consistent ROS time
+    source. That is why the snippet above leaves \c header.stamp unset. The
+    example exposes a switch so you can turn \c autoStamp off and supply your own
+    stamp when you need to.
+
+    \sa {Simple Subscriber}, {Qt ROS2 geometry_msgs QML Types}
+*/

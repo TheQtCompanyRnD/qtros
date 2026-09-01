@@ -1,58 +1,91 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtROS2.GeometryMsgs
+import QtRos2.GeometryMsgs
 
 Window {
     id: root
     width: 480
     height: 600
     visible: true
-    title: qsTr("QtROS2 Pose Publisher")
+    title: `Publisher to Pose ${posePublisher.topic}`
 
     property int publishCount: 0
-    property string lastPayload: "Press the button to publish a PoseStamped message."
+    property string lastPayload: qsTr("Press the button to publish a PoseStamped message.")
 
-    ROS2Node {
+    Node {
         id: rosNode
         nodeName: "simple_publisher_node"
 
         PoseStampedPublisher {
             id: posePublisher
-            topic: "/simple_publisher_pose"
+            autoStamp: autoStampSwitch.checked
+            topic: topicField.text
         }
     }
 
-    ColumnLayout {
+    GridLayout {
+        columns: 2
+        columnSpacing: 10
         anchors.fill: parent
-        anchors.margins: 24
+        anchors.margins: 12
 
         Label {
-            text: rosNode.initialized ? "ROS 2 Node Ready" : "Initializing ROS 2 Node..."
+            text: rosNode.initialized ? qsTr("ROS 2 Node Ready") : qsTr("Initializing ROS 2 Node...")
+            font.bold: true
+            Layout.columnSpan: 2
+        }
+
+        Label {
+            Layout.row: 2
+            text: qsTr("Subscribers count")
+        }
+        Label {
+            text: posePublisher.subscriberCount
+        }
+
+        Label {
+            text: qsTr("Topic")
             font.bold: true
         }
-
-        Label {
-            text: `Subscribers count: ${posePublisher.subscriberCount}`
+        TextField {
+            id: topicField
+            Layout.fillWidth: true
+            text: "/simple_publisher_pose"
         }
 
         Label {
-            text: "observe with: <b>ros2 topic echo /simple_publisher_pose<b>"
+            text: qsTr("Frame")
+            font.bold: true
+        }
+        TextField {
+            id: frameField
+            Layout.fillWidth: true
+            text: "map"
+        }
+
+        Label {
+            text: qsTr("Observe with")
+            font.bold: true
+        }
+        TextField {
+            Layout.fillWidth: true
+            readOnly: true
+            text: `ros2 topic echo ${posePublisher.topic}`
         }
 
         Button {
-            text: rosNode.initialized ? "Publish Random Pose" : "Waiting for ROS..."
+            text: rosNode.initialized ? qsTr("Publish Random Pose") : qsTr("Waiting for ROS...")
             enabled: rosNode.initialized
 
             onClicked: {
-                const now = Date.now()
+                // header.stamp intentionally left blank: the publisher fills it from the
+                // ROS node clock (not Qt time) at publish time when autoStamp is true (the default).
                 const msg = {
                     "header": {
-                        "frameId": "map",
-                        "stamp": {
-                            "sec": Math.floor(now / 1000),
-                            "nanosec": Math.floor((now % 1000) * 1e6)
-                        }
+                        "frameId": frameField.text
                     },
                     "pose": {
                         "position": {
@@ -69,8 +102,14 @@ Window {
                             msg, null, 2)}`
             }
         }
+        Switch {
+            id: autoStampSwitch
+            text: qsTr("Automatic time stamp")
+            checked: true
+        }
 
         TextArea {
+            Layout.columnSpan: 2
             Layout.fillWidth: true
             Layout.fillHeight: true
             readOnly: true

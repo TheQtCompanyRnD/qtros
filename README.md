@@ -1,12 +1,14 @@
 # QtROS2 Proof of Concept
 
-QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated interfaces for messages, services, and actions. The high-level design from the early exploration phase is now backed by a working prototype consisting of a reusable Qt module (`qtros2_core`), a rosidl-based generator (`rosidl_generator_qtros2`), and a collection of wrapper packages for the standard ROS 2 interface families.
+QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated interfaces for messages, services, and actions. It is implemented as a standard Qt module containing the core framework (`Ros2Core`), a rosidl-based code generator (`rosidl_generator_qtros2`), and built-in QML modules for the standard ROS 2 interface families.
 
 ## Table of Contents
 
 **Getting Started:**
-- [Environment Setup (Ubuntu 24.04)](#environment-setup-ubuntu-2404)
+- [Environment Setup (Ubuntu 24.04 or 26.04)](#environment-setup-ubuntu)
 - [Building the Workspace](#building-the-workspace)
+- [Building with Docker](#building-with-docker)
+  - [Running an Example with Docker](#running-an-example-with-docker)
 - [Developing with Qt Creator](#developing-with-qt-creator)
 - [Examples](#examples)
 - [QML Usage Highlights](#qml-usage-highlights)
@@ -25,6 +27,7 @@ QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated
 - [Code Generation Pipeline](#code-generation-pipeline)
 - [Key Benefits of Value Type Approach](#key-benefits-of-value-type-approach)
 - [Build System Integration](#build-system-integration)
+  - [Importing URDF Robot Descriptions](#importing-urdf-robot-descriptions)
 
 **Additional Information:**
 - [Future Work](#future-work)
@@ -34,11 +37,12 @@ QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| `qtros2_core` basics (`QRos2Node`, publisher/subscriber/service/action client bases, QoS helpers, JS promise bridge) | ✅ Ready | Implemented under `qtros2_core/src` and exported as a Qt 6 QML module |
+| `Ros2Core` module (`QRos2Node`, publisher/subscriber/service/action client bases, QoS helpers, JS promise bridge) | ✅ Ready | Implemented under `src/core` and exported as a Qt 6 QML module |
 | rosidl generator + templates (`qtros2_generate_from_package`, EmPy resources, dependency analyzer) | ✅ Ready | Decoupled from the rosidl plugin registry; invoked explicitly via the macro |
-| Wrapper packages (`qtros2_std_msgs`, `qtros2_geometry_msgs`, …) | ✅ Ready | Each package calls `qtros2_generate_from_package()` and re-exports the generated Qt/QML module |
+| Built-in QML modules (`QtRos2.StdMsgs`, `QtRos2.GeometryMsgs`, `QtRos2.SensorMsgs`, …) | ✅ Ready | Generated at Qt module build time via `qtros2_generate_from_package()`; third-party packages wrapped on-demand |
 | QFuture → Promise support for actions/services | ✅ Ready | Powered by `JsFutureWrapper`, usable from QML today |
-| Action/server-side primitives, lifecycle nodes, ROS parameters | ⚙️ Planned | Architectural hooks exist, implementation slated for post-POC iteration |
+| Computed Qt properties on sensor messages (`image` on `sensor_msgs/Image` and `sensor_msgs/CompressedImage`) | ✅ Ready | Converts ROS image data to/from `QImage`; set an image directly from `ImageCapture.imageCaptured` |
+| Action/server-side primitives, lifecycle nodes, ROS parameters | ⚙️ Planned | Architectural hooks exist, implementation planned for a future iteration |
 | Test coverage, extended docs, tooling polish | ⚙️ Planned | Outstanding work once the API surface stabilizes |
 
 ## Design Principles
@@ -52,11 +56,11 @@ QtROS2 bridges ROS 2 and Qt/QML applications with strongly typed, auto-generated
 ## Repository Contents
 
 ```
-QtROS2/
+qt-ros2-bridge/src/
 ├── src/
-│   ├── qtros2_core/              # Core Qt/QML module
-│   │   ├── include/              # Public C++ headers
-│   │   │   └── qtros2_core/
+│   ├── core/                         # Core Qt/QML module (QtRos2.Core)
+│   │   ├── include/                  # Public C++ headers
+│   │   │   └── QtRos2Core/
 │   │   │       ├── qros2_node.hpp
 │   │   │       ├── qros2_publisher_base.hpp
 │   │   │       ├── qros2_subscriber_base.hpp
@@ -65,40 +69,53 @@ QtROS2/
 │   │   │       ├── qros2_qos.hpp
 │   │   │       ├── qros2_context.hpp
 │   │   │       └── js_future_wrapper.hpp
-│   │   └── src/                  # Implementation files
+│   │   └── src/                      # Implementation files
 │   │
-│   ├── rosidl_generator_qtros2/  # Code generator
-│   │   ├── resource/             # EmPy templates
-│   │   └── cmake/                # CMake macros
+│   ├── rosidl_generator_qtros2/      # Code generator
+│   │   ├── resource/                 # EmPy templates
+│   │   └── cmake/                    # CMake macros
 │   │
-│   └── qtros2_<pkg>/             # Generated wrapper packages
-│       ├── qtros2_std_msgs/
-│       ├── qtros2_geometry_msgs/
-│       ├── qtros2_sensor_msgs/
-│       ├── qtros2_nav_msgs/
-│       └── ... (20 standard ROS 2 message packages)
+│   ├── messages/                     # Built-in message QML modules
+│   │   ├── standard/                 # QtRos2.StdMsgs
+│   │   ├── geometry/                 # QtRos2.GeometryMsgs
+│   │   ├── sensors/                  # QtRos2.SensorMsgs
+│   │   ├── navigation/               # QtRos2.NavMsgs
+│   │   └── ... (20+ standard ROS 2 message packages)
+│   │
+│   ├── services/
+│   │   └── standard/                 # QtRos2.StdSrvs
+│   │
+│   └── interfaces/                   # ROS 2 infrastructure interfaces
+│       ├── builtin/
+│       ├── rcl/
+│       ├── composition/
+│       └── type_description/
 │
-├── examples/                     # Example applications
-│   ├── COLCON_IGNORE            # Excluded from default build
+├── examples/                         # Example applications
+│   ├── COLCON_IGNORE                 # Excluded from default build
 │   ├── simple_publisher/
 │   ├── simple_subscriber/
 │   ├── turtlesim_controller/
 │   ├── RobotMonitor/
 │   └── r6botteachpendant/
 │
-└── README.md                    # This document
+├── tools/                            # Standalone tools
+│   └── urdfviewer/                   # URDF file viewer (Qt Quick 3D)
+│
+└── README.md                         # This document
 ```
 
 **Key Components:**
 
-- **qtros2_core** — Reusable Qt module providing base classes for ROS 2 entities, QoS configuration, node management, and QFuture→Promise bridging
+- **Ros2Core** — Reusable Qt module providing base classes for ROS 2 entities, QoS configuration, node management, and QFuture→Promise bridging
 - **rosidl_generator_qtros2** — Code generator that creates strongly-typed Qt/QML wrappers from ROS 2 interface definitions
-- **qtros2_&lt;pkg&gt;** — Auto-generated wrapper packages for standard ROS 2 message types (std_msgs, geometry_msgs, sensor_msgs, etc.)
+- **Built-in message modules** — QML modules for standard ROS 2 message types built into the Qt module (`QtRos2.StdMsgs`, `QtRos2.GeometryMsgs`, `QtRos2.SensorMsgs`, etc.); third-party packages can be wrapped on-demand using `qtros2_generate_from_package()`
+- **urdfviewer** — GUI tool for importing URDF robot descriptions and previewing them as Qt Quick 3D scenes (requires `urdf_parser_py` and `jinja2`)
 - **examples** — Sample applications demonstrating publishers, subscribers, services, actions, and QML integration (excluded from workspace build by default)
 
-## Environment Setup (Ubuntu 24.04)
+## Environment Setup (Ubuntu 24.04 or 26.04)
 
-QtROS2 requires ROS 2 Jazzy and Qt 6. Follow these steps to set up your build environment:
+QtROS2 requires ROS 2 Jazzy or Lyrical and Qt 6. Follow these steps to set up your build environment:
 
 ### Install System Dependencies
 
@@ -139,79 +156,127 @@ sudo apt install -y \
 
 Install Qt 6.8 or later using the official Qt online installer from [qt.io/download](https://www.qt.io/download-qt-installer). During installation, select the Desktop gcc 64-bit component and Qt Quick/QML modules.
 
-#### Configure qmlls for QtROS2 Module Recognition
+### Install urdfviewer Dependencies (optional)
 
-The QML Language Server (`qmlls`) needs to recognize the generated QtROS2 wrapper packages through the `QML_IMPORT_PATH` environment variable. By default, Qt Creator launches `qmlls` without preserving environment variables, which prevents it from finding the QtROS2 modules.
+The `urdfviewer` tool converts URDF robot descriptions into Qt Quick 3D scenes. It requires Python 3 with two additional packages:
 
-**Solution:** Create a wrapper script that launches `qmlls` with the `-E` flag (preserve environment):
+```bash
+sudo apt install ros-jazzy-urdfdom-py python3-jinja2
+```
 
-1. Rename the original `qmlls` executable:
-   ```bash
-   mv ~/Qt/6.8.3/gcc_64/bin/qmlls ~/Qt/6.8.3/gcc_64/bin/qmlls2
-   ```
-   *(Adjust the path to match your Qt installation)*
-
-2. Create a new wrapper script at `~/Qt/6.8.3/gcc_64/bin/qmlls`:
-   ```bash
-   #!/bin/bash
-
-   # Get the directory of this script and construct the executable path
-   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-   executable="$script_dir/qmlls2"
-
-   # Check if executable exists
-   if [[ ! -x "$executable" ]]; then
-       echo "Error: Executable not found or not executable: $executable" >&2
-       exit 1
-   fi
-
-   # Run the executable with -E flag to preserve environment variables
-   "$executable" -E "$@"
-   ```
-
-3. Make the wrapper executable:
-   ```bash
-   chmod +x ~/Qt/6.8.3/gcc_64/bin/qmlls
-   ```
-
-This enables `qmlls` to see the `QML_IMPORT_PATH` injected by the QtROS2 workspace, providing proper code completion and type checking for `import QtROS2.GeometryMsgs` and other generated modules.
+If these packages are not available when `qt-configure-module` is run, the urdfviewer is silently skipped. You can check whether it was detected by looking for the `ros2-urdfviewer` line in the configure summary.
 
 ## Building the Workspace
 
-Navigate to the directory where you have checked out the QtROS2 repository and invoke the following commands:
+QtROS2 is built as a Qt module using `qt-configure-module`. CMake needs to locate the ROS 2 libraries; there are two ways to achieve this.
+
+**Option 1 — Source the ROS 2 environment (recommended):**
 
 ```bash
-# Source ROS 2 Jazzy
 source /opt/ros/jazzy/setup.bash
 
-# Set Qt installation path (adjust to your Qt installation)
-export CMAKE_PREFIX_PATH=~/Qt/6.10.1/gcc_64
+mkdir -p ~/ros2bridge_build && cd ~/ros2bridge_build
+~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge
 
-# Build the workspace
-colcon build --symlink-install --cmake-args -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build . --parallel
+
+# For prefix builds (building against an installed Qt), install into the Qt prefix:
+cmake --install .
 ```
+
+**Option 2 — Pass the ROS 2 path explicitly (useful in CI or when sourcing is not practical):**
+
+```bash
+mkdir -p ~/ros2bridge_build && cd ~/ros2bridge_build
+~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge \
+    -DROS2_PATH=/opt/ros/jazzy
+
+cmake --build . --parallel
+
+# For prefix builds (building against an installed Qt), install into the Qt prefix:
+cmake --install .
+```
+
+Adjust the Qt path to match your Qt build or installation.
+
+> **Note:** `cmake --install .` is required for **prefix builds** — any build against an
+> installed Qt (online installer, system package, or other prefix). For **non-prefix
+> (in-tree) builds**, where this module is built as part of a Qt source tree, the install
+> step is not needed as files land directly in the build tree.
+
+## Building with Docker
+
+Rather than installing ROS 2 and Qt on the host, you can build QtROS2 inside containers defined under [docker/](docker/). The setup is split into two images:
+
+- **`docker/Dockerfile.base`** — a toolchain-only image (Ubuntu 24.04 + ROS 2 Jazzy + Qt 6, installed via the [official Qt installer](https://download.qt.io/official_releases/online_installers/)). It contains no repository source and only needs to be rebuilt when the toolchain itself changes.
+- **`docker/Dockerfile.bindings`** — extends the base image (`FROM`), copies the repository in, and runs `qt-configure-module` / `cmake --build` / `cmake --install` to produce the compiled QtROS2 module.
+
+Building the base image requires a Qt account (free for open-source use) supplied as build secrets — **never** as `--build-arg` or baked into the image, since build args persist in image history. The images target `linux/amd64` only, since that's the only Linux desktop architecture the Qt official installer ships prebuilt packages for; on Apple Silicon hosts, builds run under emulation and are slower.
+
+Copy `docker/.env.example` to `docker/.env` and fill in your Qt account credentials, then:
+
+```bash
+cd docker
+docker compose build base
+docker compose build bindings
+```
+
+`docker/.env` is git-ignored — never commit it. Compose reads the secrets from that file automatically (via `secrets: ...: environment: ...`), and `docker/.dockerignore`-equivalent exclusions live in the repo-root [.dockerignore](.dockerignore) (see the note in that file about why it can't live under `docker/`).
+
+### Running an Example with Docker
+
+The `qtros2-bridge:bindings` image builds and installs the `Ros2Core` module and the generated message modules into the Qt prefix, but the [examples/](examples/) are excluded from that build (via `examples/COLCON_IGNORE`) so the image stays focused on the module itself. To run one, start a container and build the example inside it.
+
+Since the examples are Qt Quick GUI applications, the container needs access to a display. On a Linux host with a Wayland compositor, forward the Wayland socket and start an interactive shell:
+
+```bash
+docker run -it --rm \
+    -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+    -e XDG_RUNTIME_DIR=/tmp/runtime \
+    -e QT_QPA_PLATFORM=wayland \
+    -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/runtime/$WAYLAND_DISPLAY \
+    --name qtros2 \
+    qtros2-bridge:bindings bash
+```
+
+Inside the container, the ROS 2 and Qt environments are already sourced for interactive bash shells (see `/etc/bash.bashrc` in [docker/Dockerfile.base](docker/Dockerfile.base)), so you can configure and build the example directly against the installed Qt/QtROS2 prefix:
+
+```bash
+cd examples/simple_publisher
+qt-cmake -S . -B build
+cmake --build build --parallel
+./build/appsimple_publisher
+```
+
+**Observe published messages** (in a second terminal, attached to the same running container):
+
+```bash
+docker exec -it qtros2 bash -c "ros2 topic echo /simple_publisher_pose"
+```
+
+The same pattern applies to the other [examples](#examples) — `cd` into the example directory, build it with `qt-cmake`, and run the resulting `app*` binary.
 
 ## Developing with Qt Creator
 
-After the initial `colcon build`, launch Qt Creator from a shell where you've sourced the workspace:
+Launch Qt Creator from a shell where you have already sourced the ROS 2 environment:
 
 ```bash
-source install/setup.bash
+source /opt/ros/jazzy/setup.bash
 ~/Qt/Tools/QtCreator/bin/qtcreator
 ```
 
-The Qt Creator path depends on your Qt installation (e.g., `~/Qt/Tools/QtCreator/bin/qtcreator`). Source the workspace before each Qt Creator session to ensure it sees the generated QML modules and ROS 2 environment.
+The Qt Creator path depends on your Qt installation. Source the ROS 2 environment before each Qt Creator session to ensure it can find the ROS 2 libraries and the generated QML modules.
 
 **When to rebuild:**
-- After modifying `qtros2_core` source code
-- After modifying rosidl generator templates in `rosidl_generator_qtros2/resource/`
+- After modifying `Ros2Core` source code under `src/core/`
+- After modifying rosidl generator templates in `src/rosidl_generator_qtros2/resource/`
 - After adding new message packages to wrap
 
-For application development using the generated types, rebuilding is not required - just edit your QML/C++ code and rerun your application.
+For application development using the generated types, rebuilding is not required — just edit your QML/C++ code and rerun your application.
 
 ## Examples
 
-The repository includes five example applications demonstrating different QtROS2 features. Examples are located in the `examples/` directory and excluded from the default workspace build (via `COLCON_IGNORE`).
+The repository includes six example applications demonstrating different QtROS2 features. Examples are located in the `examples/` directory and excluded from the default workspace build (via `COLCON_IGNORE`).
 
 > **Important:** Before running an example, ensure that all ROS 2 nodes from previous examples are terminated. This includes both the QtROS2 application and any backend ROS 2 nodes (e.g., `turtlesim_node`, simulation launches). Running multiple examples or their ROS 2 counterparts simultaneously can cause conflicts with node names, topics, or TF transforms, leading to unexpected behavior such as incorrect poses or missing data.
 
@@ -372,6 +437,33 @@ colcon build --merge-install
 - **Waypoints tab:** Capture current robot pose as a waypoint, manage waypoint list, jump to specific poses
 - **Replay tab:** Execute waypoint sequences, monitor progress, enable loop mode
 
+### Robot Arm Collision
+
+**Location:** [examples/robotarmcollision](examples/robotarmcollision/)
+
+![Robot Arm Collision example](examples/robotarmcollision/robotarmcollision.png)
+
+A Qt Quick 3D scene generated from a URDF robot description, demonstrating `qt_ros2_import_urdf` together with QtQuick3D.Physics collision detection. The arm is built from `simple_arm.urdf` (links, joints, and convex collision meshes) and sweeps through a static box obstacle; while any link overlaps the box it tints red and a "Collision detected" banner is shown.
+
+**Key features:**
+- Imports a URDF at build time via `qt_ros2_import_urdf(... PHYSICS ROS_BRIDGE)`, generating a `SimpleArm` QML module with QtQuick3DPhysics rigid bodies and collision shapes.
+- Detects collisions with a `TriggerBody` obstacle; the generated arm links emit overlap notifications via the `sendTriggerReports` control property.
+- Two drive modes selected with the **Animate** checkbox: a built-in animation (the arm spins and sweeps the obstacle), or live joint positions received from ROS 2 through the generated `RosBridge`.
+- Immediate visual feedback through the red obstacle tint and the on-screen banner.
+
+**Running:**
+1. Source the workspace setup script
+2. Open `examples/robotarmcollision/CMakeLists.txt` in Qt Creator
+3. Build and run from Qt Creator
+
+**Usage:**
+- **Animate checked:** the arm runs the built-in demo animation and periodically collides with the obstacle.
+- **Animate unchecked:** the arm is driven by incoming `sensor_msgs/JointState` messages on `/joint_states`. Publish joint states to move it, for example with `joint_state_publisher_gui` loading `simple_arm.urdf` (in a separate terminal):
+  ```bash
+  source /opt/ros/jazzy/setup.bash
+  ros2 launch examples/robotarmcollision/simple_arm.launch.py
+  ```
+
 ## High-Level Architecture
 
 ```mermaid
@@ -444,9 +536,9 @@ Automatically generated from ROS 2 interface packages via `qtros2_generate_from_
 find_package(rosidl_generator_qtros2 REQUIRED)
 
 qtros2_generate_from_package(
-    TARGET qtros2_navigation_msgs
-    SOURCE_PACKAGE navigation_msgs
-    QML_MODULE_URI QtROS2.Navigation
+    TARGET QtRos2NavMsgs
+    SOURCE_PACKAGE nav_msgs
+    QML_MODULE_URI QtRos2.NavMsgs
 )
 ```
 
@@ -522,7 +614,7 @@ QtROS2 uses a callback-based approach with Qt's meta-object system for thread-sa
 
 **The Problem:** Qt Declarative doesn't natively convert `QFuture<T>` to JavaScript Promises (see [QTBUG-101025](https://bugreports.qt.io/browse/QTBUG-101025)).
 
-**POC Solution:** QtROS2 provides `JsFutureWrapper`, a lightweight bridge that:
+**Solution:** QtROS2 provides `JsFutureWrapper`, a lightweight bridge that:
 - Creates JavaScript Promises from the QML engine's Promise constructor
 - Stores resolve/reject callbacks as `QJSValue` handles
 - Uses `QFutureWatcher<T>` to monitor `QFuture<T>` completion on the main thread
@@ -768,10 +860,11 @@ These snippets reflect the current generator output and Qt APIs.
 ```qml
 import QtQuick
 import QtQuick.Controls
-import QtROS2.GeometryMsgs
+import QtRos2.Core as Ros2
+import QtRos2.GeometryMsgs
 
 Window {
-    ROS2Node {
+    Ros2.Node {
         id: rosNode
         nodeName: "example_node"
 
@@ -810,10 +903,10 @@ Window {
 ```qml
 import QtQuick
 import QtQuick.Controls
-import QtROS2.StdSrvs
+import QtRos2.StdSrvs
 
 Window {
-    ROS2Node {
+    Node {
         id: rosNode
         nodeName: "service_client_node"
 
@@ -840,10 +933,10 @@ Window {
 ```qml
 import QtQuick
 import QtQuick.Controls
-import Nav2Msgs
+import QtRos2.Imported.Nav2Msgs
 
 Window {
-    ROS2Node {
+    Node {
         id: rosNode
         nodeName: "nav_client_node"
 
@@ -885,8 +978,8 @@ Window {
 
         Button {
             text: "Cancel Navigation"
-            enabled: navigator.state === ROS2ActionClientBase.Accepted ||
-                     navigator.state === ROS2ActionClientBase.Requested
+            enabled: navigator.state === Ros2ActionClientBase.Accepted ||
+                     navigator.state === Ros2ActionClientBase.Requested
             onClicked: navigator.cancelGoal()
         }
 
@@ -898,6 +991,36 @@ Window {
 ```
 
 ## Key Benefits of Value Type Approach
+
+### Image Property (sensor_msgs/Image and sensor_msgs/CompressedImage)
+
+Both `sensor_msgs/Image` and `sensor_msgs/CompressedImage` expose a computed `image` Qt property
+that converts between ROS image data and `QImage`. This is especially convenient when using
+Qt Multimedia's `ImageCapture`, since `imageCaptured` provides a `QImage` (see [QTBUG-145968](https://bugreports.qt.io/browse/QTBUG-145968)
+for raw compressed data access):
+
+```qml
+import QtMultimedia
+import QtRos2.SensorMsgs
+
+CompressedImagePublisher {
+    id: imagePublisher
+    topic: "/camera/image/compressed"
+}
+
+CaptureSession {
+    imageCapture: ImageCapture {
+        onImageCaptured: (reqId, image) => {
+            imagePublisher.publish({ "format": "jpeg", "image": image })
+        }
+    }
+    camera: Camera { active: true }
+}
+```
+
+`sensor_msgs/Image` exposes `image` as a read-only property (decoded from raw pixel data using
+the `encoding` field), while `sensor_msgs/CompressedImage` exposes `image` as read/write
+(encodes to JPEG or PNG based on the `format` field).
 
 ### Type System Design
 
@@ -924,53 +1047,28 @@ Window {
 
 ## Build System Integration
 
-### Creating Reusable Wrapper Packages
+### Wrapping Third-Party ROS 2 Packages
 
-For wrapper packages meant to be shared across applications (like the standard `qtros2_*` packages), use the `qtros2_package()` macro which handles all installation and export logic automatically:
+Standard ROS 2 interface families are already wrapped as built-in modules (see `src/messages/` and `src/services/`). For third-party or application-specific packages, use `qtros2_generate_from_package()` directly:
 
 ```cmake
-cmake_minimum_required(VERSION 3.16)
-project(qtros2_navigation_msgs)
-
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
-endif()
-
 find_package(rosidl_generator_qtros2 REQUIRED)
+find_package(turtlesim REQUIRED)
 
-# Generate Qt/QML wrappers
 qtros2_generate_from_package(
-  TARGET ${PROJECT_NAME}
-  SOURCE_PACKAGE navigation_msgs
-  QML_MODULE_URI QtROS2.Navigation
+  TARGET turtlesim
+  SOURCE_PACKAGE turtlesim
+  QML_MODULE_URI QtRos2.Imported.Turtlesim
+  QML_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/QtRos2/Imported/Turtlesim
 )
 
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies()
-endif()
-
-# Install and export the package
-qtros2_package(TARGET ${PROJECT_NAME})
+qt_add_executable(my_app src/main.cpp)
+target_link_libraries(my_app PRIVATE turtlesim_qtcpp)
 ```
-
-**Note:** The macros automatically call:
-- `qtros2_generate_from_package()` → `find_package(${SOURCE_PACKAGE} REQUIRED)`
-- `qtros2_package()` → `find_package(ament_cmake REQUIRED)`
-
-**The `qtros2_package()` macro automatically handles:**
-- Installing the Qt library target (`${TARGET}_qtcpp`)
-- Installing C++ headers to `include/${TARGET}/`
-- Installing QML modules to `lib/qt6/qml/${QML_URI_PATH}/`
-- Installing Qt metatypes JSON for dependent modules
-- Registering QML import path environment hooks (`QML_IMPORT_PATH`, `QML2_IMPORT_PATH`)
-- Exporting CMake targets for downstream packages
-- Exporting dependencies (computed automatically by the generator)
-- Calling `ament_package()`
 
 ### Application-Specific Wrappers
 
-Applications can generate local wrappers for any ROS 2 package without installation:
+Applications can generate local wrappers for any ROS 2 package without adding them to the Qt module build:
 
 ```cmake
 find_package(rosidl_generator_qtros2 REQUIRED)
@@ -990,18 +1088,104 @@ target_link_libraries(my_app PRIVATE turtlesim_qtcpp)
 **Key points:**
 - The generator always creates local wrappers (never installs)
 - Generated QML modules are available at build/runtime via `QML_OUTPUT_DIRECTORY`
-- Only dedicated wrapper packages (like `qtros2_std_msgs`) handle installation
 - Applications get lightweight, local-only wrappers by default
 
 The macro creates a `_qtcpp` target containing the generated plugin and exports the associated QML import directory, so Qt Creator automatically picks up the module.
 
+### Importing URDF Robot Descriptions
+
+`qt_ros2_import_urdf()` converts a URDF file into a Qt Quick 3D QML module at CMake configure time and links it into your target automatically. Internally it invokes the `urdf2quickexporter.py` script (from `tools/urdfviewer/`) and registers the generated C++ and QML files as a new QML module.
+
+**Signature:**
+
+```cmake
+qt_ros2_import_urdf(<target> <urdf_file>
+    [DEST_DIR <dir>]
+    [QML_MODULE_URI <uri>]
+    [QML_MODULE_VERSION <ver>]
+    [PHYSICS]
+    [ROS_BRIDGE]
+    [SCENE_UNITS_PER_METER <n>]
+    [INSTANCE_SCALE <n>]
+)
+```
+
+**Parameters:**
+
+| Parameter | Description |
+|---|---|
+| `<target>` | The existing CMake target (e.g. created with `qt_add_executable`) to link the generated module into. |
+| `<urdf_file>` | Path to the `.urdf` file. Relative paths are resolved against `CMAKE_CURRENT_SOURCE_DIR`. |
+| `DEST_DIR <dir>` | Output directory for generated files. Defaults to `${CMAKE_CURRENT_BINARY_DIR}/urdf_generated`. |
+| `QML_MODULE_URI <uri>` | QML module URI. Defaults to the PascalCase robot name (e.g. `SimpleArm`). |
+| `QML_MODULE_VERSION <ver>` | QML module version. Defaults to `1.0`. |
+| `PHYSICS` | Links `Qt6::Quick3DPhysics` and passes `--physics` to the exporter. |
+| `ROS_BRIDGE` | Passes `--ros-bridge` to the exporter, generating an additional ROS bridge QML file. |
+| `SCENE_UNITS_PER_METER <n>` | Scale factor for scene units. |
+| `INSTANCE_SCALE <n>` | Scale factor applied to the robot instance. |
+
+**What gets generated:**
+
+- `<RobotName>ControlBase.h/.cpp` — Generated C++ base class for joint control
+- `<RobotName>Control.h/.cpp` — Customizable derived control class
+- `<RobotName>.qml` — Root QML component for the robot's 3D model
+- `<RobotName>Control.qml` — QML control panel component
+- `<RobotName>ControlPanel.qml` — (if applicable) expanded control panel
+- `joints.json` — Joint definitions used at runtime
+
+Note that the application is expected to provide its own scene and entry point.
+
+**Prerequisites:**
+
+The exporter requires Python 3 with `urdf_parser_py` and `jinja2`:
+
+```bash
+sudo apt install ros-jazzy-urdfdom-py python3-jinja2
+```
+
+**Example:**
+
+```cmake
+find_package(Qt6 REQUIRED COMPONENTS Quick Quick3D)
+
+qt_add_executable(my_robot_app main.cpp)
+
+qt_ros2_import_urdf(my_robot_app
+    robots/simple_arm.urdf
+    QML_MODULE_URI SimpleArm
+    PHYSICS
+)
+```
+
+Then, in QML, import the module by its URI and use the generated component:
+
+```qml
+import QtQuick
+import QtQuick3D
+import SimpleArm
+
+View3D {
+    environment: SceneEnvironment { backgroundMode: SceneEnvironment.Color }
+
+    SimpleArm {
+        id: robot
+    }
+
+    SimpleArmControl {
+        robot: robot
+    }
+}
+```
+
+The function re-runs the exporter automatically whenever the URDF file changes, so a `cmake --build` is sufficient to pick up URDF edits.
+
 ## Future Work
 
-The following features would enhance QtROS2 for production systems:
+The following features would enhance QtROS2 further:
 
 ### Server-Side Primitives
-- **Action servers** (POC includes clients only)
-- **Service servers** (POC includes clients only)
+- **Action servers** (currently clients only)
+- **Service servers** (currently clients only)
 
 ### Advanced ROS 2 Features
 - **Lifecycle nodes** — Managed node states and transitions

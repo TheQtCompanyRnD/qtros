@@ -1,0 +1,3 @@
+# Template files used by urdf2quickexporter.py to generate user code.
+# License metadata is provided via REUSE.toml instead of inline headers.
+tools/urdfviewer/script/templates/

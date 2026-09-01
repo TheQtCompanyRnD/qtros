@@ -1,0 +1,62 @@
+# Copyright (C) 2026 The Qt Company Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+stages:
+  - build-base-image
+  - build-project-image
+
+.docker-build:
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  tags:
+    - linux
+  variables:
+    DOCKER_BUILDKIT: 1
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+build-linux-x64-base-image:
+  extends: .docker-build
+  stage: build-base-image
+  rules:
+    - changes:
+        - docker/Dockerfile.base
+        - .gitlab-ci.yml
+  script:
+    - docker build
+      --secret id=QT_ACCOUNT_USER_NAME,env=QT_ACCOUNT_USER_NAME
+      --secret id=QT_ACCOUNT_PASSWORD,env=QT_ACCOUNT_PASSWORD
+      -t $CI_REGISTRY_IMAGE:linux-x64-base-$CI_COMMIT_SHA
+      -t $CI_REGISTRY_IMAGE:linux-x64-base-latest
+      -f docker/Dockerfile.base .
+    - docker push $CI_REGISTRY_IMAGE:linux-x64-base-$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE:linux-x64-base-latest
+
+build-linux-x64-project-image:
+  extends: .docker-build
+  stage: build-project-image
+  needs:
+    - job: build-linux-x64-base-image
+      optional: true
+  rules:
+    - changes:
+        - src/**/*
+        - tools/**/*
+        - tests/**/*
+        - cmake/**/*
+        - CMakeLists.txt
+        - configure.cmake
+        - .cmake.conf
+        - docker/Dockerfile.base
+        - docker/Dockerfile.bindings
+        - .gitlab-ci.yml
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - docker build
+      --build-arg BASE_IMAGE=$CI_REGISTRY_IMAGE:linux-x64-base-latest
+      -t $CI_REGISTRY_IMAGE:linux-x64-$CI_COMMIT_SHA
+      -t $CI_REGISTRY_IMAGE:linux-x64-latest
+      -f docker/Dockerfile.bindings .
+    - docker push $CI_REGISTRY_IMAGE:linux-x64-$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE:linux-x64-latest

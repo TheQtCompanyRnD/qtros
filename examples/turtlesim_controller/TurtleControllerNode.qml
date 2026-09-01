@@ -1,12 +1,14 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
-import QtROS2.Core
-import TurtleSimMsgs
-import QtROS2.GeometryMsgs as Geom
+import QtRos2.Core
+import QtRos2.Imported.Turtlesim
+import QtRos2.GeometryMsgs as Geom
 
 Item {
     id: root
     property string baseName: ""
-    required property ROS2Node rosNode
+    required property Node rosNode
     readonly property alias rotateAction: rotateAction
     readonly property alias setPenService: setPenService
     readonly property alias twistPublisher: twistPublisher
@@ -33,7 +35,7 @@ Item {
                           })
     }
 
-    function publishTwist(t: Geom.qtros2geometrymsgs_twist) {
+    function publishTwist(t: Geom.geometrymsgs_twist) {
         twistPublisher.publish(t)
     }
 

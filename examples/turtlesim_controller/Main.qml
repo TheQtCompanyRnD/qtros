@@ -1,11 +1,13 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-import QtROS2.Core
-import TurtleSimMsgs
+import QtRos2.Core
+import QtRos2.Imported.Turtlesim
 
 ApplicationWindow {
     id: root
@@ -21,7 +23,7 @@ ApplicationWindow {
     ?? null
     property int currentIndex: turtleSelection.currentIndex
 
-    ROS2Node {
+    Node {
         id: rootRosNode
         nodeName: `qt_main_node`
 
