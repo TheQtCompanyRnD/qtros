@@ -2,7 +2,7 @@ include($QT_INSTALL_DOCS/global/qt-module-defaults.qdocconf)
 
 project = QtRos2
 description = Qt ROS2 Bridge Reference Documentation
-version = $QT_VERSION
+version = $QTROS2_VERSION
 
 qhp.projects = QtRos2
 
@@ -40,6 +40,14 @@ exampledirs += snippets
 # Snippets are resolved through exampledirs, not parsed as documentation
 # sources: sourcedirs covers all of src/, which would otherwise pull them in.
 excludedirs += snippets
+
+# Qt's global config sets productname to Qt and composes the page title,
+# breadcrumb and build version from $QT_VERSION, the Qt release this is built
+# against. The extension has its own version, passed in as QTROS2_VERSION by
+# qt_internal_add_docs; without these the pages would claim Qt itself is 0.1.0.
+productname = Qt ROS2
+buildversion = "Qt ROS2 $QTROS2_VERSION Reference Documentation"
+navigation.hometitle = "Qt ROS2"
 
 # Qt's global config.qdocconf defaults navigation.homepage to index.html, which
 # is qtdoc's top-level page: it does not exist in a standalone module doc set,
