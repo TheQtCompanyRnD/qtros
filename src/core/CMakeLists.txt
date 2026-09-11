@@ -103,6 +103,7 @@ endif()
 qt_internal_add_docs(Ros2Core
     ../doc/qtros2.qdocconf
     DEFINES
+        "QTROS2_VERSION=${QT_ROS2_VERSION}"
         "ROS_DISTRO=${_qtros2_ros_distro}"
         "ROS_DISTRO_TITLE=${_qtros2_ros_distro_title}"
         "ROS_RCLCPP_VERSION=${_qtros2_rclcpp_version}"
