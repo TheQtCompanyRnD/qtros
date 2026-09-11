@@ -4,138 +4,161 @@
 /*!
     \qmlmodule QtRos2.Core
     \title Qt ROS2 Core QML Types
+    \modulestate Experimental Extension
     \brief QML types for the Qt ROS2 Core module.
 */
 
 /*!
     \qmlmodule QtRos2.BuiltinInterfaces
     \title Qt ROS2 builtin_interfaces QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c builtin_interfaces ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.CompositionInterfaces
     \title Qt ROS2 composition_interfaces QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c composition_interfaces ROS 2 messages and services.
 */
 
 /*!
     \qmlmodule QtRos2.RclInterfaces
     \title Qt ROS2 rcl_interfaces QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c rcl_interfaces ROS 2 messages and services.
 */
 
 /*!
     \qmlmodule QtRos2.TypeDescriptionInterfaces
     \title Qt ROS2 type_description_interfaces QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c type_description_interfaces ROS 2 messages and services.
 */
 
 /*!
     \qmlmodule QtRos2.ActionMsgs
     \title Qt ROS2 action_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c action_msgs ROS 2 messages and services.
 */
 
 /*!
     \qmlmodule QtRos2.DiagnosticMsgs
     \title Qt ROS2 diagnostic_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c diagnostic_msgs ROS 2 messages and services.
 */
 
 /*!
     \qmlmodule QtRos2.GeometryMsgs
     \title Qt ROS2 geometry_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c geometry_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.LifecycleMsgs
     \title Qt ROS2 lifecycle_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c lifecycle_msgs ROS 2 messages and services.
 */
 
 /*!
     \qmlmodule QtRos2.NavMsgs
     \title Qt ROS2 nav_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c nav_msgs ROS 2 messages and services.
 */
 
 /*!
     \qmlmodule QtRos2.RosgraphMsgs
     \title Qt ROS2 rosgraph_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c rosgraph_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.SensorMsgs
     \title Qt ROS2 sensor_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c sensor_msgs ROS 2 messages and services.
 */
 
 /*!
     \qmlmodule QtRos2.ServiceMsgs
     \title Qt ROS2 service_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c service_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.ShapeMsgs
     \title Qt ROS2 shape_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c shape_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.StatisticsMsgs
     \title Qt ROS2 statistics_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c statistics_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.StdMsgs
     \title Qt ROS2 std_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c std_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.StdSrvs
     \title Qt ROS2 std_srvs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c std_srvs ROS 2 services.
 */
 
 /*!
     \qmlmodule QtRos2.StereoMsgs
     \title Qt ROS2 stereo_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c stereo_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.Tf2Msgs
     \title Qt ROS2 tf2_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c tf2_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.TrajectoryMsgs
     \title Qt ROS2 trajectory_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c trajectory_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.Transforms
     \title Qt ROS2 Transforms QML Types
+    \modulestate Experimental Extension
     \brief QML types for broadcasting, listening and using transforms in the TF tree.
 */
 
 /*!
     \qmlmodule QtRos2.UniqueIdentifierMsgs
     \title Qt ROS2 unique_identifier_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c unique_identifier_msgs ROS 2 messages.
 */
 
 /*!
     \qmlmodule QtRos2.VisualizationMsgs
     \title Qt ROS2 visualization_msgs QML Types
+    \modulestate Experimental Extension
     \brief QML types for \c visualization_msgs ROS 2 messages and services.
 */
 
@@ -143,6 +166,7 @@
     \module QtRos2
     \title Qt ROS2 Module
     \qtcmakepackage QtRos2
+    \modulestate Experimental Extension
     \brief Provides Qt and QML integration with ROS 2 (Robot Operating System).
 
     Qt ROS2 Bridge enables Qt applications to communicate with ROS 2 nodes
@@ -181,6 +205,16 @@
     \page qtros2-index.html
     \title Qt ROS2
     \brief Qt and QML integration with ROS 2.
+
+    \image experimental-extension.svg {Hazard triangle containing a test tube,
+           marking Qt ROS2 as an experimental extension}
+
+    \warning \b{Qt ROS2 is an Experimental Extension, released as version
+    0.1.0.} It is published so that you can build with it and tell us what
+    breaks. Treat every API on these pages as provisional: types, properties
+    and CMake commands can change or disappear in any release, and none of it
+    carries Qt's source or binary compatibility guarantees. Do not ship it in
+    a product you cannot rebuild.
 
     Qt ROS2 Bridge connects Qt/QML applications to a running ROS 2 graph.
     It provides publisher and subscriber types for every ROS 2 message type,
