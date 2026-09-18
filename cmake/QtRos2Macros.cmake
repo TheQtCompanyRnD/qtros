@@ -423,9 +423,12 @@ function(qt_ros2_import_urdf _qt_ros2_urdf_target _qt_ros2_urdf_file)
   # excluded: they are standalone entry-point windows, not reusable module types.
   # Users provide their own application entry point and scene when integrating
   # via qt_ros2_import_urdf().
+  #
+  # <Robot>Control.qml is excluded too: it is an alternative implementation of the
+  # same type the generated <Robot>Control C++ class registers via QML_ELEMENT,
+  # and registering both would declare <Robot>Control twice in the same URI.
   set(_urdf_qml_files
     "${_urdf_robot_qml}"
-    "${_urdf_ctrl_qml}"
   )
   if(_urdf_ctrl_panel AND NOT _urdf_ctrl_panel STREQUAL "null")
     list(APPEND _urdf_qml_files "${_urdf_ctrl_panel}")
