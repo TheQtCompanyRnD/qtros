@@ -256,8 +256,8 @@ the ROS 2 libraries; there are two ways to achieve this.
 ```bash
 source /opt/ros/jazzy/setup.bash
 
-mkdir -p ~/ros2bridge_build && cd ~/ros2bridge_build
-~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge
+mkdir -p ~/qtros_build && cd ~/qtros_build
+~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qtros
 
 cmake --build . --parallel
 
@@ -268,8 +268,8 @@ cmake --install .
 practical):**
 
 ```bash
-mkdir -p ~/ros2bridge_build && cd ~/ros2bridge_build
-~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qt-ros2-bridge \
+mkdir -p ~/qtros_build && cd ~/qtros_build
+~/Qt/6.12.0/gcc_64/bin/qt-configure-module /path/to/qtros \
     -DROS2_PATH=/opt/ros/jazzy
 
 cmake --build . --parallel
