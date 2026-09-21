@@ -1,11 +1,15 @@
-# QtROS Proof of Concept
+# QtROS
 
 [QtROS](https://doc-snapshots.qt.io/qtros2/qtros2-index.html) bridges 
 [ROS 2](https://docs.ros.org/) and Qt/QML applications with strongly typed,
 auto-generated interfaces for messages, services, and actions. It is
 implemented as a standard Qt module containing the core framework (`Ros2Core`),
-a rosidl-based code generator (`rosidl_generator_qtros2`), and built-in QML
-modules for the standard ROS 2 interface families.
+a `tf2_ros` wrapper (`Ros2Transforms`), a rosidl-based code generator 
+(`rosidl_generator_qtros2`), and built-in QML modules for the standard ROS 2
+interface families.
+
+QtROS is an **Experimental Extension** at version 0.1.0: it is usable today, but
+the API is not source- or binary-compatible across releases.
 
 ## Table of Contents
 
@@ -35,6 +39,8 @@ modules for the standard ROS 2 interface families.
 - [Code Generation Pipeline](#code-generation-pipeline)
 - [Key Benefits of Value Type Approach](#key-benefits-of-value-type-approach)
 - [Build System Integration](#build-system-integration)
+  - [Configuring an Application Target](#configuring-an-application-target)
+  - [Wrapping Third-Party ROS 2 Packages](#wrapping-third-party-ros-2-packages)
   - [Importing URDF Robot Descriptions](#importing-urdf-robot-descriptions)
 
 **Additional Information:**
@@ -45,15 +51,24 @@ modules for the standard ROS 2 interface families.
 ## Feature Status
 
 
-|Capability                                                                                            |Status    |Notes                                                                                                       |
-|------------------------------------------------------------------------------------------------------|----------|------------------------------------------------------------------------------------------------------------|
-|`Ros2Core` module (`QRos2Node`, publisher/subscriber/service/action bases, QoS helpers, JS promise bridge)|✅ Ready   |Implemented under `src/core` and exported as a Qt 6 QML module                                              |
-|rosidl generator + templates (`qtros2_generate_from_package`, EmPy resources, dependency analyzer)    |✅ Ready   |Decoupled from the rosidl plugin registry; invoked explicitly via the macro                                 |
-|Built-in QML modules (`QtRos2.StdMsgs`, `QtRos2.GeometryMsgs`, `QtRos2.SensorMsgs`, …)                |✅ Ready   |Generated at Qt module build time via `qtros2_generate_from_package()`; third-party packages wrapped on-demand|
-|QFuture → Promise support for actions/services                                                        |✅ Ready   |Powered by `JsFutureWrapper`, usable from QML today                                                         |
-|Computed Qt properties on sensor messages (`image` on `sensor_msgs/Image` and `sensor_msgs/CompressedImage`)|✅ Ready   |Converts ROS image data to/from `QImage`; set an image directly from `ImageCapture.imageCaptured`           |
-|Lifecycle nodes                                                                                       |⚙️ Planned|Architectural hooks exist, implementation planned for a future iteration                                    |
-|Tooling polish                                                                                        |⚙️ Planned|Outstanding work once the API surface stabilizes                                                            |
+|Capability                                                                                            |Status    |Notes                                                                                                                                      |
+|------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------|
+|`Ros2Core` module (`Node`, `Context`, entity/QoS plumbing, JS promise bridge)                         |✅ Ready   |Implemented under `src/core` and exported as the `QtRos2.Core` QML module                                                                  |
+|rosidl generator + templates (`qtros2_generate_from_package`, EmPy resources, dependency analyzer)    |✅ Ready   |Decoupled from the rosidl plugin registry; invoked explicitly via the macro                                                                |
+|Built-in QML modules (`QtRos2.StdMsgs`, `QtRos2.GeometryMsgs`, `QtRos2.SensorMsgs`, …)                |✅ Ready   |21 interface packages generated at Qt module build time; third-party packages wrapped on demand                                            |
+|Publishers and subscribers                                                                            |✅ Ready   |Includes automatic `header.stamp` population for stamped messages (`StampedPublisherBase`)                                                 |
+|Service clients and service servers                                                                   |✅ Ready   |Declarative `request`/`response` bindings, plus imperative `callService()` promises                                                        |
+|Action clients and action servers                                                                     |✅ Ready   |Feedback surfaces as properties; servers get a per-goal handle for feedback/succeed/abort/cancel                                           |
+|Node parameters                                                                                       |✅ Ready   |`Parameter` declares a parameter on the local node; `RemoteParameter` binds to another node's parameter                                    |
+|Transforms (`QtRos2.Transforms`)                                                                      |✅ Ready   |`TransformBroadcaster`, `StaticTransformBroadcaster`, `FrameTransformer` over `tf2_ros` — see `src/transforms`                             |
+|QFuture → Promise support for actions/services                                                        |✅ Ready   |Powered by `JsFutureWrapper`, usable from QML today                                                                                        |
+|Computed Qt properties on sensor messages (`image` on `sensor_msgs/Image` and `sensor_msgs/CompressedImage`)|✅ Ready   |Converts ROS image data to/from `QImage`; set an image directly from `ImageCapture.imageCaptured`                                          |
+|URDF import (`qt_ros2_import_urdf`, `urdfviewer`)                                                     |✅ Ready   |Generates a Qt Quick 3D QML module, optionally with QtQuick3D.Physics bodies and a ROS bridge                                              |
+|Autotests                                                                                             |✅ Ready   |`tests/auto` covers geometry/std/sensor value types, parameters, stamped publishers, node teardown, shutdown, and all three URDF import modes|
+|CI                                                                                                    |⚙️ Partial|`.gitlab-ci.yml` builds the base and bindings Docker images; it does not run `ctest` yet                                                   |
+|Lifecycle nodes                                                                                       |⚙️ Planned|`lifecycle_msgs` is wrapped as `QtRos2.LifecycleMsgs`, but the managed-node state machine is not implemented                               |
+|Runtime introspection (topic/service discovery, node graph)                                           |⚙️ Planned|Nothing beyond `Node.refreshNetworkInterfaces()` today                                                                                     |
+|Tooling polish                                                                                        |⚙️ Planned|Outstanding work once the API surface stabilizes                                                                                           |
 
 ## Design Principles
 
@@ -69,69 +84,110 @@ modules for the standard ROS 2 interface families.
 ## Repository Contents
 
 ```
-qt-ros2-bridge/src/
+qtros/
+├── cmake/                            # Public CMake API, installed with the module
+│   ├── QtRos2Macros.cmake            #   qt_ros2_configure_target(), qt_ros2_import_urdf()
+│   ├── FindWrapRos2.cmake            #   locates the ROS 2 installation
+│   └── rosidl_generator_qtros2Config.cmake
+│
 ├── src/
-│   ├── core/                         # Core Qt/QML module (QtRos2.Core)
-│   │   ├── include/                  # Public C++ headers
-│   │   │   └── QtRos2Core/
-│   │   │       ├── qros2_node.hpp
-│   │   │       ├── qros2_publisher_base.hpp
-│   │   │       ├── qros2_subscriber_base.hpp
-│   │   │       ├── qros2_service_client_base.hpp
-│   │   │       ├── qros2_action_client_base.hpp
-│   │   │       ├── qros2_qos.hpp
-│   │   │       ├── qros2_context.hpp
-│   │   │       └── js_future_wrapper.hpp
-│   │   └── src/                      # Implementation files
+│   ├── core/                         # Ros2Core module → QML module QtRos2.Core
+│   │   ├── qros2context.h            #   the only public header; everything else is _p.h
+│   │   ├── qros2node_p.h             #   Node
+│   │   ├── qros2contextitem_p.h      #   Context
+│   │   ├── qros2entity_p.h           #   Entity / NodeChild base classes
+│   │   ├── qros2nodechild_p.h
+│   │   ├── qros2parameter_p.h        #   Parameter (local node parameter)
+│   │   ├── qros2remoteparameter_p.h  #   RemoteParameter (another node's parameter)
+│   │   ├── qros2publisherbase_p.h
+│   │   ├── qros2stampedpublisherbase_p.h  # automatic header.stamp
+│   │   ├── qros2subscriberbase_p.h
+│   │   ├── qros2serviceclientbase_p.h
+│   │   ├── qros2serviceserverbase_p.h
+│   │   ├── qros2actionclientbase_p.h
+│   │   ├── qros2actionserverbase_p.h
+│   │   ├── qros2qos_p.h              #   QualityOfService
+│   │   └── jsfuturewrapper_p.h       #   QFuture → JavaScript Promise
+│   │
+│   ├── transforms/                   # Ros2Transforms module → QML module QtRos2.Transforms
+│   │                                 #   TransformBroadcaster, StaticTransformBroadcaster,
+│   │                                 #   FrameTransformer (wraps tf2_ros)
 │   │
 │   ├── rosidl_generator_qtros2/      # Code generator
-│   │   ├── resource/                 # EmPy templates
-│   │   └── cmake/                    # CMake macros
+│   │   ├── resource/                 #   EmPy templates (value types, pub/sub,
+│   │   │                             #   service client/server, action client/server)
+│   │   ├── cmake/                    #   qtros2_generate_from_package() and helpers
+│   │   └── rosidl_generator_qtros2/  #   Python package (dependency analyzer, template helpers)
 │   │
 │   ├── messages/                     # Built-in message QML modules
-│   │   ├── standard/                 # QtRos2.StdMsgs
-│   │   ├── geometry/                 # QtRos2.GeometryMsgs
-│   │   ├── sensors/                  # QtRos2.SensorMsgs
-│   │   ├── navigation/               # QtRos2.NavMsgs
-│   │   └── ... (20+ standard ROS 2 message packages)
+│   │   ├── standard/                 #   QtRos2.StdMsgs
+│   │   ├── geometry/                 #   QtRos2.GeometryMsgs
+│   │   ├── sensors/                  #   QtRos2.SensorMsgs
+│   │   ├── navigation/               #   QtRos2.NavMsgs
+│   │   ├── tf2/                      #   QtRos2.Tf2Msgs
+│   │   └── ...                       #   action, diagnostics, lifecycle, rosgraph, service,
+│   │                                 #   shapes, statistics, stereo, trajectory,
+│   │                                 #   unique_identifier, visualization
 │   │
 │   ├── services/
-│   │   └── standard/                 # QtRos2.StdSrvs
+│   │   └── standard/                 #   QtRos2.StdSrvs
 │   │
-│   └── interfaces/                   # ROS 2 infrastructure interfaces
-│       ├── builtin/
-│       ├── rcl/
-│       ├── composition/
-│       └── type_description/
+│   ├── interfaces/                   # ROS 2 infrastructure interfaces
+│   │   ├── builtin/                  #   QtRos2.BuiltinInterfaces
+│   │   ├── rcl/                      #   QtRos2.RclInterfaces
+│   │   ├── composition/              #   QtRos2.CompositionInterfaces
+│   │   └── type_description/         #   QtRos2.TypeDescriptionInterfaces
+│   │
+│   └── doc/                          # qdoc sources for the QtROS documentation
 │
 ├── examples/                         # Example applications
-│   ├── COLCON_IGNORE                 # Excluded from default build
+│   ├── COLCON_IGNORE                 #   excluded from the default build
 │   ├── simple_publisher/
 │   ├── simple_subscriber/
+│   ├── simple_service/
+│   ├── simple_service_client/
 │   ├── turtlesim_controller/
+│   ├── robotarmcollision/
 │   ├── RobotMonitor/
 │   └── r6botteachpendant/
 │
-├── tools/                            # Standalone tools
-│   └── urdfviewer/                   # URDF file viewer (Qt Quick 3D)
+├── tests/
+│   ├── auto/                         # geometry, standard, sensors, parameters,
+│   │                                 # stampedpublisher, nodelifecycle, shutdown,
+│   │                                 # urdfimport, urdfimportros, urdfimportphysics
+│   └── manual/
+│       └── urdfrobotarm/
 │
+├── tools/
+│   └── urdfviewer/                   # URDF → Qt Quick 3D exporter (script/) and preview GUI (src/)
+│
+├── docker/                           # Dockerfile.base, Dockerfile.bindings, docker-compose.yml
+├── config.tests/                     # configure-time feature checks (urdfviewer Python deps)
 └── README.md                         # This document
 ```
 **Key Components:**
 
-- **Ros2Core** — Reusable Qt module providing base classes for ROS 2 entities,
-  QoS configuration, node management, and QFuture→Promise bridging
+- **Ros2Core** — Reusable Qt module providing the node, entity, and context
+  plumbing, base classes for every ROS 2 entity (publishers, subscribers,
+  service clients/servers, action clients/servers), node parameters, QoS
+  configuration, and QFuture→Promise bridging
+- **Ros2Transforms** — Hand-written `tf2_ros` wrapper exposing 
+  `TransformBroadcaster`, `StaticTransformBroadcaster`, and `FrameTransformer` to
+  QML. Distinct from `QtRos2.Tf2Msgs`, which is only the wire types
 - **rosidl_generator_qtros2** — Code generator that creates strongly-typed Qt/QML
   wrappers from ROS 2 interface definitions
 - **Built-in message modules** — QML modules for standard ROS 2 message types
-  built into the Qt module (`QtRos2.StdMsgs`, `QtRos2.GeometryMsgs`, `
-  QtRos2.SensorMsgs`, etc.); third-party packages can be wrapped on-demand using `
-  qtros2_generate_from_package()`
+  built into the Qt module (`QtRos2.StdMsgs`, `QtRos2.GeometryMsgs`, 
+  `QtRos2.SensorMsgs`, etc.); third-party packages can be wrapped on-demand using 
+  `qtros2_generate_from_package()`
 - **urdfviewer** — GUI tool for importing URDF robot descriptions and previewing
-  them as Qt Quick 3D scenes (requires `urdf_parser_py` and `jinja2`)
+  them as Qt Quick 3D scenes (requires `urdf_parser_py` and `jinja2`). Its 
+  `urdf2quickexporter.py` script is what `qt_ros2_import_urdf()` calls
 - **examples** — Sample applications demonstrating publishers, subscribers,
-  services, actions, and QML integration (excluded from workspace build by
-  default)
+  services, actions, URDF import, and QML integration (excluded from workspace
+  build by default)
+- **tests** — Qt autotests (C++ and QML) run with `ctest`, plus manual tests
+  under `tests/manual/`
 
 ## Environment Setup (Ubuntu 24.04 or 26.04)
 
@@ -241,14 +297,14 @@ containers defined under [docker/](docker/). The setup is split into two images:
   toolchain itself changes.
 - `docker/Dockerfile.bindings` — extends the base image (`FROM`), copies the
   repository in, and runs `qt-configure-module` / `cmake --build` / `cmake
-  \--install` to produce the compiled QtROS module.
+  \\--install` to produce the compiled QtROS module.
 
 Building the base image requires a Qt account (free for open-source use)
-supplied as build secrets — **never** as `\--build-arg` or baked into the image,
-since build args persist in image history. The images target `linux/amd64` only,
-since that's the only Linux desktop architecture the Qt official installer
-ships prebuilt packages for; on Apple Silicon hosts, builds run under emulation
-and are slower.
+supplied as build secrets — **never** as `\\--build-arg` or baked into the
+image, since build args persist in image history. The images target `linux/amd64`
+only, since that's the only Linux desktop architecture the Qt official
+installer ships prebuilt packages for; on Apple Silicon hosts, builds run under
+emulation and are slower.
 
 Copy `docker/.env.example` to `docker/.env` and fill in your Qt account
 credentials, then:
@@ -259,8 +315,8 @@ docker compose build base
 docker compose build bindings
 ```
 `docker/.env` is git-ignored — never commit it. Compose reads the secrets from
-that file automatically (via `secrets: ...: environment: ...`), and `
-docker/.dockerignore`\-equivalent exclusions live in the repo-root 
+that file automatically (via `secrets: ...: environment: ...`), and 
+`docker/.dockerignore`\-equivalent exclusions live in the repo-root 
 [.dockerignore](.dockerignore) (see the note in that file about why it can't
 live under `docker/`).
 
@@ -330,9 +386,10 @@ required — just edit your QML/C++ code and rerun your application.
 
 ## Examples
 
-The repository includes six example applications demonstrating different QtROS
-features. Examples are located in the `examples/` directory and excluded from
-the default workspace build (via `COLCON_IGNORE`).
+The repository includes eight example applications demonstrating different
+QtROS features. Examples are located in the `examples/` directory and excluded
+from the default workspace build (via `COLCON_IGNORE`). Each one also has a 
+[documentation page](https://doc-snapshots.qt.io/qtros2/qtros2-examples.html).
 
 > **Important:** Before running an example, ensure that all ROS 2 nodes from
 > previous examples are terminated. This includes both the QtROS application and
@@ -345,8 +402,8 @@ the default workspace build (via `COLCON_IGNORE`).
 
 **Location:** [examples/simple_publisher](examples/simple_publisher/)
 
-A minimal QML application that publishes `geometry_msgs/PoseStamped` messages to `
-/simple_publisher_pose`.
+A minimal QML application that publishes `geometry_msgs/PoseStamped` messages to 
+`/simple_publisher_pose`.
 
 **Key features:**
 
@@ -389,6 +446,59 @@ messages from `/simple_publisher_pose`.
 
 **Note:** Run alongside the `simple_publisher` example to see the full pub/sub
 communication.
+
+### Simple Service
+
+**Location:** [examples/simple_service](examples/simple_service/)
+
+A minimal QML application that answers `std_srvs/SetBool` requests on 
+`/simple_service_lamp`, switching a "lamp" on and off.
+
+**Key features:**
+
+- Demonstrates the server side of a service with `SetBoolServiceServer`
+- Mostly declarative: the `response` property is a binding, evaluated per
+  request; no callback is required
+- Shows in-band failure handling — the bulb "burns out" after ten cycles and
+  the service starts answering `success: false`
+- `onRequestReceived` for per-request side effects
+
+**Running:**
+
+1.  Source the workspace setup script
+2.  Open `examples/simple_service/CMakeLists.txt` in Qt Creator
+3.  Build and run from Qt Creator
+
+**Call the service** (in a separate terminal):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 service call /simple_service_lamp std_srvs/srv/SetBool "{data: true}"
+```
+### Simple Service Client
+
+**Location:** [examples/simple_service_client](examples/simple_service_client/)
+
+The calling side of the Simple Service example: a switch expresses the desired
+lamp state and the service response reports what the server actually did.
+
+**Key features:**
+
+- Demonstrates `SetBoolServiceClient` driven by a `request` property binding —
+  writing `request` schedules a call, and the result lands in `response`
+- Desired-state semantics: calls made while the server is unavailable or
+  another call is in flight are coalesced and dispatched when possible (see 
+  `ServiceClientBase.autoCall`)
+- Also shows the imperative `callService()` promise API
+
+**Running:**
+
+1.  Source the workspace setup script
+2.  Open `examples/simple_service_client/CMakeLists.txt` in Qt Creator
+3.  Build and run from Qt Creator
+
+**Note:** Run alongside the `simple_service` example, with the same topic, to
+see both ends of a service in two Qt windows.
 
 ### TurtleSim Controller
 
@@ -445,8 +555,8 @@ production-level QtROS usage.
 
 **Key features:**
 
-- **Multiple subscribers:** Map (`nav_msgs/OccupancyGrid`), laser scan (`
-  sensor_msgs/LaserScan`), TF transforms, camera feed, costmaps
+- **Multiple subscribers:** Map (`nav_msgs/OccupancyGrid`), laser scan 
+(`sensor_msgs/LaserScan`), TF transforms, camera feed, costmaps
 - **Action clients:** Nav2 `NavigateToPose`, iRobot Create3 `Dock`/`Undock`
   actions
 - **Publisher:** Velocity commands (`geometry_msgs/TwistStamped`)
@@ -465,8 +575,8 @@ source /opt/ros/jazzy/setup.bash
 sudo apt-get install ros-jazzy-turtlebot4-simulator
 ```
 This package provides TurtleBot4 robot simulation and automatically installs
-required dependencies (e.g., `nav2-msgs` for NavigateToPose action, `
-irobot-create-msgs` for Dock/Undock actions).
+required dependencies (e.g., `nav2-msgs` for NavigateToPose action, i
+`irobot-create-msgs` for Dock/Undock actions).
 
 **Running:**
 
@@ -687,17 +797,24 @@ emits:
 
 **Base Classes:**
 
-- `QRos2ActionClientBase` \- Action client foundation
 - `QRos2PublisherBase` \- Publisher foundation
+- `QRos2StampedPublisherBase` \- Adds automatic `header.stamp` population
 - `QRos2SubscriberBase` \- Subscriber foundation
 - `QRos2ServiceClientBase` \- Service client foundation
+- `QRos2ServiceServerBase` \- Service server foundation
+- `QRos2ActionClientBase` \- Action client foundation
+- `QRos2ActionServerBase` \- Action server foundation
 
 **Core Services:**
 
 - `QRos2Node` \- Wraps `rclcpp::Node`
-- `QRos2Context` \- Manages ROS2 context
+- `QRos2Context` / `QRos2ContextItem` \- Manage the ROS2 context
+- `QRos2Entity` / `QRos2NodeChild` \- Attachment and setup/teardown shared by
+  every item hosted by a node
+- `QRos2Parameter` \- Declares a parameter on the local node
+- `QRos2RemoteParameter` \- Binds to another node's parameter as desired state
 - `QRos2QoS` \- Qt wrapper over `rclcpp::QoS`
-- `JsFutureWrapper` \- Bridges `QFuture\<T>` to QML promises
+- `JsFutureWrapper` \- Bridges `QFuture\\\<T>` to QML promises
 - Type conversion utilities (Qt ↔ ROS2)
 - Qt event loop integration
 
@@ -708,7 +825,17 @@ emits:
 - Thread-safe continuations with context awareness
 - Lifetime management for async operations
 
-### 4\. Qt QML Engine
+### 4\. QtROS Transforms
+
+`Ros2Transforms` (`QtRos2.Transforms`) wraps `tf2_ros` so QML applications do
+not have to hand-roll transform publishing and lookup:
+
+- `QRos2TransformBroadcaster` \- Publishes dynamic transforms on `/tf`
+- `QRos2StaticTransformBroadcaster` \- Publishes once on the latched `/tf_static`
+- `QRos2FrameTransformer` \- Transforms stamped geometry value types into
+  another frame
+
+### 5\. Qt QML Engine
 
 Standard Qt runtime:
 
@@ -716,7 +843,7 @@ Standard Qt runtime:
 - Property binding system
 - Event loop
 
-### 5\. ROS2 Layer
+### 6\. ROS2 Layer
 
 Standard ROS2 components:
 
@@ -744,13 +871,13 @@ thread-safe communication:
 2.  ROS2 callbacks receive responses on background threads
 3.  `QMetaObject::invokeMethod(..., Qt::QueuedConnection)` marshals Qt property
     updates to the main thread
-4.  `QPromise\<T>` captures async results and is completed from ROS callbacks
+4.  `QPromise\\\<T>` captures async results and is completed from ROS callbacks
     (thread-safe)
-5.  The resulting `QFuture\<T>` is exposed to QML as a JavaScript Promise
+5.  The resulting `QFuture\\\<T>` is exposed to QML as a JavaScript Promise
 
 ### QFuture → JavaScript Promise Conversion
 
-**The Problem:** Qt Declarative doesn't natively convert `QFuture\<T>` to
+**The Problem:** Qt Declarative doesn't natively convert `QFuture\\\<T>` to
 JavaScript Promises (see 
 [QTBUG-101025](https://bugreports.qt.io/browse/QTBUG-101025)).
 
@@ -758,7 +885,7 @@ JavaScript Promises (see
 
 - Creates JavaScript Promises from the QML engine's Promise constructor
 - Stores resolve/reject callbacks as `QJSValue` handles
-- Uses `QFutureWatcher\<T>` to monitor `QFuture\<T>` completion on the main
+- Uses `QFutureWatcher\\\<T>` to monitor `QFuture\\\<T>` completion on the main
   thread
 - Calls the appropriate JavaScript callback (resolve/reject) when the future
   completes
@@ -777,7 +904,7 @@ From the QML developer's perspective, it's a standard JavaScript Promise. The
 generated code handles the `QFuture` ↔ Promise bridge transparently.
 
 **Type Inference Limitation:** Currently, the solution returns `QJSValue`
-wrapping a Promise rather than `QFuture\<T>` directly (which QML doesn't yet
+wrapping a Promise rather than `QFuture\\\<T>` directly (which QML doesn't yet
 support per [QTBUG-101025](https://bugreports.qt.io/browse/QTBUG-101025)). This
 means type information for the promise's resolved value is not available to the
 QML language server, so `.then()` callback parameters don't have typed
@@ -786,7 +913,7 @@ currentPose`) have full type support and autocomplete works perfectly for those.
 
 **Future-Proof:** When 
 [QTBUG-101025](https://bugreports.qt.io/browse/QTBUG-101025) is resolved and Qt
-Declarative adds native `QFuture\<T>` → Promise support with preserved type
+Declarative adds native `QFuture\\\<T>` → Promise support with preserved type
 information, combined with QML language server improvements for promise type
 inference, the generated code can be updated to provide full type safety
 throughout the promise chain. Since this is generated code, such improvements
@@ -846,7 +973,7 @@ sequenceDiagram
 ```
 **Key Points:**
 
-- **Goal Sending**: Returns `QFuture\<Result*>`, auto-converted to Promise
+- **Goal Sending**: Returns `QFuture\\\<Result*>`, auto-converted to Promise
 - **Feedback Stream**: Continuous property updates via Qt signals
 - **Result Completion**: Promise resolves with final result
 - **Separation of Concerns**: Promise for completion, Properties for progress
@@ -1221,11 +1348,44 @@ field).
 
 ## Build System Integration
 
+### Configuring an Application Target
+
+`qt_ros2_configure_target()` is the entry point for application CMakeLists: it
+finds the ROS 2 packages the built-in Qt modules depend on, links the requested
+QtROS modules, and generates wrappers for any third-party ROS 2 interface
+packages the application needs.
+
+```cmake
+find_package(Qt6 REQUIRED COMPONENTS Quick Ros2Core)
+
+qt_add_executable(appturtlesim_controller main.cpp)
+qt_add_qml_module(appturtlesim_controller URI TurtleSimController VERSION 1.0
+    QML_FILES Main.qml)
+
+qt_ros2_configure_target(appturtlesim_controller
+    CAPABILITIES PUBLISHER SUBSCRIBER SERVICE ACTION
+    MODULES QtRos2GeometryMessages
+    IMPORT_PACKAGES turtlesim
+)
+```
+**Arguments:**
+
+
+|Argument       |Description                                                                                                                                                   |
+|---------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|`CAPABILITIES` |Which ROS 2 communication patterns the target uses: `MESSAGES`, `PUBLISHER`, `SUBSCRIBER`, `SERVICE`, `SERVER`, `ACTION`. Informational; used for validation. Required.|
+|`MODULES`      |Pre-built Qt module names to link, e.g. `QtRos2GeometryMessages`, `QtRos2StandardServices`.                                                                   |
+|`IMPORT_PACKAGES`|External ROS 2 interface packages to wrap and link automatically. The generated QML module URI is `QtRos2.Imported.\<CamelCase>`, e.g. `QtRos2.Imported.Turtlesim`.|
+
+The function also makes `qtros2_generate_from_package()` available, so a target
+that needs finer control can call it directly afterwards.
+
 ### Wrapping Third-Party ROS 2 Packages
 
 Standard ROS 2 interface families are already wrapped as built-in modules (see 
-`src/messages/` and `src/services/`). For third-party or application-specific
-packages, use `qtros2_generate_from_package()` directly:
+`src/messages/` and `src/services/`). `IMPORT_PACKAGES` above covers the common
+case; for finer control over the module URI or output directory, call `
+qtros2_generate_from_package()` directly:
 
 ```cmake
 find_package(rosidl_generator_qtros2 REQUIRED)
@@ -1300,8 +1460,8 @@ qt_ros2_import_urdf(<target> <urdf_file>
 |`DEST_DIR \<dir>`        |Output directory for generated files. Defaults to `${CMAKE_CURRENT_BINARY_DIR}/urdf_generated`.   |
 |`QML_MODULE_URI \<uri>`  |QML module URI. Defaults to the PascalCase robot name (e.g. `SimpleArm`).                         |
 |`QML_MODULE_VERSION \<ver>`|QML module version. Defaults to `1.0`.                                                            |
-|`PHYSICS`                |Links `Qt6::Quick3DPhysics` and passes `\--physics` to the exporter.                              |
-|`ROS_BRIDGE`             |Passes `\--ros-bridge` to the exporter, generating an additional ROS bridge QML file.             |
+|`PHYSICS`                |Links `Qt6::Quick3DPhysics` and passes `\\--physics` to the exporter.                             |
+|`ROS_BRIDGE`             |Passes `\\--ros-bridge` to the exporter, generating an additional ROS bridge QML file.            |
 |`SCENE_UNITS_PER_METER \<n>`|Scale factor for scene units.                                                                     |
 |`INSTANCE_SCALE \<n>`    |Scale factor applied to the robot instance.                                                       |
 
@@ -1381,11 +1541,14 @@ The following features would enhance QtROS further:
 - Memory pooling for high-frequency messages
 - Zero-copy optimizations
 - Comprehensive error reporting and recovery strategies
-- Testing infrastructure and CI/CD templates
+- Running the autotests in CI — `.gitlab-ci.yml` currently only builds the
+  Docker images; `tests/auto` is not yet executed there
+- Broader test coverage: services, actions, and transforms have no autotests yet
 
-The POC focuses on proving the viability of the core architecture, code
-generation strategy, and developer experience. Additional features will be
-designed and implemented based on real-world usage feedback.
+As an Experimental Extension, QtROS is still establishing the core
+architecture, code generation strategy, and developer experience. Additional
+features will be designed and implemented based on real-world usage feedback,
+and the API may change between releases.
 
 ## Summary
 
@@ -1398,9 +1561,16 @@ code generation and modern async patterns.
   .action` files
 - **Value types** — `Q_GADGET` with `QML_CONSTRUCTIBLE_VALUE` for natural
   JavaScript object literal construction
+- **Both ends of every pattern** — Publishers and subscribers, service clients
+  and servers, action clients and servers
 - **Promise-based async APIs** — QFuture→Promise conversion for actions and
-  services
+  services, alongside declarative `request`/`response` bindings
 - **Reactive property bindings** — Real-time feedback updates through Qt signals
+- **Node parameters** — `Parameter` and `RemoteParameter` as ordinary bindable
+  QML state
+- **Transforms** — `tf2_ros` broadcasters and frame lookup exposed to QML
+- **URDF import** — `qt_ros2_import_urdf()` turns a robot description into a Qt
+  Quick 3D module, optionally with physics bodies and a ROS bridge
 - **QoS configuration** — Qt-friendly wrapper for ROS 2 Quality of Service
   policies
 - **Clean architecture** — Separation between data types (value types) and
