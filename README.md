@@ -1384,27 +1384,9 @@ that needs finer control can call it directly afterwards.
 
 Standard ROS 2 interface families are already wrapped as built-in modules (see 
 `src/messages/` and `src/services/`). `IMPORT_PACKAGES` above covers the common
-case; for finer control over the module URI or output directory, call `
-qtros2_generate_from_package()` directly:
-
-```cmake
-find_package(rosidl_generator_qtros2 REQUIRED)
-find_package(turtlesim REQUIRED)
-
-qtros2_generate_from_package(
-  TARGET turtlesim
-  SOURCE_PACKAGE turtlesim
-  QML_MODULE_URI QtRos2.Imported.Turtlesim
-  QML_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/QtRos2/Imported/Turtlesim
-)
-
-qt_add_executable(my_app src/main.cpp)
-target_link_libraries(my_app PRIVATE turtlesim_qtcpp)
-```
-### Application-Specific Wrappers
-
-Applications can generate local wrappers for any ROS 2 package without adding
-them to the Qt module build:
+case for third-party and application-specific packages; call `
+qtros2_generate_from_package()` directly when you need control over the QML
+module URI or the output directory:
 
 ```cmake
 find_package(rosidl_generator_qtros2 REQUIRED)
@@ -1420,11 +1402,16 @@ qtros2_generate_from_package(
 qt_add_executable(my_app src/main.cpp)
 target_link_libraries(my_app PRIVATE turtlesim_qtcpp)
 ```
+`IMPORT_PACKAGES turtlesim` is equivalent to the call above with
+`QML_MODULE_URI QtRos2.Imported.Turtlesim`, plus the `target_link_libraries()`
+line.
+
 **Key points:**
 
-- The generator always creates local wrappers (never installs)
+- The generator always creates local wrappers (never installs), so applications
+  get lightweight, local-only wrappers by default
 - Generated QML modules are available at build/runtime via `QML_OUTPUT_DIRECTORY`
-- Applications get lightweight, local-only wrappers by default
+- No modifications to the wrapped ROS 2 package are needed
 
 The macro creates a `_qtcpp` target containing the generated plugin and exports
 the associated QML import directory, so Qt Creator automatically picks up the
