@@ -546,6 +546,49 @@ services, and actions.
 This example serves as a complete reference for integrating all QtROS
 communication patterns in a single application.
 
+### Robot Arm Collision
+
+**Location:** [examples/robotarmcollision](examples/robotarmcollision/)
+
+![Robot Arm Collision example](examples/robotarmcollision/robotarmcollision.png)
+
+A Qt Quick 3D scene generated from a URDF robot description, demonstrating 
+`qt_ros2_import_urdf` together with QtQuick3D.Physics collision detection. The
+arm is built from `simple_arm.urdf` (links, joints, and convex collision meshes)
+and sweeps through a static box obstacle; while any link overlaps the box it
+tints red and a "Collision detected" banner is shown.
+
+**Key features:**
+
+- Imports a URDF at build time via `qt_ros2_import_urdf(... PHYSICS ROS_BRIDGE)`
+  , generating a `SimpleArm` QML module with QtQuick3DPhysics rigid bodies and
+  collision shapes.
+- Detects collisions with a `TriggerBody` obstacle; the generated arm links emit
+  overlap notifications via the `sendTriggerReports` control property.
+- Two drive modes selected with the **Animate** checkbox: a built-in animation
+  (the arm spins and sweeps the obstacle), or live joint positions received
+  from ROS 2 through the generated `RosBridge`.
+- Immediate visual feedback through the red obstacle tint and the on-screen
+  banner.
+
+**Running:**
+
+1.  Source the workspace setup script
+2.  Open `examples/robotarmcollision/CMakeLists.txt` in Qt Creator
+3.  Build and run from Qt Creator
+
+**Usage:**
+
+- **Animate checked:** the arm runs the built-in demo animation and periodically
+  collides with the obstacle.
+- **Animate unchecked:** the arm is driven by incoming `sensor_msgs/JointState`
+  messages on `/joint_states`. Publish joint states to move it, for example with `
+  joint_state_publisher_gui` loading `simple_arm.urdf` (in a separate terminal):
+
+  ```bash
+  source /opt/ros/jazzy/setup.bash
+  ros2 launch examples/robotarmcollision/simple_arm.launch.py
+  ```
 ### Robot Monitor
 
 **Location:** [examples/RobotMonitor](examples/RobotMonitor/)
@@ -647,49 +690,6 @@ colcon build --merge-install
   list, jump to specific poses
 - **Replay tab:** Execute waypoint sequences, monitor progress, enable loop mode
 
-### Robot Arm Collision
-
-**Location:** [examples/robotarmcollision](examples/robotarmcollision/)
-
-![Robot Arm Collision example](examples/robotarmcollision/robotarmcollision.png)
-
-A Qt Quick 3D scene generated from a URDF robot description, demonstrating 
-`qt_ros2_import_urdf` together with QtQuick3D.Physics collision detection. The
-arm is built from `simple_arm.urdf` (links, joints, and convex collision meshes)
-and sweeps through a static box obstacle; while any link overlaps the box it
-tints red and a "Collision detected" banner is shown.
-
-**Key features:**
-
-- Imports a URDF at build time via `qt_ros2_import_urdf(... PHYSICS ROS_BRIDGE)`
-  , generating a `SimpleArm` QML module with QtQuick3DPhysics rigid bodies and
-  collision shapes.
-- Detects collisions with a `TriggerBody` obstacle; the generated arm links emit
-  overlap notifications via the `sendTriggerReports` control property.
-- Two drive modes selected with the **Animate** checkbox: a built-in animation
-  (the arm spins and sweeps the obstacle), or live joint positions received
-  from ROS 2 through the generated `RosBridge`.
-- Immediate visual feedback through the red obstacle tint and the on-screen
-  banner.
-
-**Running:**
-
-1.  Source the workspace setup script
-2.  Open `examples/robotarmcollision/CMakeLists.txt` in Qt Creator
-3.  Build and run from Qt Creator
-
-**Usage:**
-
-- **Animate checked:** the arm runs the built-in demo animation and periodically
-  collides with the obstacle.
-- **Animate unchecked:** the arm is driven by incoming `sensor_msgs/JointState`
-  messages on `/joint_states`. Publish joint states to move it, for example with `
-  joint_state_publisher_gui` loading `simple_arm.urdf` (in a separate terminal):
-
-  ```bash
-  source /opt/ros/jazzy/setup.bash
-  ros2 launch examples/robotarmcollision/simple_arm.launch.py
-  ```
 ### Dogzilla
 
 **Location:** [GitHub](https://github.com/TheQtCompanyRnD/dogzilla)
