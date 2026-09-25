@@ -251,6 +251,7 @@
 
     \list
         \li \l{Getting Started with Qt ROS2}
+        \li \l{Generating a UI from a URDF file with urdfviewer}
         \li \l{Choosing a Communication Pattern}
         \li \l{Choosing Sensor Message Types}
         \li \l{Teleoperation and Remote Control}
