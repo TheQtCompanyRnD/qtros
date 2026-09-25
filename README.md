@@ -623,6 +623,7 @@ cd ~/ros2_ws/src
 git clone https://github.com/ros-controls/ros2_control_demos -b ${ROS_DISTRO}
 cd ~/ros2_ws/
 sudo apt-get update
+sudo rosdep init
 rosdep update --rosdistro=$ROS_DISTRO
 rosdep install --from-paths ./ -i -y --rosdistro ${ROS_DISTRO}
 colcon build --merge-install
