@@ -22,6 +22,7 @@ the API is not source- or binary-compatible across releases.
 - [Developing with Qt Creator](#developing-with-qt-creator)
 - [Examples](#examples)
 - [QML Usage Highlights](#qml-usage-highlights)
+- [Generating a Live Model from a URDF file](#generating-a-live-model-from-urdf)
 
 **Project Overview:**
 
@@ -1149,6 +1150,24 @@ graph TB
 5.  Generated code includes type conversion methods (Qt ↔ ROS 2)
 6.  Qt's QML module system registers types for use in QML
 7.  Generated wrapper package depends on the source package's C++ types
+
+## Generating a Live Model from URDF
+
+If you purchase a robot for use with ROS, hopefully it comes with a URDF file.
+If you design your own, plugins are available for most CAD systems to export a
+URDF file.
+
+You can use the urdfviewer tool to generate a Qt Quick 3D scene containing a
+model of your robot, with bindings to subscribers for the most common telemetry
+topics, so that if your robot is using standard topics like
+`/myrobot/body_pose/state` and `/myrobot/jointstates`, you can see the model
+staying in sync with the robot's movements. This is a good starting point for a
+digital twin, teach pendant or some other kind of UI that needs to show a live
+rendering of the robot's pose; you can then modify the generated code to add
+the rest of your desired UI.
+
+
+![screenshot of the urdfviewer tool](src/doc/images/urdfviewer-dogzilla-25pct.jpg)
 
 ## QML Usage Highlights
 
