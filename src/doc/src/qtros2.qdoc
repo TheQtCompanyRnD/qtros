@@ -149,6 +149,13 @@
 */
 
 /*!
+    \qmlmodule QtRos2.Quick3D
+    \title Qt ROS2 Quick3D QML Types
+    \modulestate Experimental Extension
+    \brief QML types for placing Qt Quick 3D content in ROS 2 coordinate frames.
+*/
+
+/*!
     \qmlmodule QtRos2.UniqueIdentifierMsgs
     \title Qt ROS2 unique_identifier_msgs QML Types
     \modulestate Experimental Extension
@@ -251,7 +258,6 @@
 
     \list
         \li \l{Getting Started with Qt ROS2}
-        \li \l{Generating a UI from a URDF file with urdfviewer}
         \li \l{Choosing a Communication Pattern}
         \li \l{Choosing Sensor Message Types}
         \li \l{Teleoperation and Remote Control}
@@ -419,6 +425,12 @@
     The following QML types are available when you import \c{QtRos2.Transforms}:
 
     \generatelist qmltypesbymodule QtRos2.Transforms
+
+    \section1 QtRos2.Quick3D
+
+    The following QML types are available when you import \c{QtRos2.Quick3D}:
+
+    \generatelist qmltypesbymodule QtRos2.Quick3D
 
     \section1 QtRos2.UniqueIdentifierMsgs
 

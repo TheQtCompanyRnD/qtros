@@ -63,26 +63,9 @@ Item {
         R6BotModel {
             scale: Qt.vector3d(1000, 1000, 1000)
             eulerRotation: Qt.vector3d(-90, 0, 0)
-            visible: root.mainViewModel.tfBuffer.transformsReady
+            rosNode: root.mainViewModel.ros2Node
+            visible: ready
             showJointAxes: root.showJointAxes
-            baseLinkPosition: root.mainViewModel.tfBuffer.world_base_link_p
-            baseLinkRotation: root.mainViewModel.tfBuffer.world_base_link_q
-            link1Position: root.mainViewModel.tfBuffer.base_link_link_1_p
-            link1Rotation: root.mainViewModel.tfBuffer.base_link_link_1_q
-            link2Position: root.mainViewModel.tfBuffer.link_1_link_2_p
-            link2Rotation: root.mainViewModel.tfBuffer.link_1_link_2_q
-            link3Position: root.mainViewModel.tfBuffer.link_2_link_3_p
-            link3Rotation: root.mainViewModel.tfBuffer.link_2_link_3_q
-            link4Position: root.mainViewModel.tfBuffer.link_3_link_4_p
-            link4Rotation: root.mainViewModel.tfBuffer.link_3_link_4_q
-            link5Position: root.mainViewModel.tfBuffer.link_4_link_5_p
-            link5Rotation: root.mainViewModel.tfBuffer.link_4_link_5_q
-            link6Position: root.mainViewModel.tfBuffer.link_5_link_6_p
-            link6Rotation: root.mainViewModel.tfBuffer.link_5_link_6_q
-            ftFramePosition: root.mainViewModel.tfBuffer.link_6_ft_frame_p
-            ftFrameRotation: root.mainViewModel.tfBuffer.link_6_ft_frame_q
-            tool0Position: root.mainViewModel.tfBuffer.ft_frame_tool0_p
-            tool0Rotation: root.mainViewModel.tfBuffer.ft_frame_tool0_q
         }
     }
 

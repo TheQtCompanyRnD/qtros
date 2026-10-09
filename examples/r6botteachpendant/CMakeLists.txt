@@ -29,7 +29,6 @@ qt_add_qml_module(r6botteachpendant
         Main.qml
         R6BotViewModel.qml
         R6BotView3D.qml
-        TFBufferManager.qml
         StatusBar.qml
         JogPanel.qml
         WaypointPanel.qml
@@ -61,7 +60,7 @@ qt_add_qml_module(r6botteachpendant
 
 )
 
-# TF is consumed through QtRos2.Transforms (FrameTransformer), which wraps
+# TF is consumed through QtRos2.Quick3D (FrameNode), which uses
 # tf2_ros in C++, so no tf2_msgs QML module import is needed here.
 qt_ros2_configure_target(r6botteachpendant
     CAPABILITIES PUBLISHER SUBSCRIBER

@@ -20,7 +20,7 @@ include(cmake/QtRos2Macros.cmake)
 qt_internal_project_setup()
 
 find_package(Qt6 ${QT_ROS2_MIN_QT_VERSION} CONFIG REQUIRED COMPONENTS Core Network Quick)
-find_package(Qt6 ${QT_ROS2_MIN_QT_VERSION} QUIET CONFIG OPTIONAL_COMPONENTS Concurrent QuickTest)
+find_package(Qt6 ${QT_ROS2_MIN_QT_VERSION} QUIET CONFIG OPTIONAL_COMPONENTS Concurrent QuickTest Quick3D Quick3DPrivate)
 
 if(WATCHOS)
     message(NOTICE "Skipping the build as the condition \"NOT WATCHOS\" is not met.")

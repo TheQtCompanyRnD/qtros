@@ -16,8 +16,8 @@
     a looping sequence — commanding the arm through
     \c trajectory_msgs/JointTrajectory messages. It is the most involved example
     of driving a robot (as opposed to monitoring one), and a thorough
-    demonstration of consuming TF with
-    \l{Qt ROS2 Transforms QML Types}{FrameTransformer}.
+    demonstration of driving a 3D model from TF with
+    \l {QtRos2.Quick3D::FrameNode}{FrameNode}.
 
     \image r6botteachpendant/r6botteachpendant.jpg "The R6 Robot Teach Pendant: a TF-driven 3D model of the arm with joint-axis triads, and the Jog panel with per-joint controls and a speed profile."
 
@@ -71,7 +71,6 @@
     \qml
     import QtRos2.Core
     import QtRos2.SensorMsgs as SensorMsgs
-    import QtRos2.Transforms
     import QtRos2.TrajectoryMsgs as TrajectoryMsgs
 
     Node {
@@ -79,7 +78,6 @@
         nodeName: "qt_r6bot_teach_pendant"
 
         SensorMsgs.JointStateSubscriber { id: jointStateSubscriber; topic: "/joint_states" }
-        FrameTransformer { id: tfXform }
         TrajectoryMsgs.JointTrajectoryPublisher {
             id: trajectoryPublisher
             topic: "/r6bot_controller/joint_trajectory"
@@ -88,8 +86,8 @@
     \endqml
 
     The CMake side enables the publisher/subscriber capabilities and links the
-    trajectory message module. TF is consumed through \c QtRos2.Transforms
-    (\c FrameTransformer), which wraps \c tf2_ros in C++, so no \c tf2_msgs QML
+    trajectory message module. TF is consumed through \c QtRos2.Quick3D
+    (\c FrameNode), which uses \c tf2_ros in C++, so no \c tf2_msgs QML
     module import is required:
 
     \badcode
@@ -133,24 +131,28 @@
 
     The 3D robot is driven entirely by TF, not by joint angles directly — the
     \c robot_state_publisher in the r6bot stack turns \c /joint_states into \c /tf,
-    and the pendant consumes that. A single \c FrameTransformer maintains the TF
-    buffer from its own \c /tf and \c /tf_static subscriptions;
-    \c TFBufferManager.qml re-reads every edge of the kinematic chain whenever the
-    transformer signals a change:
+    and the pendant consumes that. \c R6BotModel.qml is a chain of
+    \l {QtRos2.Quick3D::FrameNode}{FrameNode} items mirroring the URDF: each one names its
+    link's frame, and follows it relative to the enclosing FrameNode. Only the
+    root needs to know which \l Node to read the TF tree from:
 
     \qml
-    Connections {
-        target: root.frameTransformer
-        function onTransformsChanged() { root._refresh() }
-    }
+    FrameNode {
+        id: worldNode
+        frame: "world"
 
-    function _refresh() {
-        for (const e of root._edges) {                 // world→base_link→link_1→…→tool0
-            if (root.frameTransformer.canTransform(e[0], e[1])) {
-                const tr = root.frameTransformer.lookupTransform(e[0], e[1]).transform
-                root[e[2] + "_p"] = Qt.vector3d(tr.translation.x, tr.translation.y, tr.translation.z)
-                root[e[2] + "_q"] = Qt.quaternion(tr.rotation.w, tr.rotation.x,
-                                                  tr.rotation.y, tr.rotation.z)
+        FrameNode {
+            id: baseLinkNode
+            frame: "base_link"
+
+            FrameNode {
+                id: link1Node
+                frame: "link_1"
+                // Joint: revolute, axis: [0.0, 0.0, 1.0]
+                position: Qt.vector3d(0.0, 0.0, 0.061584)
+
+                Link_1 { ... }      // the link's mesh
+                ...
             }
         }
     }
@@ -159,18 +161,18 @@
     Two details are worth copying into your own code:
 
     \list
-        \li \c{lookupTransform(parent, child)} returns the child frame in its
-            parent's coordinates — the local transform a nested scene-graph node
-            needs. \c R6BotModel.qml is a nested \c Node chain mirroring the URDF,
-            and each link binds its local \c position/\c rotation to one edge.
-        \li A ROS quaternion is \c{(x, y, z, w)} but \c{Qt.quaternion()} takes
-            \c{(w, x, y, z)} — note the reordering above. The model is also scaled
-            from meters to millimeters and rotated to map ROS Z-up into Qt Quick
-            3D's Y-up convention.
+        \li The positions and rotations written in \c R6BotModel.qml are the
+            URDF rest pose. A FrameNode keeps what it was given until its
+            transform arrives, so they show a sensible pose before then.
+        \li Plain \c Node items between FrameNodes are for presentation only:
+            here, each link's mesh sits in one, offset by the URDF \c <visual>
+            origin. The whole model is also scaled from meters to millimeters
+            and rotated to map ROS Z-up into Qt Quick 3D's Y-up convention,
+            outside the root FrameNode.
     \endlist
 
-    A \c transformsReady flag (set once every edge resolves) gates the model's
-    visibility, so nothing renders until the whole chain is available.
+    Each FrameNode's \c valid property tells whether TF has placed it. The
+    model's \c ready property combines them, and gates its visibility.
 
     \section1 Waypoints and replay
 
@@ -209,5 +211,5 @@
             progress, loop).
     \endlist
 
-    \sa {Robot Monitor}, {Robot Arm Collision}, {Qt ROS2 Transforms QML Types}
+    \sa {Robot Monitor}, {Robot Arm Collision}, {Qt ROS2 Quick3D QML Types}
 */

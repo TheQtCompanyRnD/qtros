@@ -2,38 +2,31 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
 import QtQuick3D
+import QtRos2.Quick3D
 
 Node {
     id: r6botRoot
 
     property bool showJointAxes: true
 
-    property alias worldPosition: worldNode.position
-    property alias worldRotation: worldNode.rotation
-    property alias baseLinkPosition: baseLinkNode.position
-    property alias baseLinkRotation: baseLinkNode.rotation
-    property alias link1Position: link1Node.position
-    property alias link1Rotation: link1Node.rotation
-    property alias link2Position: link2Node.position
-    property alias link2Rotation: link2Node.rotation
-    property alias link3Position: link3Node.position
-    property alias link3Rotation: link3Node.rotation
-    property alias link4Position: link4Node.position
-    property alias link4Rotation: link4Node.rotation
-    property alias link5Position: link5Node.position
-    property alias link5Rotation: link5Node.rotation
-    property alias link6Position: link6Node.position
-    property alias link6Rotation: link6Node.rotation
-    property alias ftFramePosition: ftFrameNode.position
-    property alias ftFrameRotation: ftFrameNode.rotation
-    property alias tool0Position: tool0Node.position
-    property alias tool0Rotation: tool0Node.rotation
+    // The ROS node whose TF tree drives the arm; inherited by every FrameNode
+    // below. Each FrameNode follows its link's frame relative to the enclosing
+    // one, as robot_state_publisher computes it from /joint_states. The
+    // positions and rotations written below are the URDF rest pose, shown
+    // until TF has placed the links.
+    property alias rosNode: worldNode.rosNode
 
-    Node {
+    // True once TF has placed every link.
+    readonly property bool ready: [baseLinkNode, link1Node, link2Node, link3Node, link4Node,
+                                   link5Node, link6Node, ftFrameNode, tool0Node].every(n => n.valid)
+
+    FrameNode {
         id: worldNode
+        frame: "world"
 
-        Node {
+        FrameNode {
             id: baseLinkNode
+            frame: "base_link"
             // Joint: fixed, axis: [0.0, 0.0, 1.0]
             position: Qt.vector3d(0.0, 0.0, 0.0)
 
@@ -50,8 +43,9 @@ Node {
                 }
             }
 
-            Node {
+            FrameNode {
                 id: link1Node
+                frame: "link_1"
                 // Joint: revolute, axis: [0.0, 0.0, 1.0]
                 position: Qt.vector3d(0.0, 0.0, 0.061584)
 
@@ -70,8 +64,9 @@ Node {
                     }
                 }
 
-                Node {
+                FrameNode {
                     id: link2Node
+                    frame: "link_2"
                     // Joint: revolute, axis: [0.0, 0.0, 1.0]
                     position: Qt.vector3d(-0.101717, 0.0, 0.182284)
                     rotation: Qt.quaternion(0.6830127018922193,
@@ -94,8 +89,9 @@ Node {
                         }
                     }
 
-                    Node {
+                    FrameNode {
                         id: link3Node
+                        frame: "link_3"
                         // Joint: revolute, axis: [0.0, 0.0, 1.0]
                         position: Qt.vector3d(0.685682, 0.0, 0.041861)
                         rotation: Qt.quaternion(-4.329780281177466e-17,
@@ -119,8 +115,9 @@ Node {
                             }
                         }
 
-                        Node {
+                        FrameNode {
                             id: link4Node
+                            frame: "link_4"
                             // Joint: revolute, axis: [0.0, 0.0, 1.0]
                             position: Qt.vector3d(0.518777, 0.0, 0.067458)
                             rotation: Qt.quaternion(-1.5848095757158815e-17,
@@ -144,8 +141,9 @@ Node {
                                 }
                             }
 
-                            Node {
+                            FrameNode {
                                 id: link5Node
+                                frame: "link_5"
                                 // Joint: revolute, axis: [0.0, 0.0, 1.0]
                                 position: Qt.vector3d(0.112654, 0.0, 0.110903)
                                 rotation: Qt.quaternion(0.49999999999999994,
@@ -169,8 +167,9 @@ Node {
                                     }
                                 }
 
-                                Node {
+                                FrameNode {
                                     id: link6Node
+                                    frame: "link_6"
                                     // Joint: revolute, axis: [0.0, 0.0, 1.0]
                                     position: Qt.vector3d(-0.085976,
                                                           0.0, 0.133436)
@@ -195,13 +194,15 @@ Node {
                                         }
                                     }
 
-                                    Node {
+                                    FrameNode {
                                         id: ftFrameNode
+                                        frame: "ft_frame"
                                         // Joint: fixed
                                         position: Qt.vector3d(0.0, 0.0, 0.0)
 
-                                        Node {
+                                        FrameNode {
                                             id: tool0Node
+                                            frame: "tool0"
                                             // Joint: fixed
                                             position: Qt.vector3d(0.0,
                                                                   0.0, 0.185)
