@@ -48,8 +48,8 @@ public:
     QString frame() const { return m_frame; }
     void setFrame(const QString &frame);
 
-    // The explicit parentFrame if set, otherwise the nearest FrameNode
-    // ancestor's frame; empty for a root FrameNode.
+    // The explicit parentFrame if set, otherwise the frame of the nearest
+    // FrameNode ancestor that has one; empty for a root FrameNode.
     QString parentFrame() const;
     void setParentFrame(const QString &parentFrame);
     void resetParentFrame();
@@ -72,6 +72,7 @@ protected:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
 private:
+    // The nearest FrameNode ancestor, whether or not it has a frame.
     QRos2FrameNode *frameAncestor() const;
     void updateTransform();
     void setValid(bool valid);

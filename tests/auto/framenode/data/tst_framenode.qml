@@ -54,6 +54,22 @@ TestCase {
         width: 100
         height: 100
 
+        // A frameless root that only provides the rosNode.
+        FrameNode {
+            id: framelessRoot
+            rosNode: rosNode
+
+            FrameNode {
+                id: innerWorldNode
+                frame: "world"
+
+                FrameNode {
+                    id: innerANode
+                    frame: "a"
+                }
+            }
+        }
+
         FrameNode {
             id: worldNode
             frame: "world"
@@ -86,12 +102,42 @@ TestCase {
                 parentFrame: "b"
             }
 
+            // Stands for no frame: the FrameNode inside looks past it.
+            FrameNode {
+                id: framelessNode
+                position: Qt.vector3d(4, 5, 6)
+
+                FrameNode {
+                    id: throughFramelessNode
+                    frame: "a"
+                }
+            }
+
             FrameNode {
                 id: missingNode
                 frame: "nonexistent"
                 position: Qt.vector3d(7, 8, 9)
             }
         }
+    }
+
+    function test_looksPastFramelessNodes() {
+        verify(framelessNode.valid)
+        compare(framelessNode.parentFrame, "world")
+        compareVector(framelessNode.position, Qt.vector3d(4, 5, 6), "frameless left in place")
+
+        compare(throughFramelessNode.parentFrame, "world")
+        verify(throughFramelessNode.valid)
+        compareVector(throughFramelessNode.position, Qt.vector3d(1, 0, 0), "a in world")
+    }
+
+    function test_framelessRootProvidesRosNode() {
+        compare(innerWorldNode.parentFrame, "")
+        compare(innerWorldNode.rosNode, rosNode)
+        compare(innerANode.parentFrame, "world")
+        compare(innerANode.rosNode, rosNode)
+        verify(innerANode.valid)
+        compareVector(innerANode.position, Qt.vector3d(1, 0, 0), "a in world")
     }
 
     function compareVector(actual, expected, msg) {

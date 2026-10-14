@@ -94,14 +94,18 @@ Q_STATIC_LOGGING_CATEGORY(lcFrameNode, "qt.robotics.framenode")
     If the root FrameNode (one without a FrameNode ancestor and without
     \l parentFrame) has a frame, it is not moved: it defines where that frame
     is in the scene, and the FrameNodes inside are positioned relative to it.
+
+    A FrameNode without a frame is not moved either, and FrameNodes inside it
+    look past it for the frame to be positioned relative to. It can still
+    provide the \l rosNode they inherit.
 */
 
 /*!
     \qmlproperty string FrameNode::parentFrame
 
     The frame that \l frame is positioned relative to. By default this is the
-    \l frame of the nearest FrameNode ancestor, which is what a scene that
-    mirrors the TF tree needs. Set it to override that; reset it with
+    \l frame of the nearest FrameNode ancestor that has one, which is what a
+    scene that mirrors the TF tree needs. Set it to override that; reset it with
     \c undefined to go back to the default.
 
     Reading this property returns the frame in effect. It is empty for a root
@@ -124,8 +128,8 @@ Q_STATIC_LOGGING_CATEGORY(lcFrameNode, "qt.robotics.framenode")
     \c true when the node's position and rotation reflect the transform from
     \l parentFrame to \l frame: that is, once that transform has been received.
     It becomes \c false if the transform can no longer be resolved, and the
-    node then stays where it was last placed. A root FrameNode is always
-    valid.
+    node then stays where it was last placed. A root FrameNode, and one
+    without a \l frame, is always valid.
 
     Bind \c visible to it to hide a part of the scene until TF has placed it:
 
@@ -159,8 +163,12 @@ QString QRos2FrameNode::parentFrame() const
 {
     if (!m_parentFrame.isEmpty())
         return m_parentFrame;
-    const QRos2FrameNode *ancestor = frameAncestor();
-    return ancestor ? ancestor->frame() : QString();
+    // A FrameNode without a frame doesn't stand for any frame, so look past it.
+    for (const QRos2FrameNode *n = frameAncestor(); n; n = n->frameAncestor()) {
+        if (!n->m_frame.isEmpty())
+            return n->m_frame;
+    }
+    return QString();
 }
 
 void QRos2FrameNode::setParentFrame(const QString &parentFrame)
@@ -264,13 +272,10 @@ void QRos2FrameNode::updateTransform()
         return;
 
     const QString target = parentFrame();
-    if (target.isEmpty()) {
-        // The root: it defines where its frame is, so it stays put.
+    if (target.isEmpty() || m_frame.isEmpty()) {
+        // The root defines where its frame is, and a FrameNode without a
+        // frame has nothing to follow: either way it stays put.
         setValid(true);
-        return;
-    }
-    if (m_frame.isEmpty()) {
-        setValid(false);
         return;
     }
     if (m_frame == target) {
