@@ -50,37 +50,101 @@ TestCase {
         fuzzyCompare(a.w, b.w, 1e-9)
     }
 
-    // fromRpy (radians) must match fromEulerAngles (degrees).
-    function test_fromRpy_matches_euler() {
-        let e = Ros.Quaternion.fromEulerAngles(Qt.vector3d(0, 90, 0))
-        let r = Ros.Quaternion.fromRpy(Qt.vector3d(0, Math.PI / 2, 0))
-        fuzzyCompare(r.x, e.x, 1e-4)
-        fuzzyCompare(r.y, e.y, 1e-4)
-        fuzzyCompare(r.z, e.z, 1e-4)
-        fuzzyCompare(r.w, e.w, 1e-4)
+    // rpy / rpyDegrees are the ROS convention (Z-up, double precision), so the
+    // quaternion on the wire has the rotation axis on the component named for it:
+    // yaw -> z, pitch -> y, roll -> x.
+    function test_fromRpyDegrees_ros_axes() {
+        let yaw = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(0, 0, 90))
+        fuzzyCompare(yaw.z, sqrtHalf, 1e-4)
+        fuzzyCompare(yaw.w, sqrtHalf, 1e-4)
+        fuzzyCompare(yaw.x, 0, 1e-4)
+        fuzzyCompare(yaw.y, 0, 1e-4)
+        let pitch = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(0, 90, 0))
+        fuzzyCompare(pitch.y, sqrtHalf, 1e-4)
+        fuzzyCompare(pitch.w, sqrtHalf, 1e-4)
+        let roll = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(90, 0, 0))
+        fuzzyCompare(roll.x, sqrtHalf, 1e-4)
+        fuzzyCompare(roll.w, sqrtHalf, 1e-4)
     }
 
-    // Reading eulerAngles / rpy round-trips the input.
-    function test_eulerAngles_roundtrip() {
-        let q = Ros.Quaternion.fromEulerAngles(Qt.vector3d(0, 30, 0))
-        fuzzyCompare(q.eulerAngles.x, 0, 1e-3)
-        fuzzyCompare(q.eulerAngles.y, 30, 1e-3)
-        fuzzyCompare(q.eulerAngles.z, 0, 1e-3)
-    }
-    function test_rpy_roundtrip() {
-        let q = Ros.Quaternion.fromRpy(Qt.vector3d(0, 0.5, 0))
-        fuzzyCompare(q.rpy.y, 0.5, 1e-4)
+    // fromRpy (radians) must match fromRpyDegrees.
+    function test_fromRpy_matches_fromRpyDegrees() {
+        let d = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(10, 20, 30))
+        let r = Ros.Quaternion.fromRpy(Qt.vector3d(10 * Math.PI / 180, 20 * Math.PI / 180, 30 * Math.PI / 180))
+        fuzzyCompare(r.x, d.x, 1e-6)
+        fuzzyCompare(r.y, d.y, 1e-6)
+        fuzzyCompare(r.z, d.z, 1e-6)
+        fuzzyCompare(r.w, d.w, 1e-6)
     }
 
-    // rpy is a ROS vector3 (radians), rpyDegrees a ROS vector3 (degrees) — both
-    // double precision and readable without QtQuick; eulerAngles (QVector3D,
-    // degrees) must agree with rpyDegrees, and rpy must be rpyDegrees in radians.
-    function test_rpy_rpyDegrees_eulerAngles_agree() {
-        let q = Ros.Quaternion.fromEulerAngles(Qt.vector3d(0, 30, 0))
-        fuzzyCompare(q.rpyDegrees.y, 30, 1e-3)
-        fuzzyCompare(q.rpyDegrees.y, q.eulerAngles.y, 1e-3)
-        fuzzyCompare(q.rpy.y, 30 * Math.PI / 180, 1e-4)
-        fuzzyCompare(q.rpy.y, q.rpyDegrees.y * Math.PI / 180, 1e-9)
+    // Reading rpyDegrees / rpy round-trips the input (all three components).
+    function test_rpyDegrees_roundtrip() {
+        let q = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(10, 20, 30))
+        fuzzyCompare(q.rpyDegrees.x, 10, 1e-4)
+        fuzzyCompare(q.rpyDegrees.y, 20, 1e-4)
+        fuzzyCompare(q.rpyDegrees.z, 30, 1e-4)
+        fuzzyCompare(q.rpy.x, 10 * Math.PI / 180, 1e-6)
+        fuzzyCompare(q.rpy.y, 20 * Math.PI / 180, 1e-6)
+        fuzzyCompare(q.rpy.z, 30 * Math.PI / 180, 1e-6)
+    }
+
+    // Yaw all the way round, including the sign, as SLAM reports it.
+    function test_rpyDegrees_yaw_range() {
+        for (const yaw of [-153.4, -90, -10, 10, 90, 153.4]) {
+            let q = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(0, 0, yaw))
+            fuzzyCompare(q.rpyDegrees.z, yaw, 1e-4)
+            fuzzyCompare(q.rpyDegrees.x, 0, 1e-4)
+            fuzzyCompare(q.rpyDegrees.y, 0, 1e-4)
+        }
+    }
+
+    // At pitch = +-90 roll and yaw are not independent; the orientation must still
+    // round-trip, which is what matters.
+    function test_rpy_gimbal_lock_roundtrips_orientation() {
+        for (const pitch of [90, -90]) {
+            let q = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(0, pitch, 20))
+            fuzzyCompare(q.rpyDegrees.y, pitch, 1e-4)
+            let b = Ros.Quaternion.fromRpyDegrees(q.rpyDegrees)
+            // q and -q are the same rotation
+            const sign = (q.w * b.w + q.x * b.x + q.y * b.y + q.z * b.z) < 0 ? -1 : 1
+            fuzzyCompare(sign * b.x, q.x, 1e-4)
+            fuzzyCompare(sign * b.y, q.y, 1e-4)
+            fuzzyCompare(sign * b.z, q.z, 1e-4)
+            fuzzyCompare(sign * b.w, q.w, 1e-4)
+        }
+    }
+
+    // eulerAngles is the Qt Quick 3D (Y-up) convenience: x = pitch about X,
+    // y = yaw about the vertical Y axis, z = roll about Z, mapped from the ROS
+    // quaternion with (x, y, z)_scene = (y, z, x)_ros. So a ROS yaw (about Z) is
+    // the rotation about scene Y, a ROS pitch (about Y) about scene X, a ROS roll
+    // (about X) about scene Z.
+    function test_eulerAngles_yup_convention() {
+        let yaw = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(0, 0, 30))
+        fuzzyCompare(yaw.eulerAngles.x, 0, 1e-3)
+        fuzzyCompare(yaw.eulerAngles.y, 30, 1e-3)
+        fuzzyCompare(yaw.eulerAngles.z, 0, 1e-3)
+        let pitch = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(0, 30, 0))
+        fuzzyCompare(pitch.eulerAngles.x, 30, 1e-3)
+        fuzzyCompare(pitch.eulerAngles.y, 0, 1e-3)
+        fuzzyCompare(pitch.eulerAngles.z, 0, 1e-3)
+        let roll = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(30, 0, 0))
+        fuzzyCompare(roll.eulerAngles.x, 0, 1e-3)
+        fuzzyCompare(roll.eulerAngles.y, 0, 1e-3)
+        fuzzyCompare(roll.eulerAngles.z, 30, 1e-3)
+    }
+
+    // fromEulerAngles is the inverse: Y-up yaw about Y -> ROS yaw about Z.
+    function test_fromEulerAngles_yup_to_ros() {
+        let q = Ros.Quaternion.fromEulerAngles(Qt.vector3d(0, 90, 0))
+        fuzzyCompare(q.z, sqrtHalf, 1e-4)
+        fuzzyCompare(q.w, sqrtHalf, 1e-4)
+        fuzzyCompare(q.rpyDegrees.z, 90, 1e-3)
+        let r = Ros.Quaternion.fromEulerAngles(Qt.vector3d(10, 20, 30))
+        let back = r.eulerAngles
+        fuzzyCompare(back.x, 10, 1e-3)
+        fuzzyCompare(back.y, 20, 1e-3)
+        fuzzyCompare(back.z, 30, 1e-3)
     }
 
     // toQuaternion() yields a QtQuick quaternion whose scalar == w.

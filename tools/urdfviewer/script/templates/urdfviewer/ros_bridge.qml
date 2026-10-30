@@ -25,7 +25,8 @@ QtObject {
 
     // Orientation of the floating base, driven from a PoseStamped (body-pose) topic
     // such as an IMU/odometry source. Bind a model's baseOrientation to this; the
-    // model applies it in scene space, so toQuaternion() is used as-is.
+    // model applies it in scene space, so the ROS (Z-up) quaternion is mapped to the
+    // scene's Y-up axes first: (x, y, z)_scene = (y, z, x)_ros.
     property quaternion baseOrientation: Qt.quaternion(1, 0, 0, 0)
     property string bodyPoseTopic: "{{ body_pose_topic }}"
 
@@ -59,7 +60,10 @@ QtObject {
             topic: root.bodyPoseTopic
             onMessageReceived: (msg) => {
                 if (root.processMessages)
-                    root.baseOrientation = msg.pose.orientation.toQuaternion()
+                {
+                    const q = msg.pose.orientation
+                    root.baseOrientation = Qt.quaternion(q.w, q.y, q.z, q.x)
+                }
             }
         }
     }

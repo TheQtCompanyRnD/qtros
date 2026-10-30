@@ -82,8 +82,10 @@
     \section2 Euler angles for free
 
     A \c geometry_msgs/Quaternion value type also exposes its orientation as
-    Euler angles, so you do not have to convert by hand. \c rpyDegrees gives
-    roll/pitch/yaw in degrees (there is a matching radians accessor):
+    roll/pitch/yaw, so you do not have to convert by hand. \c rpyDegrees gives
+    them in degrees, in the ROS convention (Z-up, double precision; there is a
+    matching radians accessor, \c rpy). To drive a Qt Quick 3D \c Node instead,
+    \c eulerAngles gives the same orientation in Qt Quick 3D's Y-up convention:
 
     \qml
     Label {

@@ -80,18 +80,35 @@ void tst_geometry::quaternion_from_qquaternion()
 
 void tst_geometry::quaternion_euler_double_precision()
 {
-    // 30 deg pitch about Y (ROS euler: y component).
-    const Quaternion q = Quaternion::fromEulerAngles(QVector3D(0.0f, 30.0f, 0.0f));
+    // ROS convention, double precision: roll/pitch/yaw 10/20/30 degrees.
+    Vector3 in;
+    in.setX(10.0);
+    in.setY(20.0);
+    in.setZ(30.0);
+    const Quaternion q = Quaternion::fromRpyDegrees(in);
 
     const Vector3 deg = q.rpyDegrees(); // ROS vector3, degrees, double
     const Vector3 rad = q.rpy();        // ROS vector3, radians, double
 
-    QVERIFY(std::abs(deg.y() - 30.0) < 1e-4);
-    QVERIFY(std::abs(rad.y() - qDegreesToRadians(30.0)) < 1e-6);
+    QVERIFY(std::abs(deg.x() - 10.0) < 1e-9);
+    QVERIFY(std::abs(deg.y() - 20.0) < 1e-9);
+    QVERIFY(std::abs(deg.z() - 30.0) < 1e-9);
     // rad and deg are the same value in different units (true double round-trip).
-    QVERIFY(std::abs(rad.y() - qDegreesToRadians(deg.y())) < 1e-12);
-    // eulerAngles is the float (QVector3D) view of rpyDegrees.
-    QCOMPARE(q.eulerAngles().y(), float(deg.y()));
+    QVERIFY(std::abs(rad.z() - qDegreesToRadians(deg.z())) < 1e-12);
+
+    // A pure ROS yaw is a rotation about the z component on the wire.
+    Vector3 yawOnly;
+    yawOnly.setZ(90.0);
+    const Quaternion yaw = Quaternion::fromRpyDegrees(yawOnly);
+    QVERIFY(std::abs(yaw.z() - std::sqrt(0.5)) < 1e-12);
+    QVERIFY(std::abs(yaw.w() - std::sqrt(0.5)) < 1e-12);
+    QVERIFY(std::abs(yaw.x()) < 1e-12);
+    QVERIFY(std::abs(yaw.y()) < 1e-12);
+
+    // eulerAngles is the Qt Quick 3D (Y-up) view: a ROS yaw is the rotation about Y.
+    QVERIFY(std::abs(yaw.eulerAngles().y() - 90.0f) < 1e-3f);
+    QVERIFY(std::abs(yaw.eulerAngles().x()) < 1e-3f);
+    QVERIFY(std::abs(yaw.eulerAngles().z()) < 1e-3f);
 }
 
 void tst_geometry::vector3_roundtrip()
