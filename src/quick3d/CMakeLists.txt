@@ -18,6 +18,7 @@ qt_internal_add_module(Ros2Quick3D
     SOURCES
         qros2framenode_p.h qros2framenode.cpp
     LIBRARIES
+        Qt::Quick3DPrivate
         Qt6::Ros2CorePrivate
         Qt6::Ros2TransformsPrivate
     PUBLIC_LIBRARIES
@@ -25,7 +26,6 @@ qt_internal_add_module(Ros2Quick3D
         Qt::Gui
         Qt::Qml
         Qt::Quick3D
-        Qt::Quick3DPrivate
         Qt6::Ros2Transforms
 )
 
