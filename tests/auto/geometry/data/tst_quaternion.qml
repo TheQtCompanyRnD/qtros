@@ -67,6 +67,20 @@ TestCase {
         fuzzyCompare(roll.w, sqrtHalf, 1e-4)
     }
 
+    // The 3-scalar overloads (roll, pitch, yaw) agree with the vector3 forms, and
+    // do not need a vector3d: QtQml alone cannot convert one to a ROS vector3.
+    function test_fromRpyDegrees_scalar_overload() {
+        let a = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(10, 20, 30))
+        let b = Ros.Quaternion.fromRpyDegrees(10, 20, 30)
+        fuzzyCompare(a.x, b.x, 1e-6)
+        fuzzyCompare(a.y, b.y, 1e-6)
+        fuzzyCompare(a.z, b.z, 1e-6)
+        fuzzyCompare(a.w, b.w, 1e-6)
+        let r = Ros.Quaternion.fromRpy(10 * Math.PI / 180, 20 * Math.PI / 180, 30 * Math.PI / 180)
+        fuzzyCompare(r.x, b.x, 1e-9)
+        fuzzyCompare(r.w, b.w, 1e-9)
+    }
+
     // fromRpy (radians) must match fromRpyDegrees.
     function test_fromRpy_matches_fromRpyDegrees() {
         let d = Ros.Quaternion.fromRpyDegrees(Qt.vector3d(10, 20, 30))

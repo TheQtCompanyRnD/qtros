@@ -350,7 +350,8 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     "body": [
                         "\\a rpy is (\\c x = roll about X, \\c y = pitch about Y,",
                         "\\c z = yaw about Z) in the ROS convention (Z-up), in radians.",
-                        "See also \\l fromRpyDegrees.",
+                        "An overload taking three \\c real arguments (roll, pitch, yaw)",
+                        "is also available. See also \\l fromRpyDegrees.",
                     ],
                 },
             ],
@@ -440,7 +441,8 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                         "\\a rpyDegrees is (\\c x = roll about X, \\c y = pitch about Y,",
                         "\\c z = yaw about Z) in the ROS convention (Z-up), in degrees,",
                         "and is kept in double precision. This is what to publish a",
-                        "roll/pitch/yaw attitude with. See also \\l fromRpy.",
+                        "roll/pitch/yaw attitude with. An overload taking three \\c real",
+                        "arguments (roll, pitch, yaw) is also available",
                     ],
                 },
             ],
@@ -1133,6 +1135,10 @@ def build_factory_singleton(package_name: str, message_spec) -> Dict[str, Any]:
                 # QtQuick3D-style convenience: a 3-scalar overload for the common
                 # single-QVector3D factories (fromEulerAngles/fromRpy/fromVector3D).
                 "vector3_overload": len(params) == 1 and params[0]["base_type"] == "QVector3D",
+                # Same for the ROS vector3 (double precision, and no Qt Quick needed
+                # to build one: QtQml alone cannot convert a QVector3D to it).
+                "ros_vector3_overload": len(params) == 1 and params[0]["base_type"] == f"{qt_ns}::Vector3",
+                "ros_vector3_type": f"{qt_ns}::Vector3",
             })
         for qm in info.get("qml_methods") or []:
             if qm.get("static_factory"):

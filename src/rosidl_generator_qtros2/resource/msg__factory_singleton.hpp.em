@@ -54,6 +54,16 @@ public:
     Q_INVOKABLE static @(m['ret']) @(m['name'])(double x, double y, double z)
     { return @(m['ret'])::@(m['name'])(QVector3D(x, y, z)); }
 @[  end if]@
+@[  if m['ros_vector3_overload']]@
+    Q_INVOKABLE static @(m['ret']) @(m['name'])(double x, double y, double z)
+    {
+        @(m['ros_vector3_type']) v;
+        v.setX(x);
+        v.setY(y);
+        v.setZ(z);
+        return @(m['ret'])::@(m['name'])(v);
+    }
+@[  end if]@
 @[end for]@
 };
 @[end if]@
