@@ -254,6 +254,12 @@ if(_qtros2_source_package)
   list(APPEND _generator_cmd "--source-package" "${_qtros2_source_package}")
 endif()
 
+# Re-run configure when the interface files or the generator change
+set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    ${rosidl_generate_interfaces_ABS_IDL_FILES} ${_target_dependencies}
+)
+
 # Generate Qt/QML code at configure time (not build time)
 # This is necessary for Qt Creator and other IDEs that need files to exist during CMake configure
 set(_qtros2_generation_stamp "${CMAKE_CURRENT_BINARY_DIR}/.${_qtros2_generator_target}_qtros2_last_gen")
