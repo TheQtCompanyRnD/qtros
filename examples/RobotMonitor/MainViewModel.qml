@@ -3,7 +3,6 @@
 import QtQuick
 import QtRos2.Core as Ros2
 import QtRos2.NavMsgs
-import QtRos2.Transforms
 import QtRos2.SensorMsgs
 import QtRos2.GeometryMsgs as Geom
 import QtQuick3D
@@ -66,20 +65,11 @@ QtObject {
         id: laserScanSettings
     }
 
-    readonly property alias map_odom_p: tfManager.map_odom_p
-    readonly property alias map_odom_q: tfManager.map_odom_q
+    // The ROS node: SceneView's FrameNodes read the TF tree through it.
+    readonly property alias node: rosNode
 
-    readonly property alias odom_base_link_p: tfManager.odom_base_link_p
-    readonly property alias odom_base_link_q: tfManager.odom_base_link_q
-
-    readonly property alias base_link_shell_link_p: tfManager.base_link_shell_link_p
-    readonly property alias base_link_shell_link_q: tfManager.base_link_shell_link_q
-
-    readonly property alias shell_link_rplidar_link_p: tfManager.shell_link_rplidar_link_p
-    readonly property alias shell_link_rplidar_link_q: tfManager.shell_link_rplidar_link_q
-
-    readonly property alias rplidar_link_turtlebot4_rplidar_link_rplidar_p: tfManager.rplidar_link_turtlebot4_rplidar_link_rplidar_p
-    readonly property alias rplidar_link_turtlebot4_rplidar_link_rplidar_q: tfManager.rplidar_link_turtlebot4_rplidar_link_rplidar_q
+    // The frame the laser scan is measured in, as the scan itself reports it.
+    readonly property string laserScanFrame: laserScanSubscriber.header.frameId
 
     readonly property InstanceList laserScanInstanceList: InstanceList {
         id: laserScanInstanceList
@@ -87,11 +77,6 @@ QtObject {
 
     readonly property QtObject _d: QtObject {
         id: _d
-
-        readonly property TFManager tfManager: TFManager {
-            id: tfManager
-            frameTransformer: tfXform
-        }
 
         readonly property Component instanceListEntryComponent: Component {
             id: laserScanInstanceComponent
@@ -159,12 +144,6 @@ QtObject {
                 onMessageReceived: {
                     _d.updateInstanceList(message)
                 }
-            }
-
-            // Maintains the TF tree from /tf and /tf_static; TFManager reads
-            // per-edge transforms from it via lookupTransform().
-            FrameTransformer {
-                id: tfXform
             }
 
             PolygonStampedSubscriber {

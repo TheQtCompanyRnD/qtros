@@ -195,7 +195,8 @@ Node {
 
 {{ indent }}// Orientation of the floating base (the root link), applied in *scene* space.
 {{ indent }}// Bind to a body-pose / odometry source via the bridge, e.g.
-{{ indent }}// poseSubscriber.pose.orientation.toQuaternion() (a QtQuick3D-frame quaternion).
+{{ indent }}// the pose orientation with its ROS (Z-up) axes mapped to the scene's Y-up axes,
+{{ indent }}// Qt.quaternion(q.w, q.y, q.z, q.x).
 {{ indent }}// Identity by default, so a fixed-base robot (arm on a bench, mill) can ignore
 {{ indent }}// it. Articulation is driven separately by joint_states; this is the one
 {{ indent }}// transform a joint can't provide.

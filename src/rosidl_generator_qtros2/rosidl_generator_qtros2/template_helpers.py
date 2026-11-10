@@ -250,9 +250,11 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
     ],
     "geometry_msgs/Quaternion": [
         {
-            # Degrees, as a QVector3D (Qt convention + Qt type) so it binds
-            # directly to QtQuick3D's Node.eulerRotation. Derived from the
-            # double-precision rpy() core below (single source of truth).
+            # Degrees, as a QVector3D in the Qt Quick 3D convention (Y-up, order
+            # pitch/yaw/roll about X/Y/Z) so it binds directly to Node.eulerRotation.
+            # The ROS (Z-up) quaternion is mapped into that frame by the cyclic axis
+            # permutation (x,y,z)_scene = (y,z,x)_ros, the same one used for
+            # positions. The ROS-convention, double-precision form is rpy/rpyDegrees.
             "is_computed": True,
             "name": "eulerAngles",
             "qt_type": "QVector3D",
@@ -268,44 +270,50 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                 {
                     "static_factory": True,
                     "signature": "{vt} {se}::fromEulerAngles(vector3d eulerAngles)",
-                    "brief": "Construct a quaternion from Euler angles in degrees.",
+                    "brief": "Construct a quaternion from Qt Quick 3D Euler angles in degrees.",
                     "body": [
-                        "Components of \\a eulerAngles are (\\c x = roll about X,",
-                        "\\c y = pitch about Y,",
-                        "\\c z = yaw about Z), ROS axis convention. An overload",
-                        "taking three \\c real arguments (\\c x, \\c y, \\c z) is also",
-                        "available.",
+                        "Components of \\a eulerAngles are in the Qt Quick 3D",
+                        "convention (Y-up): \\c x = pitch about X, \\c y = yaw about",
+                        "the vertical Y axis, \\c z = roll about Z, as for",
+                        "\\c Node.eulerRotation. The result is the equivalent",
+                        "orientation as a ROS (Z-up) quaternion. For roll/pitch/yaw",
+                        "in the ROS convention use \\l fromRpyDegrees instead. An",
+                        "overload taking three \\c real arguments (\\c x, \\c y,",
+                        "\\c z) is also available.",
                     ],
                 },
             ],
             "extra_includes": ["<QVector3D>", "\"vector3.hpp\""],
             "extra_cpp_includes": ["<QQuaternion>"],
-            "brief_doc": "Orientation as Euler angles in degrees, as a \\l vector3d.",
+            "brief_doc": "Orientation as Qt Quick 3D Euler angles in degrees, as a \\l vector3d.",
             "doc_lines": [
-                "Components are (\\c x = roll about X, \\c y = pitch about Y,",
-                "\\c z = yaw about Z) using the ROS Z-up axis convention. Single",
-                "precision (\\l QVector3D), for direct binding to Qt Quick 3D's",
-                "\\c eulerRotation.",
+                "Convenience for Qt Quick 3D: the Y-up convention, single precision",
+                "(\\l QVector3D), directly bindable to \\c Node.eulerRotation.",
+                "Components are (\\c x = pitch about X, \\c y = yaw about the",
+                "vertical Y axis, \\c z = roll about Z). The quaternion itself is a",
+                "ROS (Z-up) quaternion and is mapped into that frame with",
+                "(x, y, z)\\sub{scene} = (y, z, x)\\sub{ROS}.",
                 "",
-                "See \\l rpy for radians and \\l rpyDegrees for degrees as a",
-                "double-precision \\l vector3 (usable without Qt Quick).",
+                "This is not roll/pitch/yaw. For those in the ROS convention (Z-up,",
+                "double precision, usable without Qt Quick) use \\l rpy (radians)",
+                "or \\l rpyDegrees.",
             ],
             "cpp_impl_tmpl": (
                 "QVector3D {ns}::{cls}::eulerAngles() const\n"
                 "{{\n"
-                "    const {ns}::Vector3 deg = rpyDegrees();\n"
-                "    return QVector3D(static_cast<float>(deg.x()),\n"
-                "                     static_cast<float>(deg.y()),\n"
-                "                     static_cast<float>(deg.z()));\n"
+                "    // ROS (Z-up) -> Qt Quick 3D (Y-up) frame: (x, y, z)_scene = (y, z, x)_ros.\n"
+                "    return QQuaternion(static_cast<float>(m_w), static_cast<float>(m_y),\n"
+                "                       static_cast<float>(m_z), static_cast<float>(m_x))\n"
+                "        .toEulerAngles();\n"
                 "}}\n"
                 "\n"
                 "void {ns}::{cls}::setEulerAngles(const QVector3D& eulerAngles)\n"
                 "{{\n"
-                "    const QQuaternion q =\n"
-                "        QQuaternion::fromEulerAngles(eulerAngles.y(), eulerAngles.z(), eulerAngles.x());\n"
-                "    m_x = q.x();\n"
-                "    m_y = q.y();\n"
-                "    m_z = q.z();\n"
+                "    // Qt Quick 3D (Y-up) -> ROS (Z-up) frame: (x, y, z)_ros = (z, x, y)_scene.\n"
+                "    const QQuaternion q = QQuaternion::fromEulerAngles(eulerAngles);\n"
+                "    m_x = q.z();\n"
+                "    m_y = q.x();\n"
+                "    m_z = q.y();\n"
                 "    m_w = q.scalar();\n"
                 "}}\n"
                 "\n"
@@ -321,8 +329,8 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
             # Radians, as a ROS vector3 (ROS convention + ROS type): double
             # precision, and usable from a QCoreApplication (no Qt Quick needed,
             # unlike QVector3D's vector3d value type). This is the double-precision
-            # source of truth for the Euler decomposition; eulerAngles/rpyDegrees
-            # derive from it.
+            # source of truth for the roll/pitch/yaw conversion; rpyDegrees derives
+            # from it. Standard ROS/REP-103 convention: fixed axes, R = Rz*Ry*Rx.
             "is_computed": True,
             "name": "rpy",
             "qt_type": "Qtros2GeometryMsgs::Vector3",
@@ -340,7 +348,10 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                     "signature": "{vt} {se}::fromRpy(vector3 rpy)",
                     "brief": "Construct a quaternion from roll/pitch/yaw in radians.",
                     "body": [
-                        "Equivalent to \\l fromEulerAngles, but \\a rpy is in radians.",
+                        "\\a rpy is (\\c x = roll about X, \\c y = pitch about Y,",
+                        "\\c z = yaw about Z) in the ROS convention (Z-up), in radians.",
+                        "An overload taking three \\c real arguments (roll, pitch, yaw)",
+                        "is also available. See also \\l fromRpyDegrees.",
                     ],
                 },
             ],
@@ -358,30 +369,27 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
             "cpp_impl_tmpl": (
                 "{ns}::Vector3 {ns}::{cls}::rpy() const\n"
                 "{{\n"
-                "    // Double-precision quaternion -> (roll, pitch, yaw) in radians,\n"
-                "    // matching QQuaternion::toEulerAngles()'s convention (ROS axes:\n"
-                "    // x = roll about X, y = pitch about Y, z = yaw about Z).\n"
+                "    // ROS convention (REP-103): roll about X, pitch about Y, yaw about Z,\n"
+                "    // fixed axes, R = Rz(yaw) * Ry(pitch) * Rx(roll).\n"
                 "    const double len = std::sqrt(m_x * m_x + m_y * m_y + m_z * m_z + m_w * m_w);\n"
                 "    const bool rescale = !qFuzzyIsNull(len);\n"
                 "    const double x = rescale ? m_x / len : m_x;\n"
                 "    const double y = rescale ? m_y / len : m_y;\n"
                 "    const double z = rescale ? m_z / len : m_z;\n"
                 "    const double w = rescale ? m_w / len : m_w;\n"
-                "    const double xx = x * x, xy = x * y, xz = x * z, xw = x * w;\n"
-                "    const double yy = y * y, yz = y * z, yw = y * w;\n"
-                "    const double zz = z * z, zw = z * w;\n"
                 "    constexpr double epsilon = 1e-12;\n"
                 "    double roll, pitch, yaw;\n"
-                "    const double sinp = -2.0 * (yz - xw);\n"
+                "    const double sinp = 2.0 * (w * y - z * x);\n"
                 "    if (std::abs(sinp) < 1.0 - epsilon) {{\n"
                 "        pitch = std::asin(sinp);\n"
-                "        yaw = std::atan2(2.0 * (xz + yw), 1.0 - 2.0 * (xx + yy));\n"
-                "        roll = std::atan2(2.0 * (xy + zw), 1.0 - 2.0 * (xx + zz));\n"
+                "        roll = std::atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y));\n"
+                "        yaw = std::atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z));\n"
                 "    }} else {{\n"
-                "        // Gimbal lock: no unique solution; use XY rotation.\n"
+                "        // Gimbal lock (pitch = +-90 deg): roll and yaw are not independent;\n"
+                "        // fold everything into yaw.\n"
                 "        pitch = std::copysign(M_PI / 2.0, sinp);\n"
-                "        yaw = 2.0 * std::atan2(y, w);\n"
                 "        roll = 0.0;\n"
+                "        yaw = std::atan2(2.0 * (w * z - x * y), 1.0 - 2.0 * (x * x + z * z));\n"
                 "    }}\n"
                 "    {ns}::Vector3 r;\n"
                 "    r.setX(roll);\n"
@@ -392,9 +400,13 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                 "\n"
                 "void {ns}::{cls}::setRpy(const {ns}::Vector3& rpy)\n"
                 "{{\n"
-                "    setEulerAngles(QVector3D(static_cast<float>(qRadiansToDegrees(rpy.x())),\n"
-                "                             static_cast<float>(qRadiansToDegrees(rpy.y())),\n"
-                "                             static_cast<float>(qRadiansToDegrees(rpy.z()))));\n"
+                "    const double cr = std::cos(rpy.x() / 2), sr = std::sin(rpy.x() / 2);\n"
+                "    const double cp = std::cos(rpy.y() / 2), sp = std::sin(rpy.y() / 2);\n"
+                "    const double cy = std::cos(rpy.z() / 2), sy = std::sin(rpy.z() / 2);\n"
+                "    m_w = cr * cp * cy + sr * sp * sy;\n"
+                "    m_x = sr * cp * cy - cr * sp * sy;\n"
+                "    m_y = cr * sp * cy + sr * cp * sy;\n"
+                "    m_z = cr * cp * sy - sr * sp * cy;\n"
                 "}}\n"
                 "\n"
                 "{ns}::{cls} {ns}::{cls}::fromRpy(const {ns}::Vector3& rpy)\n"
@@ -408,7 +420,7 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
         {
             # Degrees, as a ROS vector3: double precision and usable without Qt
             # Quick (e.g. a headless QCoreApplication daemon whose motor controller
-            # works in degrees). Read-only; construct via fromEulerAngles.
+            # works in degrees). Read-only; construct via fromRpyDegrees.
             "is_computed": True,
             "name": "rpyDegrees",
             "qt_type": "Qtros2GeometryMsgs::Vector3",
@@ -417,14 +429,33 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
             "property_spec": "Q_PROPERTY(Qtros2GeometryMsgs::Vector3 rpyDegrees READ rpyDegrees)",
             "getter_decl": "Qtros2GeometryMsgs::Vector3 rpyDegrees() const;",
             "setter_decl": None,
+            "extra_decls": [
+                "Q_INVOKABLE static {cls} fromRpyDegrees(const Qtros2GeometryMsgs::Vector3& rpyDegrees);",
+            ],
+            "qml_methods": [
+                {
+                    "static_factory": True,
+                    "signature": "{vt} {se}::fromRpyDegrees(vector3 rpyDegrees)",
+                    "brief": "Construct a quaternion from roll/pitch/yaw in degrees.",
+                    "body": [
+                        "\\a rpyDegrees is (\\c x = roll about X, \\c y = pitch about Y,",
+                        "\\c z = yaw about Z) in the ROS convention (Z-up), in degrees,",
+                        "and is kept in double precision. This is what to publish a",
+                        "roll/pitch/yaw attitude with. An overload taking three \\c real",
+                        "arguments (roll, pitch, yaw) is also available",
+                    ],
+                },
+            ],
             "extra_includes": [],
             "extra_cpp_includes": ["<QtMath>"],
             "brief_doc": "Orientation as roll/pitch/yaw in degrees, as a \\l vector3.",
             "doc_lines": [
-                "Components are (\\c x = roll, \\c y = pitch, \\c z = yaw) in degrees,",
+                "Components are (\\c x = roll about X, \\c y = pitch about Y,",
+                "\\c z = yaw about Z) in degrees, using the ROS convention (Z-up),",
                 "as a double-precision \\l vector3. Like \\l rpy (and unlike",
-                "\\l eulerAngles) it is usable without Qt Quick — convenient for a",
-                "headless \\c QCoreApplication consumer that works in degrees.",
+                "\\l eulerAngles, which is the Qt Quick 3D Y-up convenience) it is",
+                "usable without Qt Quick: convenient for a headless",
+                "\\c QCoreApplication consumer that works in degrees.",
             ],
             "cpp_impl_tmpl": (
                 "{ns}::Vector3 {ns}::{cls}::rpyDegrees() const\n"
@@ -435,6 +466,15 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
                 "    r.setY(qRadiansToDegrees(rad.y()));\n"
                 "    r.setZ(qRadiansToDegrees(rad.z()));\n"
                 "    return r;\n"
+                "}}\n"
+                "\n"
+                "{ns}::{cls} {ns}::{cls}::fromRpyDegrees(const {ns}::Vector3& rpyDegrees)\n"
+                "{{\n"
+                "    {ns}::Vector3 rad;\n"
+                "    rad.setX(qDegreesToRadians(rpyDegrees.x()));\n"
+                "    rad.setY(qDegreesToRadians(rpyDegrees.y()));\n"
+                "    rad.setZ(qDegreesToRadians(rpyDegrees.z()));\n"
+                "    return fromRpy(rad);\n"
                 "}}\n"
             ),
         },
@@ -451,10 +491,12 @@ _COMPUTED_PROPERTIES: Dict[str, List[Dict[str, Any]]] = {
             "qml_methods": [
                 {
                     "signature": "QQuaternion {vt}::toQuaternion()",
-                    "brief": "Return a single-precision \\l {QtQuick::}{quaternion} with the same orientation.",
+                    "brief": "Return a single-precision \\l {QtQuick::}{quaternion} with the same components.",
                     "body": [
                         "Useful for accessing \\l {QtQuick::}{quaternion}'s math API",
-                        "(slerp, normalize, multiplication).",
+                        "(slerp, normalize, multiplication). The components are copied",
+                        "as they are, in the ROS (Z-up) frame; they are not converted",
+                        "to Qt Quick 3D's Y-up frame. \\l eulerAngles is the Y-up view.",
                     ],
                 },
                 {
@@ -1093,6 +1135,10 @@ def build_factory_singleton(package_name: str, message_spec) -> Dict[str, Any]:
                 # QtQuick3D-style convenience: a 3-scalar overload for the common
                 # single-QVector3D factories (fromEulerAngles/fromRpy/fromVector3D).
                 "vector3_overload": len(params) == 1 and params[0]["base_type"] == "QVector3D",
+                # Same for the ROS vector3 (double precision, and no Qt Quick needed
+                # to build one: QtQml alone cannot convert a QVector3D to it).
+                "ros_vector3_overload": len(params) == 1 and params[0]["base_type"] == f"{qt_ns}::Vector3",
+                "ros_vector3_type": f"{qt_ns}::Vector3",
             })
         for qm in info.get("qml_methods") or []:
             if qm.get("static_factory"):

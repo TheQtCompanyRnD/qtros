@@ -23,7 +23,6 @@ qt_add_qml_module(appRobotMonitor
         Main.qml
         MainViewModel.qml
         Nav2IrobotActions.qml
-        TFManager.qml
         MapVisualSettings.qml
         OccupancyGrid.qml
         GeometryHeleper.qml

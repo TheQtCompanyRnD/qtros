@@ -1217,9 +1217,16 @@ Window {
 ```
 ### Service Client (std_srvs/SetBool)
 
+The declarative form is the primary one: binding `request` schedules a call
+whenever the bound value changes, and the reply lands in the read-only
+`response` property. Calls made while the service is unavailable or another
+call is in flight are coalesced and dispatched as soon as possible, so
+`request` behaves like desired state reconciled with the server.
+
 ```qml
 import QtQuick
 import QtQuick.Controls
+import QtRos2.Core
 import QtRos2.StdSrvs
 
 Window {
@@ -1230,17 +1237,84 @@ Window {
         SetBoolServiceClient {
             id: lightsClient
             topic: "/lights/enable"
+            request: lightsSwitch.checked
         }
     }
 
-    Button {
-        text: "Toggle Lights"
-        enabled: rosNode.initialized
-        onClicked: {
-            lightsClient.callService({ data: true })
-                .then(response => console.log(response.message))
-                .catch(err => console.error(err))
-        }
+    Switch {
+        id: lightsSwitch
+        text: "Lights"
+    }
+
+    Label {
+        // Service failure is in-band: part of the response value, so it is
+        // bindable state like everything else.
+        text: lightsClient.response.success ? lightsClient.response.message
+                                            : `failed: ${lightsClient.response.message}`
+    }
+}
+```
+`std_srvs/SetBool` has a single-field request, so `request` is a plain
+boolean; services with multi-field requests take the generated value type.
+Set `autoCall: false` to opt out of the binding-driven calls.
+
+`callService()` remains for one-shot, imperative calls and returns a
+JavaScript promise:
+
+```qml
+Button {
+    text: "Toggle Lights"
+    enabled: lightsClient.isServiceReady
+    onClicked: {
+        lightsClient.callService(true)
+            .then(response => console.log(response.success, response.message))
+            .catch(err => console.error(err))
+    }
+}
+```
+### Service Server (std_srvs/SetBool)
+
+A service server is declared as a child of a `Node`, which owns the underlying
+`rclcpp` service and tears it down automatically. In the simplest style there
+is no callback at all — `response` is a binding, read and sent for each
+incoming request, with the payload available as the read-only `request`
+property:
+
+```qml
+import QtQuick
+import QtRos2.Core
+import QtRos2.StdSrvs
+
+Node {
+    id: rosNode
+    nodeName: "lamp_node"
+
+    SetBoolServiceServer {
+        id: lampService
+        topic: "/lights/enable"
+
+        onRequestReceived: request => console.log("switch to", request)
+
+        response: ({
+            success: true,
+            message: `lamp is now ${lampService.request ? "on" : "off"}`
+        })
+    }
+}
+```
+The evaluation order is guaranteed: `request` updates first, then
+`requestReceived` fires, and only then is `response` read and sent.
+
+For requests that take time, set a `handler` function instead — it takes
+precedence over `response`. Returning a value answers synchronously;
+returning nothing defers the reply until `reply.send()` is called:
+
+```qml
+SetBoolServiceServer {
+    topic: "/lights/enable"
+    handler: (request, reply) => {
+        // No return statement: the reply is deferred.
+        dimmer.rampTo(request, () => reply.send({ success: true, message: "done" }))
     }
 }
 ```
@@ -1249,6 +1323,7 @@ Window {
 ```qml
 import QtQuick
 import QtQuick.Controls
+import QtRos2.Core
 import QtRos2.Imported.Nav2Msgs
 
 Window {
@@ -1305,6 +1380,151 @@ Window {
     }
 }
 ```
+### Action Server (turtlesim/RotateAbsolute)
+
+An action server emits `goalReceived` with the goal payload and a per-goal
+handle. QML uses the handle to publish feedback, observe cancellation, and
+complete the goal:
+
+```qml
+import QtQuick
+import QtRos2.Core
+import QtRos2.Imported.Turtlesim
+
+Node {
+    nodeName: "rotator_node"
+
+    RotateAbsoluteActionServer {
+        topic: "rotate_absolute"
+
+        onGoalReceived: (goal, handle) => {
+            root.target = goal.theta
+            root.currentGoal = handle
+        }
+    }
+}
+```
+```qml
+// As the turtle turns, from wherever the motion is driven:
+root.currentGoal.publishFeedback({ remaining: root.target - root.theta })
+
+// On arrival — or if the client asked to cancel:
+if (root.currentGoal.cancelRequested)
+    root.currentGoal.canceled({ delta: root.theta - root.startTheta })
+else
+    root.currentGoal.succeed({ delta: root.theta - root.startTheta })
+```
+Use `abort()` in place of `succeed()` to report failure. The handle's `goal`
+property is available for the whole life of the goal, and
+`cancelRequested` is a bindable property, so a "Cancelling…" indicator is
+just a binding.
+
+### Node Parameters
+
+`Parameter` declares a parameter on its node, reachable through the standard
+ROS 2 parameter machinery — `ros2 param get/set`, rqt, or a `RemoteParameter`
+in another process. `minimum`, `maximum` and `readOnly` are enforced by
+rclcpp before any change is accepted:
+
+```qml
+import QtQuick
+import QtQuick.Controls
+import QtRos2.Core
+
+Node {
+    nodeName: "robot"
+
+    Parameter {
+        name: "audio.master"
+        value: volumeSlider.value
+        minimum: 0.0
+        maximum: 1.0
+        description: "Master volume"
+        // `value` works both ways, following the TextField.text/textEdited
+        // convention: an external set updates it and then emits valueEdited.
+        // When `value` is bound, route the new value back into the binding's
+        // source, which echoes it back.
+        onValueEdited: v => volumeSlider.value = v
+    }
+}
+
+Slider { id: volumeSlider; from: 0.0; to: 1.0 }
+```
+`RemoteParameter` is the client side: `value` expresses the desired value and
+`reported` tracks what the remote node actually holds.
+
+```qml
+Node {
+    nodeName: "twin"
+
+    RemoteParameter {
+        id: masterVolume
+        remoteNode: "/dogzilla/dogzilla"
+        name: "audio.master"
+        value: volumeSlider.value
+    }
+}
+
+Label { text: `remote reports ${masterVolume.reported}` }
+```
+### Transforms (tf2)
+
+`QtRos2.Transforms` wraps `tf2_ros`. Fixed transforms — sensor mounting
+offsets, typically — are published declaratively on the latched `/tf_static`
+topic; moving frames are broadcast as they move; and `FrameTransformer`
+maintains the receive-side buffer:
+
+```qml
+import QtQuick
+import QtRos2.Core
+import QtRos2.GeometryMsgs
+import QtRos2.Transforms
+
+Node {
+    nodeName: "tf_node"
+
+    // Latched on /tf_static: a listener that starts later still gets these.
+    StaticTransformBroadcaster {
+        transforms: [{
+            header: { frameId: "base_link" },
+            childFrameId: "laser_frame",
+            transform: {
+                translation: { x: 0.1, y: 0.0, z: 0.2 },
+                rotation: { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+            }
+        }]
+    }
+
+    // Dynamic frames: call sendTransform() on each update. Unlike stamped
+    // publishers, broadcasters do not fill in header.stamp for you.
+    TransformBroadcaster {
+        id: odom
+    }
+
+    // Subscribes to /tf and /tf_static and maintains a tf2 buffer.
+    FrameTransformer {
+        id: tf
+    }
+}
+```
+```qml
+// On each odometry update:
+odom.sendTransform({
+    header: { frameId: "odom", stamp: now },
+    childFrameId: "base_link",
+    transform: { translation: pos, rotation: quat }
+})
+
+// Bindings that call lookupTransform re-evaluate as new transforms arrive;
+// the multi-hop path, time history, and interpolation are handled for you.
+readonly property var laserInMap: tf.canTransform("map", "laser_frame")
+                                     ? tf.lookupTransform("map", "laser_frame")
+                                     : null
+```
+`FrameTransformer` also transforms stamped geometry value types directly into
+another frame with `transform()`, for `PointStamped`, `PoseStamped`, and
+`Vector3Stamped`.
+
 ## Key Benefits of Value Type Approach
 
 ### Image Property (sensor_msgs/Image and sensor_msgs/CompressedImage)

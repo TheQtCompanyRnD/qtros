@@ -3,7 +3,6 @@
 import QtQuick
 import QtRos2.Core
 import QtRos2.SensorMsgs as SensorMsgs
-import QtRos2.Transforms
 import QtRos2.TrajectoryMsgs as TrajectoryMsgs
 
 QtObject {
@@ -27,17 +26,10 @@ QtObject {
     property string executionStatus: "idle"
     property int nextWaypointToSend: 0
 
-    readonly property TFBufferManager tfBuffer: TFBufferManager {
-        id: tfBuffer
-        frameTransformer: tfXform
-    }
-
     readonly property Node ros2Node: Node {
         id: ros2Node
 
         property string jointStateTopic: "/joint_states"
-        property string tfTopic: "/tf"
-        property string tfStaticTopic: "/tf_static"
         property string trajectoryTopic: "/r6bot_controller/joint_trajectory"
         property string nodeNamePrefix: "qt_r6bot_teach_pendant"
 
@@ -49,12 +41,6 @@ QtObject {
         SensorMsgs.JointStateSubscriber {
             id: jointStateSubscriber
             topic: ros2Node.jointStateTopic
-        }
-
-        // Maintains the TF tree from /tf and /tf_static; TFBufferManager reads
-        // the kinematic-chain edges from it via lookupTransform().
-        FrameTransformer {
-            id: tfXform
         }
 
         TrajectoryMsgs.JointTrajectoryPublisher {

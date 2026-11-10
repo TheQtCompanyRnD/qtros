@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
 import QtQuick3D
+import QtRos2.Quick3D
 
 Rectangle {
     id: root
@@ -35,9 +36,14 @@ Rectangle {
             antialiasingMode: SceneEnvironment.MSAA
         }
 
-        Node {
-
+        // The scene mirrors the TF tree: each FrameNode follows its frame
+        // relative to the nearest enclosing FrameNode. RobotMonitor's view
+        // works in ROS units and axes directly (meters, Z up), so no
+        // conversion is needed around the root.
+        FrameNode {
             id: mapFixedFrame
+            frame: "map"
+            rosNode: root.mainViewModel.node
 
             GridNode {
                 z: 0.01
@@ -69,11 +75,9 @@ Rectangle {
                 shapeData: root.mainViewModel.plan
             }
 
-            Node {
-
+            FrameNode {
                 id: odometryFrame
-                position: root.mainViewModel.map_odom_p
-                rotation: root.mainViewModel.map_odom_q
+                frame: "odom"
 
                 OccupancyGrid {
                     id: localCostmapOccGrid
@@ -84,34 +88,25 @@ Rectangle {
                     visible: root.mainViewModel.localCostmapSettings.visible
                 }
 
-                Node {
+                FrameNode {
                     id: baseLinkFrame
-                    position: root.mainViewModel.odom_base_link_p
-                    rotation: root.mainViewModel.odom_base_link_q
+                    frame: "base_link"
 
-                    Node {
-                        id: shellLinkFrame
-                        position: root.mainViewModel.base_link_shell_link_p
-                        rotation: root.mainViewModel.base_link_shell_link_q
+                    // The frames between base_link and the lidar (shell_link,
+                    // rplidar_link) have nothing to draw, so they are left
+                    // out: TF composes the transforms in between.
+                    FrameNode {
+                        id: laserScanFrame
+                        frame: root.mainViewModel.laserScanFrame
+                        visible: valid
 
-                        Node {
-                            id: rpLidarLinkFrame
-                            position: root.mainViewModel.shell_link_rplidar_link_p
-                            rotation: root.mainViewModel.shell_link_rplidar_link_q
-                            Node {
-                                id: turtlebot4RPLidarLinkRPLidarFrame
-                                position: root.mainViewModel.rplidar_link_turtlebot4_rplidar_link_rplidar_p
-                                rotation: root.mainViewModel.rplidar_link_turtlebot4_rplidar_link_rplidar_q
-
-                                LaserScan {
-                                    id: laserScan
-                                    instancing: root.mainViewModel.laserScanInstanceList
-                                    visible: root.mainViewModel.laserScanSettings.visible
-                                    opacity: root.mainViewModel.laserScanSettings.opacity
-                                    color: root.mainViewModel.laserScanSettings.color
-                                    pointSize: root.mainViewModel.laserScanSettings.pointSize
-                                }
-                            }
+                        LaserScan {
+                            id: laserScan
+                            instancing: root.mainViewModel.laserScanInstanceList
+                            visible: root.mainViewModel.laserScanSettings.visible
+                            opacity: root.mainViewModel.laserScanSettings.opacity
+                            color: root.mainViewModel.laserScanSettings.color
+                            pointSize: root.mainViewModel.laserScanSettings.pointSize
                         }
                     }
                 }

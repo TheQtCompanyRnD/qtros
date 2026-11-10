@@ -16,29 +16,24 @@
 //
 
 #include <QtRos2Transforms/qtros2transformsexports.h>
-#include <QtRos2Core/private/qros2entity_p.h>
+#include <QtRos2Core/private/qros2nodechild_p.h>
 #include <QtRos2GeometryMessages/msg/transform_stamped.hpp>
 #include <QtRos2GeometryMessages/msg/point_stamped.hpp>
 #include <QtRos2GeometryMessages/msg/pose_stamped.hpp>
 #include <QtRos2GeometryMessages/msg/vector3_stamped.hpp>
-#ifndef Q_QDOC
-#include <tf2_ros/buffer.hpp>
-#include <tf2_msgs/msg/tf_message.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <memory>
-#endif
+#include <QtCore/qpointer.h>
 
 QT_BEGIN_NAMESPACE
 
-// FrameTransformer is the receive side of QtRos2.Transforms. It owns a
-// tf2_ros::Buffer (the canonical time-windowed transform tree + interpolation
-// + multi-hop chaining) and feeds it from its own /tf and /tf_static
-// subscriptions. We subscribe ourselves rather than using
-// tf2_ros::TransformListener so that (a) the buffer is filled on the QtRos2
-// executor (no extra spin thread) and (b) we get an update hook to emit
-// transformsChanged() for QML bindings. The frame tree and time-history are
-// implementation details: callers think in (source, target) pairs.
-class Q_ROS2TRANSFORMS_EXPORT QRos2FrameTransformer : public QRos2Entity
+class QRos2TransformBuffer;
+
+// FrameTransformer is the imperative receive side of QtRos2.Transforms: a
+// handle onto its Node's QRos2TransformBuffer (the canonical time-windowed
+// transform tree + interpolation + multi-hop chaining). Any number of them
+// share the one buffer. The frame tree and time-history are implementation
+// details: callers think in (source, target) pairs. Scenes that only need to
+// place nodes use FrameNode (QtRos2.Quick3D) instead.
+class Q_ROS2TRANSFORMS_EXPORT QRos2FrameTransformer : public QRos2NodeChild
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(FrameTransformer)
@@ -75,13 +70,7 @@ Q_SIGNALS:
     void transformsChanged();
 
 private:
-#ifndef Q_QDOC
-    void ingest(const tf2_msgs::msg::TFMessage& msg, bool isStatic);
-
-    std::shared_ptr<tf2_ros::Buffer> m_buffer;
-    rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr m_tfSub;
-    rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr m_tfStaticSub;
-#endif
+    QPointer<QRos2TransformBuffer> m_buffer;
 };
 
 QT_END_NAMESPACE

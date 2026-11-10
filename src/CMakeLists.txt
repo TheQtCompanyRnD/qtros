@@ -81,4 +81,7 @@ add_subdirectory(interfaces/type_description) # depends on messages/service
 
 # Phase 3: Hand-written runtime modules that depend on message packages
 add_subdirectory(transforms)                  # depends on core + messages/geometry; wraps tf2_ros
+if(TARGET Qt::Quick3D AND TARGET Qt::Quick3DPrivate)
+    add_subdirectory(quick3d)                 # depends on transforms; Qt Quick 3D scene types
+endif()
 

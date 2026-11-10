@@ -114,28 +114,46 @@
 
     \section1 The 3D scene as a TF tree
 
-    The scene mirrors the robot's TF tree: nested Qt Quick 3D \c Node items whose
-    \c position and \c rotation are bound to live transforms. Transforms come from
-    a single \l{Qt ROS2 Transforms QML Types}{FrameTransformer}, which maintains a
-    TF buffer from its own \c /tf and \c /tf_static subscriptions and emits
-    \c transformsChanged whenever the tree updates. \c TFManager.qml reads each
-    edge from it:
+    The scene mirrors the robot's TF tree with nested
+    \l {QtRos2.Quick3D::FrameNode}{FrameNode} items. Each one names only its own frame,
+    and follows it relative to the nearest enclosing FrameNode; the root names
+    the fixed frame and the \l Node whose TF tree to read:
 
     \qml
-    import QtRos2.Transforms
+    import QtRos2.Quick3D
 
-    FrameTransformer { id: tfXform }
+    FrameNode {
+        frame: "map"
+        rosNode: root.mainViewModel.node
 
-    // Inside TFManager, refreshed on every transformsChanged:
-    if (frameTransformer.canTransform(parent, child)) {
-        const tr = frameTransformer.lookupTransform(parent, child).transform
-        root[prefix + "_p"] = GeometryHeleper.toVector3d(tr.translation)
-        root[prefix + "_q"] = GeometryHeleper.toQuaternion(tr.rotation)
+        OccupancyGrid { grid: root.mainViewModel.mapGrid }
+
+        FrameNode {
+            frame: "odom"
+            OccupancyGrid { grid: root.mainViewModel.localCostmapGrid }
+
+            FrameNode {
+                frame: "base_link"
+
+                FrameNode {
+                    frame: root.mainViewModel.laserScanFrame
+                    visible: valid
+                    LaserScan { }
+                }
+            }
+        }
     }
     \endqml
 
-    Each \c lookupTransform(parent, child) returns the child frame expressed in
-    its parent — exactly the local transform a nested scene-graph node needs.
+    Every FrameNode on a Node shares that node's TF buffer, which listens to
+    \c /tf and \c /tf_static and is created the first time a FrameNode needs
+    it, so there is nothing else to declare.
+
+    The laser scan's FrameNode takes its frame from the scan's own
+    \c header.frameId. The TurtleBot 4 has two frames between \c base_link and
+    the lidar, but they have nothing to draw, so the scene leaves them out; TF
+    composes the transforms in between. The scan stays hidden until its
+    transform is known.
 
     \section1 Bridging the camera image
 
@@ -216,6 +234,6 @@
             color scheme).
     \endlist
 
-    \sa {TurtleSim Controller}, {R6 Robot Teach Pendant}, {Qt ROS2 Transforms QML Types},
+    \sa {TurtleSim Controller}, {R6 Robot Teach Pendant}, {Qt ROS2 Quick3D QML Types},
     {Teleoperation and Remote Control}
 */

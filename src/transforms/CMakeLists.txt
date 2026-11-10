@@ -14,6 +14,7 @@ qt_internal_add_module(Ros2Transforms
     SOURCES
         qros2transformbroadcaster_p.h qros2transformbroadcaster.cpp
         qros2statictransformbroadcaster_p.h qros2statictransformbroadcaster.cpp
+        qros2transformbuffer_p.h qros2transformbuffer.cpp
         qros2frametransformer_p.h qros2frametransformer.cpp
     LIBRARIES
         Qt::Qml
@@ -24,6 +25,7 @@ qt_internal_add_module(Ros2Transforms
         Qt6::Ros2CorePrivate
     PUBLIC_LIBRARIES
         Qt::Core
+        Qt::Gui
         Qt::Qml
         # Declared here rather than in the target_link_libraries() below so that
         # qt_internal_add_module records it as a package dependency: a Qt target
